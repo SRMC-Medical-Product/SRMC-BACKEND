@@ -2,7 +2,7 @@ name: Django CI
 
 on:
   push:
-    branches: [ master,aplha ]
+    branches: [ master,alpha ]
   pull_request:
     branches: [ master ]
 
