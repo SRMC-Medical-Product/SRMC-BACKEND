@@ -19,3 +19,13 @@ class UserStatistics(models.Model):
 
     def __str__(self):
         return f"{self.year}"
+
+class UserOtp(models.Model):
+
+    user=models.ForeignKey(User,on_delete=models.CASCADE)
+    otp=models.CharField(max_length=6)
+    code=models.CharField(max_length=10)
+    expiry_time=models.DateTimeField()
+
+    def __str__(self):
+        return self.otp+self.code
