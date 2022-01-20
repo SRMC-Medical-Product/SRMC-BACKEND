@@ -18,4 +18,4 @@ class UserStatistics(models.Model):
     count=models.BigIntegerField(default=0)
 
     def __str__(self):
-        return f"{self.id}{self.year}"
+        return f"{self.year}"
