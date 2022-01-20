@@ -1,2 +1,4 @@
 env
 mainapp/migrations
+mainapp/__pycache__
+
