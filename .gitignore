@@ -1,4 +1,6 @@
 env
 mainapp/migrations
 mainapp/__pycache__
+srmc/__pycache__
+db.sqlite3
 
