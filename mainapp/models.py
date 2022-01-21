@@ -15,7 +15,7 @@ class User(models.Model):
 class UserStatistics(models.Model):
 
     year=models.PositiveIntegerField()
-    count=models.BigIntegerField(default=0)
+    count=models.BigIntegerField(default=0,editable=False)
 
     def __str__(self):
         return f"{self.year}"
