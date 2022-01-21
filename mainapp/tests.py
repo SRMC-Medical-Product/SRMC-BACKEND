@@ -11,7 +11,7 @@ class UserLoginTest(LiveServerTestCase):
 
     def test_login(self):
         res=requests.post(self.live_server_url+reverse("login"),data={
-                "number":"9791026856"
+                "number":"1234567890"
                     })
         res_json=res.json()
         self.assertEqual(res.status_code,200)
