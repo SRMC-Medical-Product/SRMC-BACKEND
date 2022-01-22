@@ -1,3 +1,4 @@
+from distutils.ccompiler import gen_lib_options
 from django.db import models
 
 # Create your models here.
@@ -29,3 +30,36 @@ class UserOtp(models.Model):
 
     def __str__(self):
         return self.otp+self.code
+
+
+
+
+
+class Department(models.Model):
+    
+    id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+    name=models.CharField(max_length=100)
+    head=models.CharField(max_length=200,null=True,blank=True)
+
+    def __str__(self):
+        return self.id
+
+class Doctor(models.Model):
+
+    id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+    doctor_id=models.CharField(max_length=256,unique=True)
+    name=models.CharField(max_length=256)
+    pin=models.CharField(max_length=5)
+    age=models.PositiveIntegerField()
+    gender=models.CharField(max_length=1)
+    dob=models.DateField()
+    expirence=models.PositiveIntegerField()
+    qualification=models.TextField()
+    specialisation=models.TextField()
+    languages_known=models.TextField()
+    modified_at=models.DateTimeField(editable=False)
+    
+    department_id=models.ForeignKey(Department,null=True,on_delete=models.SET_NULL)
+
+    def __str__(self):
+        return self.id

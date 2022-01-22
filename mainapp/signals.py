@@ -53,3 +53,56 @@ def create_otp_secret(sender,instance,**kwargs):
         instance.expiry_time=timezone.now()+timedelta(minutes=3)
 
 
+
+@receiver(pre_save,sender=Doctor)
+def generate_doctor_id(sender,instance,**kwargs):
+    """
+        presave signal to generate doctor id
+
+    """
+    if instance.id in [None,""]:
+        id=""
+        for _ in range(10):
+            ink=random.randint(1,2)
+            if ink==1:
+                digit=chr(random.randint(65,90))
+                id=id+digit
+            else:
+                digit=random.randint(0,9)
+                id=id+str(digit)
+        
+        while len(Doctor.objects.filter(id=id))!=0:
+            id=""
+            for _ in range(10):
+                ink=random.randint(1,2)
+                if ink==1:
+                    digit=chr(random.randint(65,90))
+                    id=id+digit
+                else:
+                    digit=random.randint(0,9)
+                    id=id+str(digit)
+        
+        instance.id=id
+
+        
+        
+        
+    
+    instance.modified_at=timezone.now()
+
+
+@receiver(pre_save,sender=Department)
+def generate_department_id(sender,instance,**kwargs):
+
+    """
+        presave signal to generate department if in hospital
+    
+    """
+    if instance.id in [None,""]:
+
+        name3=instance.name[:3]
+        name3_=instance.name[-1:-4:-1]         
+        id=name3.upper()+name3_.upper()+str(random.randint(1000,9999))
+        while len(Department.objects.filter(id=id))!=0:
+            id=name3.upper()+name3_.upper()+str(random.randint(1000,9999))
+        instance.id=id
