@@ -10,6 +10,7 @@ from rest_framework import status
 from .models import *
 from .auth import *
 from .serializers import *
+from .tasks import test_func
 
 class LoginUser(APIView):
 
@@ -128,7 +129,7 @@ class UserProfile(APIView):
     def get(self,request,format=None):
 
         serializer=UserSerializer(request.user)
-
+        test_func.delay()
         return Response({
                     "MSG":"SUCCESS",
                     "ERR":None,
