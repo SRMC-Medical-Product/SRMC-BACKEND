@@ -1,3 +1,4 @@
+from time import time
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from .models import *
@@ -106,3 +107,8 @@ def generate_department_id(sender,instance,**kwargs):
         while len(Department.objects.filter(id=id))!=0:
             id=name3.upper()+name3_.upper()+str(random.randint(1000,9999))
         instance.id=id
+
+@receiver(pre_save,sender=DoctorTimings)
+def update_modified_at(sender,instance,**kwargs):
+
+    instance.modified_at=timezone.now()
