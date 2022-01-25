@@ -1,3 +1,7 @@
+"""
+    File with all API's relating to the patient app
+
+"""
 from django.shortcuts import render
 from django.utils import timezone
 

@@ -66,3 +66,45 @@ class UserAuthentication(BaseAuthentication):
         
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed(_('Token expired'))
+
+
+class DoctorAuthentication(BaseAuthentication):
+    keyword="Bearer"
+    def authenticate(self,request):
+
+        auth=get_request_header(request).split()
+        print(auth)
+        if not auth or auth[0].lower()!=self.keyword.lower():
+            raise exceptions.AuthenticationFailed(_('Not authorised! Token is not provided'))
+
+        print("1")
+        if(len(auth)==1):
+            msg = _('Invalid token header. No credentials provided.')
+            raise exceptions.AuthenticationFailed(msg)
+        elif len(auth) > 2:
+            msg = _('Invalid token header. Token string should not contain spaces.')
+            raise exceptions.AuthenticationFailed(msg)
+
+        token_=auth[1]
+
+        try:
+            decode_token=jwt.decode(token_,settings.SECRET_KEY,algorithms=['HS256'])
+
+            if "id" not in decode_token.keys():
+                raise exceptions.AuthenticationFailed(_('Invalid token.'))
+            id=decode_token["id"]
+
+            user=Doctor.objects.filter(id=id)
+            if user.exists():
+                return (user[0],None)
+            else:
+                raise exceptions.AuthenticationFailed(_('Invalid token.'))
+        
+        except jwt.exceptions.InvalidSignatureError:
+            raise exceptions.AuthenticationFailed(_('Invalid token given'))
+        
+        except jwt.exceptions.DecodeError:
+            raise exceptions.AuthenticationFailed(_('Invalid token given'))
+        
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(_('Token expired'))
