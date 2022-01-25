@@ -8,6 +8,7 @@ class User(models.Model):
     mobile=models.CharField(max_length=15,unique=True)
     aadhar_number=models.CharField(max_length=12,unique=True,null=True,blank=True)
     email=models.EmailField(null=True,blank=True)
+    family_members=models.JSONField(null=True)
     created_at=models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

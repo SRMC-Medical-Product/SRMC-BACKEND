@@ -136,3 +136,81 @@ class UserProfile(APIView):
                     "BODY":serializer.data
                         },status=status.HTTP_200_OK)
                         
+
+class AddFamilyMember(APIView):
+
+    """
+        API View to add family member to a particular user
+        With the given data a new user instance is created.
+
+        Allowed Methods:
+            -POST
+        
+        Request data:
+            name:   [String,required] name of the patient
+            number  [String,required] mobile number of the patient
+            email:  [String] email id of the patient
+            aadhar: [String] aadhar number of the patient
+        
+        Authentication:
+            -Required
+            -UserAuthentication
+    
+    """
+
+    authentication_classes=[UserAuthentication]
+    permission_classes=[]
+
+
+    def post(self,request,format=None):
+
+        data=request.data
+
+        name=data.get("name",None)     #required
+        number=data.get("number",None) #required
+
+        email=data.get("email",None)
+        aadhar=data.get("aadhar",None)
+
+        #validating the user data
+        if name in [None,""] or number in [None,""]:
+
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Please provide valid name and number",
+                    "BODY":None
+                         },status=status.HTTP_400_BAD_REQUEST)
+        
+        family_member=User.objects.filter(mobile=number)
+
+        if family_member.exists():
+            family_member=family_member[0]
+        else:
+            
+            family_member=User.objects.get_or_create(name=name,mobile=number,email=email,aadhar_number=aadhar)[0]
+
+
+
+        family_serialized_data=UserSerializer(family_member).data
+
+        user=request.user
+        if user==family_member:
+
+            return Response({
+                        "MSG":"FAILED",
+                        "ERR":"You can't add yourself again",
+                        "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+
+        if user.family_members==None:
+            user.family_members=[family_serialized_data]
+        else:
+            user.family_members.append(family_serialized_data)
+        
+        user.save()
+
+        return Response({
+                "MSG":"SUCCESS",
+                "ERR":None,
+                "BODY":"Family member added successfully"
+                    },status=status.HTTP_200_OK)

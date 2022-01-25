@@ -5,5 +5,6 @@ urlpatterns=[
     path('login-user/',LoginUser.as_view(),name="login"),
     path('validate-user/',ValidateUser.as_view(),name="validate"),
     path('profile/',UserProfile.as_view(),name="profile"),
+    path("add-family/",AddFamilyMember.as_view(),name="add-family"),
 
 ]
