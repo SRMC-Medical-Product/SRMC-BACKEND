@@ -70,6 +70,7 @@ class DoctorTimings(models.Model):
 
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
     availability=models.JSONField(null=True,blank=True)
+    timeslots=models.JSONField(default=dict)
     modified_at=models.DateTimeField(null=True,blank=True)
     start_time=models.TimeField()
     end_time=models.TimeField()
