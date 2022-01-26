@@ -37,7 +37,7 @@ def return_time_type(isotime):
 
     return datetime.time.fromisoformat(isotime)
 
-def calculate_time_slots(start_time,end_time,duration):
+def calculate_time_slots(start_time,end_time,duration,availabilty):
     time_slots={
         "morning":[],
         "afternoon":[],

@@ -1,6 +1,7 @@
 """
     File with all the API's relating to the doctor app
 """
+from pydoc import doc
 from wsgiref.util import request_uri
 from django.shortcuts import render
 from django.utils import timezone
@@ -114,7 +115,7 @@ class ModifyDoctorTimings(APIView):
             if days[i]:
                 days_int.append(i)
         
-        availability={}
+       
 
         current_date=generate_current_date()  #imported from utils.py
         start_time=return_time_type(start_time)
@@ -129,14 +130,6 @@ class ModifyDoctorTimings(APIView):
         
         doctor_timings_instance=DoctorTimings.objects.filter(doctor_id=request.user)
         id=None
-
-        if doctor_timings_instance.exists():
-            doctor_timings_instance=doctor_timings_instance[0]
-            id=doctor_timings_instance.id
-            
-            doctor_timings_instance.delete()
-        
-        #availabilty : json representing the availablity of the doctor for the week
         availability={"days":[
                 {
                     
@@ -188,16 +181,33 @@ class ModifyDoctorTimings(APIView):
                         "available":False
                     
                 },
-            ]}     
+            ]}
+        if doctor_timings_instance.exists():
+            doctor_timings_instance=doctor_timings_instance[0]
+            id=doctor_timings_instance.id
+            if doctor_timings_instance.availability:
+                availability=doctor_timings_instance.availability
+            
+            #doctor_timings_instance.delete()
+        
+        #availabilty : json representing the availablity of the doctor for the week
+             
 
         
 
         availability=update_availabilty(availability,current_date,days_int)
-        time_slots=calculate_time_slots(start_time,end_time,duration)
+        time_slots=calculate_time_slots(start_time,end_time,duration,availability)
         if id==None:
             doctor_timings_instance=DoctorTimings.objects.create(doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
         else:
-            doctor_timings_instance=DoctorTimings.objects.create(id=id,doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
+            doctor_timings_instance.availability=availability
+            doctor_timings_instance.start_time=start_time
+            doctor_timings_instance.end_time=end_time
+            doctor_timings_instance.average_appoinment_duration=duration
+            doctor_timings_instance.timeslots=time_slots
+            doctor_timings_instance.save()
+
+            #doctor_timings_instance=DoctorTimings.objects.create(id=id,doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
         return Response({
                 "MSG":"SUCCESS",
                 "ERR":None,
