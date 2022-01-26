@@ -13,7 +13,7 @@ from rest_framework import status
 
 from .models import *
 from .auth import *
-from .serializers import *
+from .doctor_serializers import *
 from .utils import *
 
 import json
@@ -62,7 +62,19 @@ class LoginDoctor(APIView):
                         },status=status.HTTP_200_OK) 
 
 class ModifyDoctorTimings(APIView):
-
+    """
+        
+        Doctor Profile Timings mofdify and create APIView
+        Allowed methods:
+            -POST
+        
+        Request data:
+            days:       [boolean array,required] array of boolean data with each index maping to a specific day of the week with True reperesenting avaialble and False reperesenting not available
+            start_time: [string time in isoformat(HH:MM:SS),required] start_time representing the time from which appoinments can begin
+            end_time :  [string time in isoformat(HH:MM:SS),requires]   end_time representing the time after which no appoinments should be scheduled
+            duration :  [Int,required] value representing the averation time duration of how long an appoinment can go
+    
+    """
     authentication_classes=[DoctorAuthentication]
     permission_classes=[]
 
@@ -114,6 +126,8 @@ class ModifyDoctorTimings(APIView):
             id=doctor_timings_instance.id
             
             doctor_timings_instance.delete()
+        
+        #availabilty : json representing the availablity of the doctor for the week
         availability={"days":[
                 {
                     
@@ -180,4 +194,29 @@ class ModifyDoctorTimings(APIView):
                 "ERR":None,
                 "BODY":"Doctor Timings updated successfully"
                     },status=status.HTTP_200_OK)
-                    
+
+
+class GetDoctorTimingsInProfile(APIView):
+
+    authentication_classes=[DoctorAuthentication]
+    permission_classes=[]
+
+    def get(self,request,format=None):
+
+        doctor_timings_instance=DoctorTimings.objects.filter(doctor_id=request.user)
+
+        if doctor_timings_instance.exists():
+            doctor_timings_instance=doctor_timings_instance[0]
+        else:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Create you timings",
+                    "BODY":None
+                        },status=status.HTTP_404_NOT_FOUND)
+
+        doctor_timings_serializer=DoctorTimingsSerializer(doctor_timings_instance).data
+        return Response({
+                    "MSG":"SUCCESS",
+                    "ERR":None,
+                    "BODY":doctor_timings_serializer
+                        },status=status.HTTP_200_OK)
