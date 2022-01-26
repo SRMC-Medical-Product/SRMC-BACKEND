@@ -25,7 +25,7 @@ def update_availabilty(availabilty,current,days_int):
     for i in range(7):
         if now_.weekday() in days_int:
             availabilty["days"][now_.weekday()]["available"]=True
-            availabilty["days"][now_.weekday()]["date"]=now_.strftime("%m/%d/%Y")
+        availabilty["days"][now_.weekday()]["date"]=now_.strftime("%m/%d/%Y")
         
         now_=now_+datetime.timedelta(days=1)
     

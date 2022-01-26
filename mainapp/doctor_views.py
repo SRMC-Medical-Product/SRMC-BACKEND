@@ -107,9 +107,11 @@ class ModifyDoctorTimings(APIView):
         current_date=generate_current_date()  #imported from utils.py
 
         doctor_timings_instance=DoctorTimings.objects.filter(doctor_id=request.user)
+        id=None
 
         if doctor_timings_instance.exists():
             doctor_timings_instance=doctor_timings_instance[0]
+            id=doctor_timings_instance.id
             
             doctor_timings_instance.delete()
         availability={"days":[
@@ -169,9 +171,10 @@ class ModifyDoctorTimings(APIView):
         end_time=return_time_type(end_time)
 
         availability=update_availabilty(availability,current_date,days_int)
-
-        doctor_timings_instance=DoctorTimings.objects.create(doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration)
-        
+        if id==None:
+            doctor_timings_instance=DoctorTimings.objects.create(doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration)
+        else:
+            doctor_timings_instance=DoctorTimings.objects.create(id=id,doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration)
         return Response({
                 "MSG":"SUCCESS",
                 "ERR":None,
