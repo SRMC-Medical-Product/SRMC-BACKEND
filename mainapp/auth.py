@@ -22,7 +22,7 @@ def generate_token(payload):
 
 def get_request_header(request):
 	header=request.META.get('HTTP_AUTHORIZATION','')
-	print(header)
+	
 	return header
 
 
@@ -73,11 +73,11 @@ class DoctorAuthentication(BaseAuthentication):
     def authenticate(self,request):
 
         auth=get_request_header(request).split()
-        print(auth)
+       
         if not auth or auth[0].lower()!=self.keyword.lower():
             raise exceptions.AuthenticationFailed(_('Not authorised! Token is not provided'))
 
-        print("1")
+        
         if(len(auth)==1):
             msg = _('Invalid token header. No credentials provided.')
             raise exceptions.AuthenticationFailed(msg)

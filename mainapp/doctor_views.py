@@ -1,8 +1,6 @@
 """
     File with all the API's relating to the doctor app
 """
-from pydoc import doc
-from wsgiref.util import request_uri
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -182,12 +180,14 @@ class ModifyDoctorTimings(APIView):
                     
                 },
             ]}
+        time_slots=None
         if doctor_timings_instance.exists():
             doctor_timings_instance=doctor_timings_instance[0]
             id=doctor_timings_instance.id
             if doctor_timings_instance.availability:
                 availability=doctor_timings_instance.availability
-            
+            if doctor_timings_instance.timeslots!={}:
+                time_slots=doctor_timings_instance.timeslots
             #doctor_timings_instance.delete()
         
         #availabilty : json representing the availablity of the doctor for the week
@@ -196,7 +196,7 @@ class ModifyDoctorTimings(APIView):
         
 
         availability=update_availabilty(availability,current_date,days_int)
-        time_slots=calculate_time_slots(start_time,end_time,duration,availability)
+        time_slots=calculate_time_slots(start_time,end_time,duration,availability,time_slots=time_slots)
         if id==None:
             doctor_timings_instance=DoctorTimings.objects.create(doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
         else:
