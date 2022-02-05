@@ -1,7 +1,11 @@
 from distutils.ccompiler import gen_lib_options
+import email
 from django.db import models
 
 # Create your models here.
+
+'''----------Start : User Model----------'''
+
 class User(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
@@ -32,9 +36,10 @@ class UserOtp(models.Model):
     def __str__(self):
         return self.otp+self.code
 
+'''----------End : User Model----------'''
 
 
-
+'''----------Start : Doctor Model----------'''
 
 class Department(models.Model):
     
@@ -65,7 +70,6 @@ class Doctor(models.Model):
     def __str__(self):
         return self.id
 
-
 class DoctorTimings(models.Model):
 
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
@@ -79,3 +83,30 @@ class DoctorTimings(models.Model):
     def __str__(self):
         
         return str(self.id)
+
+class DoctorSchedule(models.Model):
+        id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+        doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
+        schedule=models.JSONField(default=dict,blank=True)
+        modified_at=models.DateTimeField(auto_now=True)
+        created_at=models.DateTimeField(auto_now_add=True)
+
+        def __str__(self):
+            return str(self.id)
+
+'''----------End : Doctor Model----------'''
+
+
+'''----------Start : Patient Model----------'''
+class Patient(models.Model):
+    id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+    name=models.CharField(max_length=512,null=True,blank=True)
+    age=models.PositiveIntegerField(default=0)
+    gender=models.CharField(max_length=256,null=True,blank=True)
+    mobile =models.CharField(max_length=15,null=False,unique=True)
+    blood = models.CharField(max_length=255,null=True,blank=True)
+    dob = models.CharField(max_length=255,null=True,blank=True)
+    email = models.CharField(max_length=255,null=True,blank=True)
+
+
+'''----------End : Patient Model----------'''
