@@ -1,0 +1,19 @@
+{
+    "homescreen" : {
+        "homecarousel" : "",
+        "upcomingappointments" : [],
+        "departments" : [],
+        "slider" : [],
+        "promotiondeparts" : {
+            "dept1" : {},
+            "dept2" : {}
+        },
+        "lastcarousel":"",
+        "endcontent":{
+            "building":"1",
+            "doctors" : "50+",
+            "patients" : "150+"
+        }
+    }
+}
+

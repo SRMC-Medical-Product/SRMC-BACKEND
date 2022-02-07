@@ -4,12 +4,13 @@
 """
 from django.shortcuts import render
 from django.utils import timezone
+from matplotlib.style import context
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-# Create your views here.
 
+from myproject.responsecode import display_response
 
 from .models import *
 from .auth import *
@@ -218,3 +219,75 @@ class AddFamilyMember(APIView):
                 "ERR":None,
                 "BODY":"Family member added successfully"
                     },status=status.HTTP_200_OK)
+
+#---------Home Screen API --------------------
+class HomeScreenAPI(APIView):
+    authentication_classes=[]
+    permission_classes=[]
+
+    def get_(self,request,format=None):
+        
+        """
+            Home Screen API format.It has all the contents of the frontend ui based json fields.
+            All are generated here in api json_data
+        """
+
+        json_data =  {
+            "firstcarousel" : {},
+            "lastcarousel":{},
+            "slider" : {
+                "title" : "Best of Us",
+                "content" : []
+            },
+            
+            "upcomingappointments" : [],
+            "departments" : [],
+            "promotiondeparts" : {
+                "dept1" : {},
+                "dept2" : {}
+            },
+            "endcontent":{
+                "building":"1",
+                "doctors" : "50+",
+                "patients" : "150+"
+            }
+        }
+
+
+        """
+            Getting all the Carousel models objects.
+            Add the carousel which has id = 1 for first carousel and then id = 2 for second carousel
+        """
+        get_carousel = Carousel.objects.all()
+        
+        first_carousel = get_carousel.filter(id=1).first()
+        json_data['firstcarousel'] = {
+            "id" : first_carousel.id,
+            "img" : first_carousel.img
+        }
+
+        last_carousel = get_carousel.filter(id=2).first()
+        json_data['lastcarousel'] = {
+            "id" : last_carousel.id,
+            "img" : last_carousel.img
+        }        
+
+
+        """
+            Getting the promotional Slider Contents in a list format.
+        """
+        promotions = PromotionalSlider.objects.all()
+        promote_serial = PromotionalSliderSerializer(promotions,many=True,context={"request":request})
+        for i in promote_serial.data:
+            data = {
+                "id" : i['id'],
+                "img" : i['img'],
+            }
+            json_data['slider']['content'].append(data)
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            status_code = status.HTTP_200_OK
+        )

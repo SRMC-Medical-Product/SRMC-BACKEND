@@ -2,7 +2,17 @@ from distutils.ccompiler import gen_lib_options
 import email
 from django.db import models
 
-# Create your models here.
+'''----------Start : Carousel & promotional Model----------'''
+class Carousel(models.Model):
+    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
+    img = models.FileField(upload_to='carousel/',null=True,blank=True)
+
+class PromotionalSlider(models.Model):
+    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
+    img = models.FileField(upload_to='promotional/',null=True,blank=True)
+
+'''----------End : Carousel & promotional Model----------'''
+
 
 '''----------Start : User Model----------'''
 

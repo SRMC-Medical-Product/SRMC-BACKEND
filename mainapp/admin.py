@@ -8,3 +8,6 @@ admin.site.register(UserOtp)
 admin.site.register(Doctor)
 admin.site.register(Department)
 admin.site.register(DoctorTimings)
+
+admin.site.register(Carousel)
+admin.site.register(PromotionalSlider)
