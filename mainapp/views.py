@@ -4,7 +4,6 @@
 """
 from django.shortcuts import render
 from django.utils import timezone
-from matplotlib.style import context
 
 from rest_framework.views import APIView
 from rest_framework.response import Response

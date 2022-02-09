@@ -11,3 +11,4 @@ admin.site.register(DoctorTimings)
 
 admin.site.register(Carousel)
 admin.site.register(PromotionalSlider)
+admin.site.register(CategorySpecialist)

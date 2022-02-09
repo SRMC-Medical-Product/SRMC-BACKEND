@@ -15,3 +15,8 @@ class CarouselSerializer(ModelSerializer):
 	class Meta:
 		model = Carousel
 		fields='__all__'
+
+class CategorySpecialistSerializer(ModelSerializer):
+	class Meta:
+		model =CategorySpecialist
+		fields='__all__'

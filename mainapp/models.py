@@ -51,11 +51,21 @@ class UserOtp(models.Model):
 
 '''----------Start : Doctor Model----------'''
 
+
 class Department(models.Model):
     
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     name=models.CharField(max_length=100)
     head=models.CharField(max_length=200,null=True,blank=True)
+
+    def __str__(self):
+        return self.id
+
+class CategorySpecialist(models.Model):
+    id=models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
+    name=models.CharField(max_length=256,null=True,blank=True)
+    depts = models.ManyToManyField(Department, blank=True)
+
 
     def __str__(self):
         return self.id
@@ -72,7 +82,7 @@ class Doctor(models.Model):
     expirence=models.PositiveIntegerField()
     qualification=models.TextField()
     specialisation=models.TextField()
-    languages_known=models.TextField()
+    languages_known=models.JSONField(default=dict,blank=True)
     modified_at=models.DateTimeField(editable=False)
     
     department_id=models.ForeignKey(Department,null=True,on_delete=models.SET_NULL)
