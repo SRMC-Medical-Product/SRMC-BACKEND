@@ -21,7 +21,7 @@ from .tasks import test_func
 from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE,YmdTHMSfz
 
 
-
+#--------LoginUser API--------
 class LoginUser(APIView):
 
     """
@@ -81,6 +81,7 @@ class LoginUser(APIView):
                             }
                         },status=status.HTTP_200_OK)
 
+#-------RegisterUser API--------
 class RegisterUser(APIView):
 
     """
@@ -153,7 +154,7 @@ class RegisterUser(APIView):
                             }
                         },status=status.HTTP_200_OK)
 
-
+#-------Validate User API --------
 class ValidateUser(APIView):
     
     """
@@ -227,32 +228,51 @@ class UserProfile(APIView):
                         },status=status.HTTP_200_OK)
                         
 #-------Family Members API's-------
-class AddFamilyMember(APIView):
+class FamilyMembers(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
 
-    """
-        API View to add family member to a particular user
-        With the given data a new user instance is created.
+    def get(self,request,format=None):
+        json_data = {
+            "isempty": True,
+            "user" : {},
+            "members": []  
+        } 
 
-        Allowed Methods:
-            -POST
+        serializer=UserSerializer(request.user)
+        json_data['user']=serializer.data
         
-        Request data:
-            name:   [String,required] name of the patient
-            number  [String,required] mobile number of the patient
-            email:  [String] email id of the patient
-            aadhar: [String] aadhar number of the patient
-        
-        Authentication:
-            -Required
-            -UserAuthentication
-    
-    """
+        json_data['members'] = request.user.family_members
+        if len(json_data['members']) > 0:
+            json_data['isempty'] = False
 
-    authentication_classes=[UserAuthentication]
-    permission_classes=[]
-
+        return display_response(
+            msg = "SUCCESS",
+            err = None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
 
     def post(self,request,format=None):
+
+        """
+            API View to add family member to a particular user
+            With the given data a new user instance is created.
+
+            Allowed Methods:
+                -POST
+            
+            Request data:
+                name:   [String,required] name of the patient
+                number  [String,required] mobile number of the patient
+                email:  [String] email id of the patient
+                aadhar: [String] aadhar number of the patient
+            
+            Authentication:
+                -Required
+                -UserAuthentication
+        
+        """
 
         data=request.data
 
@@ -316,6 +336,14 @@ class AddFamilyMember(APIView):
                 "ERR":None,
                 "BODY":"Family member added successfully"
                     },status=status.HTTP_200_OK)
+
+    def put(self,request):
+        #TODO
+        ...
+    
+    def delete(self,request):
+        #TODO
+        ...
 
 #---------Home Screen API --------------------
 class HomeScreenAPI(APIView):
