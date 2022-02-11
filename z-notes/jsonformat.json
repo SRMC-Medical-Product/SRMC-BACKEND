@@ -1,14 +1,22 @@
 {
-    "homescreen" : {
-        "homecarousel" : "",
-        "upcomingappointments" : [],
-        "departments" : [],
-        "slider" : [],
-        "promotiondeparts" : {
-            "dept1" : {},
-            "dept2" : {}
+    "homescreen" :  {
+        "firstcarousel" : {},
+        "lastcarousel":{},
+        "slider" : {
+            "title" : "Best of Us",
+            "content" : [],
+            "isempty": true
         },
-        "lastcarousel":"",
+        "categoryspecialist" : {
+            "title" : "Our Doctors",
+            "isempty" : true,
+            "categories" : []
+        }, 
+        "promotiondeparts" : {
+            "isempty" : true,
+            "depts" : []
+        },
+        "upcomingappointments" : [], 
         "endcontent":{
             "building":"1",
             "doctors" : "50+",

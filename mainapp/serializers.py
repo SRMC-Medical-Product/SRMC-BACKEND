@@ -16,12 +16,8 @@ class CarouselSerializer(ModelSerializer):
 		model = Carousel
 		fields='__all__'
 
-class CategorySpecialistSerializer(ModelSerializer):
-	class Meta:
-		model =CategorySpecialist
-		fields='__all__'
 
-class DepartmentSerializer(ModelSerializer):
+class PatientNotificationSerializer(ModelSerializer):
 	class Meta:
-		model = Department
+		model = PatientNotification
 		fields='__all__'

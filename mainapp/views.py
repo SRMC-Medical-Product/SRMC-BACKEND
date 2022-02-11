@@ -5,6 +5,8 @@
 from django.shortcuts import render
 from django.utils import timezone
 
+from datetime import datetime as dtt,time,date,timedelta
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -14,7 +16,11 @@ from myproject.responsecode import display_response
 from .models import *
 from .auth import *
 from .serializers import *
+from mainapp.doctor_serializers import *
 from .tasks import test_func
+from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE
+
+
 
 class LoginUser(APIView):
 
@@ -140,7 +146,7 @@ class UserProfile(APIView):
                     "BODY":serializer.data
                         },status=status.HTTP_200_OK)
                         
-
+#-------Family Members API's-------
 class AddFamilyMember(APIView):
 
     """
@@ -221,7 +227,7 @@ class AddFamilyMember(APIView):
 
 #---------Home Screen API --------------------
 class HomeScreenAPI(APIView):
-    authentication_classes=[]
+    authentication_classes=[UserAuthentication]
     permission_classes=[]
 
     def get(self,request,format=None):
@@ -292,7 +298,7 @@ class HomeScreenAPI(APIView):
             Getting the promotional Slider Contents in a list format.
         """
         promotions = PromotionalSlider.objects.all()
-        if promotions is not None:
+        if len(promotions) > 0:
             promote_serial = PromotionalSliderSerializer(promotions,many=True,context={"request":request})
             json_data['slider']['isempty'] = False
             for i in promote_serial.data:
@@ -306,7 +312,7 @@ class HomeScreenAPI(APIView):
             categoryspecialist is the CategorySpecialist Model which conssit of all the categories and their specialists.  
         """
         categoryspecialist = CategorySpecialist.objects.all()
-        if categoryspecialist is not None:
+        if len(categoryspecialist) > 0:
             category_serial = CategorySpecialistSerializer(categoryspecialist,many=True,context={"request":request})
             json_data['categoryspecialist']['isempty'] = False
             for i in category_serial.data:
@@ -321,7 +327,7 @@ class HomeScreenAPI(APIView):
             promotiondeparts consists of the departments of a particular categoryspecialist
         """
         promotiondeparts = CategorySpecialist.objects.all()
-        if promotiondeparts is not None:
+        if len(promotiondeparts) > 0:
             json_data['promotiondeparts']['isempty'] = False
             promote_serial = CategorySpecialistSerializer(promotiondeparts,many=True,context={"request":request})
             for i in promote_serial.data:
@@ -352,7 +358,7 @@ class HomeScreenAPI(APIView):
 
 #---------All Categories Screen API --------------------
 class CategoriesScreen(APIView):
-    authentication_classes=[]
+    authentication_classes=[UserAuthentication]
     permission_classes=[]
 
     def get(self,request,format=None):
@@ -373,7 +379,7 @@ class CategoriesScreen(APIView):
             Getting all the departments and their respective categories.
         """
         departments = Department.objects.all()
-        if departments is not None:
+        if len(departments) > 0:
             json_data['departments']['isempty'] = False
             dept_serial = DepartmentSerializer(departments,many=True,context={"request":request})
             for i in dept_serial.data:
@@ -386,7 +392,7 @@ class CategoriesScreen(APIView):
 
 
         specialists = CategorySpecialist.objects.all()
-        if specialists is not None:
+        if len(specialists) > 0:
             json_data['specialist']['isempty'] = False
             specialist_serial = CategorySpecialistSerializer(specialists,many=True,context={"request":request})
             for i in specialist_serial.data:
@@ -402,4 +408,71 @@ class CategoriesScreen(APIView):
             err= None,
             body = json_data,
             status_code = status.HTTP_200_OK
+        )
+
+#---------Notifications Screen API --------------------
+class PatientNotificationScreen(APIView):
+    permission_classes = []
+    authentication_classes=[]
+
+    def convertdateformat(self, req_date):
+        a = dtt.now(IST_TIMEZONE)
+        currentdate = dtt(a.year,a.month,a.day,a.hour,a.minute,a.second)
+        # datetime(year, month, day, hour, minute, second)
+        x = dtt.strptime(req_date, "%Y-%m-%dT%H:%M:%S.%f%z")
+        notifcation_date = dtt(x.year, x.month, x.day, x.hour, x.minute, x.second)
+        
+        diff = currentdate - notifcation_date
+        if diff.days <= 0:
+            """return in 'x' hours ago format"""
+            hrs = divmod(diff.seconds, 60) 
+            if hrs[0] < 60 :
+                return f"{hrs[0]} mins ago"
+            else:
+                x = divmod(hrs[0],60)
+                return f"{x[0]} hrs ago"
+
+        elif diff.days < 7:
+            """return in 'x' days ago format"""
+            return f"{diff.days} day ago"
+
+        else:
+            """return in 'x' created ago format"""
+            return f"{diff.days} day ago , pending"
+
+    def get(self, request,format=None):
+        json_data = {
+            "isempty" : True,
+            "msgs" : [],
+        }
+        patient = request.user
+        """
+            Get all the notifications of the particular patient and return the data in a list format.
+            Modify the date (created_at) to the required format.
+            if date < 1 day:
+                then in 'x' hoursago format
+            else if < 6 days:
+                then in 'x' days ago format
+            else:
+                then in 'x' created_at format
+        """
+        query = PatientNotification.objects.all() #FIXME filter(patientid=patient)
+        if len(query) > 0:
+            json_data['isempty'] = False
+            serializer = PatientNotificationSerializer(query,many=True,context={"request":request})
+            for i in serializer.data:
+                created_at = self.convertdateformat(i['created_at'])
+                data = {
+                    "id" : i['id'],
+                    "message" : i['message'],
+                    "seen" : i['seen'],
+                    "timestamp" : created_at
+                }
+                json_data['msgs'].append(data)
+            
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
         )

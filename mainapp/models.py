@@ -134,5 +134,10 @@ class Patient(models.Model):
     dob = models.CharField(max_length=255,null=True,blank=True)
     email = models.CharField(max_length=255,null=True,blank=True)
 
+class PatientNotification(models.Model):
+    patientid=models.ForeignKey(User,on_delete=models.PROTECT,blank=True)
+    message=models.TextField()
+    seen = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
 
 '''----------End : Patient Model----------'''
