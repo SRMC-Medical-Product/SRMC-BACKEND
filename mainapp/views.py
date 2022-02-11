@@ -18,7 +18,7 @@ from .auth import *
 from .serializers import *
 from mainapp.doctor_serializers import *
 from .tasks import test_func
-from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE
+from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE,YmdTHMSfz
 
 
 
@@ -56,8 +56,87 @@ class LoginUser(APIView):
 
 
         #gets the userinstance in case of old user or creates a new user instance        
-        user_instance=User.objects.get_or_create(mobile=number)[0]
+        user_instance=User.objects.filter(mobile=number).first()
+        if user_instance is None:
+            return display_response(
+                msg="FAIL",
+                err="User does not exist.Try signup",
+                body=None,
+                statuscode=status.HTTP_406_NOT_ACCEPTABLE
+            )
         
+        user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
+        
+        if user_otp_instance.expiry_time<=timezone.now():
+            user_otp_instance.delete()
+        
+        user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
+
+        return Response({
+                    "MSG":"SUCCESS",
+                    "ERR":None,
+                    "BODY":{
+                        "otp":user_otp_instance.otp,
+                        "code":user_otp_instance.code
+                            }
+                        },status=status.HTTP_200_OK)
+
+class RegisterUser(APIView):
+
+    """
+        This view is responsible for both login and register of the user
+        If the user is new then he is registered in the database
+        
+        methods:
+            -POST
+
+        POST data:mobile number of the user
+
+        return: dict of otp and secret code
+    
+    """
+
+    authentication_classes=[]
+    permission_classes=[]
+
+    def post(self,request,fromat=None):
+
+        data=request.data
+        
+        number=data.get("number",None)
+        name = data.get("name",None)
+
+        #validating the mobile number
+        if number in ["",None] or len(number)!=10:
+            return display_response(
+                msg="FAIL",
+                err="Please provided user data(mobile number)",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        #validating the user name
+        if name in ["",None]:
+            return display_response(
+                msg="FAIL",
+                err="Please provide user data(name)",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+
+
+        #gets the userinstance in case of old user or creates a new user instance        
+        user_instance=User.objects.filter(mobile=number).first()
+        if user_instance is not None:
+            return display_response(
+                msg="FAIL",
+                err="User already exist.Try signin",
+                body=None,
+                statuscode=status.HTTP_406_NOT_ACCEPTABLE
+            )
+        
+        user_instance=User.objects.get_or_create(mobile=number,name=name)[0]
+    
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
         if user_otp_instance.expiry_time<=timezone.now():
@@ -131,6 +210,7 @@ class ValidateUser(APIView):
                             }
                         },status=status.HTTP_200_OK)
 
+#------USer Profile API's-----------
 class UserProfile(APIView):
 
     authentication_classes=[UserAuthentication]
@@ -180,7 +260,7 @@ class AddFamilyMember(APIView):
         number=data.get("number",None) #required
 
         email=data.get("email",None)
-        aadhar=data.get("aadhar",None)
+        #aadhar=data.get("aadhar",None) #optional
 
         #validating the user data
         if name in [None,""] or number in [None,""]:
@@ -189,7 +269,7 @@ class AddFamilyMember(APIView):
                     "MSG":"FAILED",
                     "ERR":"Please provide valid name and number",
                     "BODY":None
-                         },status=status.HTTP_400_BAD_REQUEST)
+                         },status=status.HTTP_404_NOT_FOUND)
         
         family_member=User.objects.filter(mobile=number)
 
@@ -197,9 +277,8 @@ class AddFamilyMember(APIView):
             family_member=family_member[0]
         else:
             
-            family_member=User.objects.get_or_create(name=name,mobile=number,email=email,aadhar_number=aadhar)[0]
-
-
+            family_member=User.objects.get_or_create(name=name,mobile=number,email=email)[0] 
+            
 
         family_serialized_data=UserSerializer(family_member).data
 
@@ -211,6 +290,19 @@ class AddFamilyMember(APIView):
                         "ERR":"You can't add yourself again",
                         "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
+
+        else:
+            """
+                Checks if the user is already added to the family
+            """
+            all_mem = user.family_members
+            for x in all_mem:
+                if x['id'] == family_serialized_data['id']:
+                    return Response({
+                        "MSG":"FAILED",
+                        "ERR":"User already added to the family",
+                        "BODY":None
+                            },status=status.HTTP_406_NOT_ACCEPTABLE)
 
         if user.family_members==None:
             user.family_members=[family_serialized_data]
@@ -419,7 +511,7 @@ class PatientNotificationScreen(APIView):
         a = dtt.now(IST_TIMEZONE)
         currentdate = dtt(a.year,a.month,a.day,a.hour,a.minute,a.second)
         # datetime(year, month, day, hour, minute, second)
-        x = dtt.strptime(req_date, "%Y-%m-%dT%H:%M:%S.%f%z")
+        x = dtt.strptime(req_date, YmdTHMSfz)
         notifcation_date = dtt(x.year, x.month, x.day, x.hour, x.minute, x.second)
         
         diff = currentdate - notifcation_date
