@@ -56,16 +56,22 @@ class Department(models.Model):
     
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     name=models.CharField(max_length=100)
+    img =models.FileField(upload_to='department/',null=True,blank=True)
     head=models.CharField(max_length=200,null=True,blank=True)
 
     def __str__(self):
         return self.id
 
 class CategorySpecialist(models.Model):
+    """
+        This model is of categorization. Example : Child Care, Women Care.
+        And the department consists of specialisation like Cardiologist etc.
+    """
     id=models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
+    title=models.CharField(max_length=256,null=True,blank=True)
     depts = models.ManyToManyField(Department, blank=True)
-
+    img =models.FileField(upload_to='categoryspecialist/',null=True,blank=True)
 
     def __str__(self):
         return self.id

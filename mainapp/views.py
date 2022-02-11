@@ -224,7 +224,7 @@ class HomeScreenAPI(APIView):
     authentication_classes=[]
     permission_classes=[]
 
-    def get_(self,request,format=None):
+    def get(self,request,format=None):
         
         """
             Home Screen API format.It has all the contents of the frontend ui based json fields.
@@ -236,15 +236,19 @@ class HomeScreenAPI(APIView):
             "lastcarousel":{},
             "slider" : {
                 "title" : "Best of Us",
-                "content" : []
+                "content" : [],
+                "isempty": True,
             },
-            
-            "upcomingappointments" : [],
-            "departments" : [],
+            "categoryspecialist" : {
+                "title" : "Our Doctors",
+                "isempty" : True,
+                "categories" : [],
+            }, 
             "promotiondeparts" : {
-                "dept1" : {},
-                "dept2" : {}
+                "isempty" : True,
+                "depts" : [],
             },
+            "upcomingappointments" : [], #TODO : Add the upcomingappointments
             "endcontent":{
                 "building":"1",
                 "doctors" : "50+",
@@ -255,35 +259,144 @@ class HomeScreenAPI(APIView):
 
         """
             Getting all the Carousel models objects.
-            Add the carousel which has id = 1 for first carousel and then id = 2 for second carousel
+            Add the carousel which has id = 1 for first carousel and then id = 2 for second carousel.If it has None
+            then add the default image and id
         """
         get_carousel = Carousel.objects.all()
         
         first_carousel = get_carousel.filter(id=1).first()
-        json_data['firstcarousel'] = {
-            "id" : first_carousel.id,
-            "img" : first_carousel.img
-        }
+        if first_carousel is not None:
+            json_data['firstcarousel'] = {
+                "id" : first_carousel.id,
+                "img" : first_carousel.img
+            }
+        else:
+            json_data['firstcarousel'] = {
+                "id" : "1",
+                "img" : "#TODO Add default image"
+            }
 
         last_carousel = get_carousel.filter(id=2).first()
-        json_data['lastcarousel'] = {
-            "id" : last_carousel.id,
-            "img" : last_carousel.img
-        }        
-
+        if last_carousel is not None:
+            json_data['lastcarousel'] = {
+                "id" : last_carousel.id,
+                "img" : last_carousel.img
+            }        
+        else:
+            json_data['lastcarousel'] = {
+                "id" : "2",
+                "img" : "#TODO Add default image"
+            }   
 
         """
             Getting the promotional Slider Contents in a list format.
         """
         promotions = PromotionalSlider.objects.all()
-        promote_serial = PromotionalSliderSerializer(promotions,many=True,context={"request":request})
-        for i in promote_serial.data:
-            data = {
-                "id" : i['id'],
-                "img" : i['img'],
-            }
-            json_data['slider']['content'].append(data)
+        if promotions is not None:
+            promote_serial = PromotionalSliderSerializer(promotions,many=True,context={"request":request})
+            json_data['slider']['isempty'] = False
+            for i in promote_serial.data:
+                data = {
+                    "id" : i['id'],
+                    "img" : i['img'],
+                }
+                json_data['slider']['content'].append(data)
         
+        """
+            categoryspecialist is the CategorySpecialist Model which conssit of all the categories and their specialists.  
+        """
+        categoryspecialist = CategorySpecialist.objects.all()
+        if categoryspecialist is not None:
+            category_serial = CategorySpecialistSerializer(categoryspecialist,many=True,context={"request":request})
+            json_data['categoryspecialist']['isempty'] = False
+            for i in category_serial.data:
+                data = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "img" : i['img']
+                }
+                json_data['categoryspecialist']['categories'].append(data)
+
+        """
+            promotiondeparts consists of the departments of a particular categoryspecialist
+        """
+        promotiondeparts = CategorySpecialist.objects.all()
+        if promotiondeparts is not None:
+            json_data['promotiondeparts']['isempty'] = False
+            promote_serial = CategorySpecialistSerializer(promotiondeparts,many=True,context={"request":request})
+            for i in promote_serial.data:
+                if len(json_data['promotiondeparts']['depts']) <= 2:
+                    categorydata = {
+                        "id" : i['id'],
+                        "title": i['title'],
+                        "name" : i['name'],
+                        "img" : i['img'],
+                        "departments": [],
+                    }
+                    for j in i['departments']:
+                        deptdata = {
+                            "id" : j['id'],
+                            "name" : j['name'],
+                            "img" : j['img'],
+                        }
+                        categorydata['departments'].append(deptdata)
+                    json_data['promotiondeparts']['depts'].append(categorydata)
+
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            status_code = status.HTTP_200_OK
+        )
+
+#---------All Categories Screen API --------------------
+class CategoriesScreen(APIView):
+    authentication_classes=[]
+    permission_classes=[]
+
+    def get(self,request,format=None):
+        json_data = {
+            "departments":{
+                "title": "Know your specialists",
+                "isempty": True,
+                "content": [],
+            },
+            "specialist":{
+                "title": "Search by specialists",
+                "isempty": True,
+                "content": [],
+            },
+        }
+
+        """
+            Getting all the departments and their respective categories.
+        """
+        departments = Department.objects.all()
+        if departments is not None:
+            json_data['departments']['isempty'] = False
+            dept_serial = DepartmentSerializer(departments,many=True,context={"request":request})
+            for i in dept_serial.data:
+                data = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "img" : i['img'],
+                }
+                json_data['departments']['content'].append(data)
+
+
+        specialists = CategorySpecialist.objects.all()
+        if specialists is not None:
+            json_data['specialist']['isempty'] = False
+            specialist_serial = CategorySpecialistSerializer(specialists,many=True,context={"request":request})
+            for i in specialist_serial.data:
+                data = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "img" : i['img'],
+                }
+                json_data['specialist']['content'].append(data)
+
         return display_response(
             msg = "SUCCESS",
             err= None,

@@ -20,3 +20,8 @@ class CategorySpecialistSerializer(ModelSerializer):
 	class Meta:
 		model =CategorySpecialist
 		fields='__all__'
+
+class DepartmentSerializer(ModelSerializer):
+	class Meta:
+		model = Department
+		fields='__all__'
