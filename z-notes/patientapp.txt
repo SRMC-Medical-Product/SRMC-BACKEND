@@ -6,11 +6,8 @@ API View Todo Screen
 6)Search screen
 7)Medical Records Screen
 8)Medical Records Details Screen
-10)Personal Profile Screen
 11)Appointments History Screen
 12)Appointments Details Screen
-13)Family Members Screen
-14)Family Members Update/Delete Screen
 16)Upcoming/Live Appointments screen
 17)Search Results Screen
 18)Doctor Details and Slot Bookings Screen

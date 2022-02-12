@@ -21,3 +21,8 @@ class PatientNotificationSerializer(ModelSerializer):
 	class Meta:
 		model = PatientNotification
 		fields='__all__'
+
+class PatientSerializer(ModelSerializer):
+	class Meta:
+		model = Patient
+		fields='__all__'

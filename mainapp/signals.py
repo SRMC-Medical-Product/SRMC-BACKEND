@@ -5,6 +5,7 @@ from .models import *
 from django.utils import timezone
 from datetime import timedelta
 import random
+import uuid
 
 @receiver(pre_save,sender=User)
 def create_user_id(sender,instance,**kwargs):
@@ -25,6 +26,15 @@ def create_user_id(sender,instance,**kwargs):
         user_count.save(update_fields=['count'])
 
 
+@receiver(pre_save,sender=Patient)
+def create_patient_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = Patient.objects.count()
+        id = str(uuid.uuid4())[:7] + str(count+1)[:1]
+        pat=Patient.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:7] + str(count+1)[:1]
+        instance.id=id     
 
 @receiver(pre_save,sender=UserOtp)
 def create_otp_secret(sender,instance,**kwargs):

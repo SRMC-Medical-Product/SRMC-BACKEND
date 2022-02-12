@@ -2,6 +2,8 @@
     File with all API's relating to the patient app
 
 """
+from operator import ge
+import re
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -20,6 +22,10 @@ from mainapp.doctor_serializers import *
 from .tasks import test_func
 from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE,YmdTHMSfz
 
+#------Profile Lists
+REALTION = ["Father","Mother","Brother","Sister","Husband","Wife","Son","Daughter","Grandfather","Grandmother","Grandson","Granddaughter","Friend","Other"]
+GENDER = ["Male","Female","Other"]
+BLOOD = ["A+","A-","B+","B-","O+","O-","AB+","AB-"]
 
 #--------LoginUser API--------
 class LoginUser(APIView):
@@ -136,8 +142,8 @@ class RegisterUser(APIView):
                 statuscode=status.HTTP_406_NOT_ACCEPTABLE
             )
         
-        user_instance=User.objects.get_or_create(mobile=number,name=name)[0]
-    
+        patient_instance=Patient.objects.create(name=name,primary=True)
+        user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
         if user_otp_instance.expiry_time<=timezone.now():
@@ -218,15 +224,74 @@ class UserProfile(APIView):
     permission_classes=[]
 
     def get(self,request,format=None):
-
-        serializer=UserSerializer(request.user)
+        json_data = {
+            "profile" : {},
+            "relation" : REALTION,
+            "gender" : GENDER,
+            "blood" : BLOOD,
+        }
+        query = Patient.objects.filter(id=request.user.patientid).first()
+        serializer=PatientSerializer(query,context={"request":request})
+        json_data['profile']=serializer.data
         test_func.delay()
         return Response({
                     "MSG":"SUCCESS",
                     "ERR":None,
-                    "BODY":serializer.data
+                    "BODY":json_data
                         },status=status.HTTP_200_OK)
-                        
+    
+    def put(self,request):
+        user=request.user
+        data=request.data
+        name=data.get("name",None)     
+        relation =data.get("relation",None) 
+        gender =data.get("gender",None)
+        blood =data.get("blood",None)
+        dob =data.get("dob",None)
+        email=data.get("email",None)
+        aadhar=data.get("aadhar",None) #optional              
+        
+        patient = Patient.objects.filter(id=user.patientid).first()
+        if patient is None:
+            return display_response(
+                msg="FAIL",
+                err="User does not exist",
+                body=None,
+                statuscode=status.HTTP_406_NOT_ACCEPTABLE
+            )
+        if name not in [None,""]:
+            patient.name=name
+            user.name=name
+            patient.save()
+            user.save()
+
+        if email not in [None,""]:
+            patient.email = email
+            patient.save()
+        
+        if relation not in [None,""]:
+            patient.relation = relation
+            patient.save()
+
+        if gender not in [None,""]:
+            patient.gender = gender
+            patient.save()
+
+        if blood not in [None,""]:
+            patient.blood = blood
+            patient.save()
+
+        if dob not in [None,""]:
+            patient.dob= dob
+            patient.save()
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
 #-------Family Members API's-------
 class FamilyMembers(APIView):
     authentication_classes = [UserAuthentication]
@@ -235,15 +300,13 @@ class FamilyMembers(APIView):
     def get(self,request,format=None):
         json_data = {
             "isempty": True,
-            "user" : {},
-            "members": []  
+            "user" : {}, 
         } 
 
         serializer=UserSerializer(request.user)
         json_data['user']=serializer.data
         
-        json_data['members'] = request.user.family_members
-        if len(json_data['members']) > 0:
+        if len(json_data['user']['family_members']) > 0:
             json_data['isempty'] = False
 
         return display_response(
@@ -264,26 +327,28 @@ class FamilyMembers(APIView):
             
             Request data:
                 name:   [String,required] name of the patient
-                number  [String,required] mobile number of the patient
+                relation  [String,required] relation to the patient
                 email:  [String] email id of the patient
                 aadhar: [String] aadhar number of the patient
-            
+
             Authentication:
                 -Required
                 -UserAuthentication
         
         """
-
+        user=request.user
         data=request.data
 
         name=data.get("name",None)     #required
-        number=data.get("number",None) #required
-
+        relation =data.get("relation",None) #required
+        gender =data.get("gender",None)
+        blood =data.get("blood",None)
+        dob =data.get("dob",None)
         email=data.get("email",None)
-        #aadhar=data.get("aadhar",None) #optional
+        aadhar=data.get("aadhar",None) #optional
 
         #validating the user data
-        if name in [None,""] or number in [None,""]:
+        if name in [None,""] or relation in [None,""]:
 
             return Response({
                     "MSG":"FAILED",
@@ -291,43 +356,30 @@ class FamilyMembers(APIView):
                     "BODY":None
                          },status=status.HTTP_404_NOT_FOUND)
         
-        family_member=User.objects.filter(mobile=number)
-
-        if family_member.exists():
-            family_member=family_member[0]
-        else:
-            
-            family_member=User.objects.get_or_create(name=name,mobile=number,email=email)[0] 
-            
-
-        family_serialized_data=UserSerializer(family_member).data
-
-        user=request.user
-        if user==family_member:
-
-            return Response({
-                        "MSG":"FAILED",
-                        "ERR":"You can't add yourself again",
-                        "BODY":None
-                            },status=status.HTTP_400_BAD_REQUEST)
-
-        else:
-            """
-                Checks if the user is already added to the family
-            """
-            all_mem = user.family_members
-            for x in all_mem:
-                if x['id'] == family_serialized_data['id']:
-                    return Response({
-                        "MSG":"FAILED",
-                        "ERR":"User already added to the family",
-                        "BODY":None
-                            },status=status.HTTP_406_NOT_ACCEPTABLE)
+        patient_instance = Patient.objects.create(
+            relation=relation,
+            name=name,
+            primary=False
+        )
+        if gender not in [None,""]:
+            patient_instance.gender = gender
+            patient_instance.save()
+        if blood not in [None,""]:
+            patient_instance.blood = blood
+            patient_instance.save()
+        if dob not in [None,""]:
+            patient_instance.dob = dob
+            patient_instance.save()
+        if email not in [None,""]:
+            patient_instance.email = email
+            patient_instance.save()
+        
+        patient_serializer = PatientSerializer(patient_instance).data
 
         if user.family_members==None:
-            user.family_members=[family_serialized_data]
+            user.family_members=[patient_serializer]
         else:
-            user.family_members.append(family_serialized_data)
+            user.family_members.append(patient_serializer)
         
         user.save()
 
@@ -338,13 +390,124 @@ class FamilyMembers(APIView):
                     },status=status.HTTP_200_OK)
 
     def put(self,request):
-        #TODO
-        ...
-    
-    def delete(self,request):
-        #TODO
-        ...
+        """
+            API View to update the family member details
+            With the given data a new user instance is created.
 
+            Allowed Methods:
+                -PUT
+            
+            Request data:
+                id : [String,required] id of the new family member
+                name:   [String] name of the patient
+                email:  [String] email id of the patient
+                aadhar: [String] aadhar number of the patient [*Optional]
+                relation: [String] relation to the patient 
+                gender: [String] gender of the patient
+                blood :  [String] blood of the patient
+                dob :  [String] dob of  the patient
+
+            Authentication:
+                -Required
+                -UserAuthentication
+        
+        """
+
+        user=request.user
+        data=request.data
+        id = data.get("id",None) #required
+        name=data.get("name",None)     #required
+        relation =data.get("relation",None) #required
+        gender =data.get("gender",None)
+        blood =data.get("blood",None)
+        dob =data.get("dob",None)
+        email=data.get("email",None)
+        aadhar=data.get("aadhar",None) #optional
+
+        if id in [None,""]:
+            return display_response(
+                msg = "FAILED",
+                err = "Please provide valid id",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        if id == user.id:
+            return display_response(
+                msg = "FAILED",
+                err = "You can update only your family members",
+                body = None,
+                statuscode = status.HTTP_406_NOT_ACCEPTABLE
+            )
+
+        """
+            Checks if the user is already added to the family. Check if the user is already in User Instance.
+            Update the user instance with the new data and the json_data in family member
+        """
+
+        get_user = Patient.objects.filter(id=id).first()
+        if get_user is None:
+            return display_response(
+                msg = "FAILED",
+                err = "Family member does not exist",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        for i in user.family_members:
+            if i['id'] == id:
+                """Update the values if they are not None"""
+                if name not in [None,""]:
+                    i['name'] = name
+                    user.save()
+                if email not in [None,""]:
+                    i['email'] = email
+                    user.save()
+                if relation not in [None,""]:
+                    i['relation'] = relation
+                    user.save()
+                if gender not in [None,""]:
+                    i['gender'] = gender
+                    user.save()
+                if blood not in [None,""]:
+                    i['blood'] = blood
+                    user.save()
+                if dob not in [None,""]:
+                    i['dob'] = dob
+                    user.save()
+                    
+
+        if name not in [None,""]:
+            get_user.name = name
+            get_user.save()
+
+        if email not in [None,""]:
+            get_user.email = email
+            get_user.save()
+        
+        if relation not in [None,""]:
+            get_user.relation = relation
+            get_user.save()
+
+        if gender not in [None,""]:
+            get_user.gender = gender
+            get_user.save()
+
+        if blood not in [None,""]:
+            get_user.blood = blood
+            get_user.save()
+
+        if dob not in [None,""]:
+            get_user.dob= dob
+            get_user.save()
+
+        return display_response(
+            msg = "SUCCESS",
+            err = None,
+            body = "Family member updated successfully",
+            statuscode = status.HTTP_200_OK
+        )
+   
 #---------Home Screen API --------------------
 class HomeScreenAPI(APIView):
     authentication_classes=[UserAuthentication]

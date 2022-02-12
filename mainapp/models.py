@@ -1,5 +1,3 @@
-from distutils.ccompiler import gen_lib_options
-import email
 from django.db import models
 
 '''----------Start : Carousel & promotional Model----------'''
@@ -18,15 +16,14 @@ class PromotionalSlider(models.Model):
 
 class User(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patientid=models.CharField(max_length=256,blank=True,null=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
     mobile=models.CharField(max_length=15,unique=True)
-    aadhar_number=models.CharField(max_length=12,unique=True,null=True,blank=True)
-    email=models.EmailField(null=True,blank=True)
     family_members=models.JSONField(null=True)
     created_at=models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.id}"
+        return f"{self.id}-{self.patientid}"
 
 class UserStatistics(models.Model):
 
@@ -45,6 +42,13 @@ class UserOtp(models.Model):
 
     def __str__(self):
         return self.otp+self.code
+
+
+class PatientNotification(models.Model):
+    patientid=models.ForeignKey(User,on_delete=models.PROTECT,blank=True)
+    message=models.TextField()
+    seen = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
 
 '''----------End : User Model----------'''
 
@@ -97,7 +101,6 @@ class Doctor(models.Model):
         return self.id
 
 class DoctorTimings(models.Model):
-
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
     availability=models.JSONField(null=True,blank=True)
     timeslots=models.JSONField(default=dict,blank=True)
@@ -122,22 +125,18 @@ class DoctorSchedule(models.Model):
 
 '''----------End : Doctor Model----------'''
 
-
-'''----------Start : Patient Model----------'''
+'''----------Start: Patient Model----------'''
 class Patient(models.Model):
-    id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
-    name=models.CharField(max_length=512,null=True,blank=True)
-    age=models.PositiveIntegerField(default=0)
+    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    primary = models.BooleanField(default=False)
+    name=models.CharField(max_length=256,null=True,blank=True)
+    email=models.EmailField(null=True,blank=True)
+    relation =models.CharField(max_length=256,null=True,blank=True)
+    aadhar_id = models.CharField(max_length=256,null=True,blank=True)
     gender=models.CharField(max_length=256,null=True,blank=True)
-    mobile =models.CharField(max_length=15,null=False,unique=True)
     blood = models.CharField(max_length=255,null=True,blank=True)
     dob = models.CharField(max_length=255,null=True,blank=True)
-    email = models.CharField(max_length=255,null=True,blank=True)
-
-class PatientNotification(models.Model):
-    patientid=models.ForeignKey(User,on_delete=models.PROTECT,blank=True)
-    message=models.TextField()
-    seen = models.BooleanField(default=False)
     created_at=models.DateTimeField(auto_now_add=True)
 
-'''----------End : Patient Model----------'''
+
+'''----------end: Patient Model----------'''
