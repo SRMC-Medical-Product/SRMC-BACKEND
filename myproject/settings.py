@@ -38,7 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'mainapp.apps.MainappConfig',
-    'adminapp.apps.MainappConfig',
+    'adminapp.apps.AdminappConfig',
     'rest_framework',
     'django_celery_beat',
 ]
