@@ -15,4 +15,6 @@ urlpatterns=[
     path("patient-notification/",PatientNotificationScreen.as_view(),name="patient-notification"),
 
     path("search-results/",SearchResults.as_view(),name="search-results"),
+
+    path('doctors-slots/',DoctorSlotDetails.as_view(),name="doctors-slots"),
 ]

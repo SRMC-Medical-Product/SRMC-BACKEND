@@ -72,6 +72,7 @@ class CategorySpecialist(models.Model):
 class Doctor(models.Model):
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     doctor_id=models.CharField(max_length=256,unique=True)
+    email =models.EmailField(blank=True,unique=True)
     name=models.CharField(max_length=256)
     pin=models.CharField(max_length=5)
     age=models.PositiveIntegerField()

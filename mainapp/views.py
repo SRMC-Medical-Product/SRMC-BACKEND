@@ -833,7 +833,7 @@ class SearchResults(APIView):
 
 #--------Doctors Details Display In Detail Screen API--------------------
 class DoctorSlotDetails(APIView):
-    authentication_classes=[]
+    authentication_classes=[UserAuthentication]
     permission_classes=[]
 
     def get(self,request,format=None):
@@ -899,5 +899,29 @@ class DoctorSlotDetails(APIView):
             Get all the family members of the requesting user.
             Appending the current user data details also
         """
-        json_data['familymembers'] = user.family_members
+        members = []
+        user_mem = {
+            "id" : user.id,
+            "name" : user.name,
+            "selected" : user.selected,
+        }
+        members.append(user_mem)
 
+        for i in user.family_members:
+            mem = {
+                "id" : i['id'],
+                "name" : i['name'],
+                "selected" : i['selected'],
+            }
+            members.append(mem)    
+
+        json_data['familymembers'] = members
+        
+        #TODO: Get Dates and slots from the doctor
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )

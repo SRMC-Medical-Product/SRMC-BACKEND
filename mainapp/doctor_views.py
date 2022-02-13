@@ -15,7 +15,6 @@ from .auth import *
 from .doctor_serializers import *
 from .utils import *
 
-import json
 class LoginDoctor(APIView):
 
     authentication_classes=[]
@@ -25,18 +24,26 @@ class LoginDoctor(APIView):
 
         data=request.data
 
-        userid=data.get("userid",None)
+        
+        userid=data.get("userid",None) #Both USERID and EMail are accepted
         pin=data.get("pin",None)
 
         if userid in [None,""] or pin in [None,""]:
-
             return Response({
                         "MSG":"FAILED",
                         "ERR":"Please provide userid and pin",
                         "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
 
+
+        """
+            First we are checking with the userid and the pin.If the object instance is None then
+            we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
+        """
+
         doctor=Doctor.objects.filter(doctor_id=userid,pin=pin)
+        if doctor is None:
+            doctor=Doctor.objects.filter(email=userid,pin=pin)
 
         if doctor.exists():
             doctor=doctor[0]
