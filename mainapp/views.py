@@ -375,6 +375,7 @@ class FamilyMembers(APIView):
             patient_instance.save()
         
         patient_serializer = PatientSerializer(patient_instance).data
+        patient_serializer['selected'] = False
 
         if user.family_members==None:
             user.family_members=[patient_serializer]
@@ -830,7 +831,73 @@ class SearchResults(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+#--------Doctors Details Display In Detail Screen API--------------------
+class DoctorSlotDetails(APIView):
+    authentication_classes=[]
+    permission_classes=[]
 
+    def get(self,request,format=None):
+        """
+            User is the current registered user.
+            Doctor Id is the 'id' field of the doctor model whose details are to be displayed.
+        """
 
+        json_data = {
+            "doctor" : {},
+            "familymembers" : [],
+            "dates" : [],
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "afternoon" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "night" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+        }
+        
+        user = request.user
 
+        doctorid = request.query_params.get('doctorid', None)
+        if doctorid is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctorid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        
+
+        doctor = Doctor.objects.filter(id=doctorid).first()
+        if doctor is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctor was not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Adding the doctor details to te json_data['doctor'] field
+        """
+        doc_serialize = DoctorSerializer(doctor,context={"request":request})  
+        json_data['doctor'] = {
+            "id" : doc_serialize.data['id'],
+            "doctor_id" : doc_serialize.data['doctor_id'],
+            "name" : doc_serialize.data['name'],
+            "experience" : doc_serialize.data['experience'],
+            "gender" : doc_serialize.data['gender'],
+            "qualification" : doc_serialize.data['qualification'],
+            "specialisation" : doc_serialize.data['specialisation'],
+        }
+
+        """
+            Get all the family members of the requesting user.
+            Appending the current user data details also
+        """
+        json_data['familymembers'] = user.family_members
 

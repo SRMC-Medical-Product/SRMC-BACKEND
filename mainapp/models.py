@@ -10,6 +10,7 @@ class User(models.Model):
     mobile=models.CharField(max_length=15,unique=True)
     family_members=models.JSONField(null=True)
     created_at=models.DateTimeField(auto_now_add=True)
+    selected = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.id}-{self.patientid}"
