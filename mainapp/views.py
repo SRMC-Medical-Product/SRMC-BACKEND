@@ -510,7 +510,7 @@ class FamilyMembers(APIView):
    
 #---------Home Screen API --------------------
 class HomeScreenAPI(APIView):
-    authentication_classes=[UserAuthentication]
+    authentication_classes=[]
     permission_classes=[]
 
     def get(self,request,format=None):
@@ -609,34 +609,31 @@ class HomeScreenAPI(APIView):
         """
             promotiondeparts consists of the departments of a particular categoryspecialist
         """
-        promotiondeparts = CategorySpecialist.objects.all()
+        promotiondeparts = CategoryPromotion.objects.all()
         if len(promotiondeparts) > 0:
             json_data['promotiondeparts']['isempty'] = False
-            promote_serial = CategorySpecialistSerializer(promotiondeparts,many=True,context={"request":request})
+            promote_serial = CategoryPromotionSerializer(promotiondeparts,many=True,context={"request":request})
             for i in promote_serial.data:
-                if len(json_data['promotiondeparts']['depts']) <= 2:
-                    categorydata = {
-                        "id" : i['id'],
-                        "title": i['title'],
-                        "name" : i['name'],
-                        "img" : i['img'],
-                        "departments": [],
+                categorydata = {
+                    "id" : i['id'],
+                    "title": i['title'],
+                    "departments": [],
+                }
+                for j in i['category']['depts']:
+                    deptdata = {
+                        "id" : j['id'],
+                        "name" : j['name'],
+                        "img" : j['img'],
                     }
-                    for j in i['departments']:
-                        deptdata = {
-                            "id" : j['id'],
-                            "name" : j['name'],
-                            "img" : j['img'],
-                        }
-                        categorydata['departments'].append(deptdata)
-                    json_data['promotiondeparts']['depts'].append(categorydata)
+                    categorydata['departments'].append(deptdata)
+                json_data['promotiondeparts']['depts'].append(categorydata)
 
 
         return display_response(
             msg = "SUCCESS",
             err= None,
             body = json_data,
-            status_code = status.HTTP_200_OK
+            statuscode = status.HTTP_200_OK
         )
 
 #---------All Categories Screen API --------------------
@@ -759,3 +756,81 @@ class PatientNotificationScreen(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
+#-------Search Screen API--------------------
+class SearchResults(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request,format=None):
+        json_data = {
+            "isempty" : True,
+            'doctors' : [],
+        }
+
+        query = request.query_params.get('search', "")
+
+        """
+            Search for doctors in their names and their department wise
+        """
+        temp = []
+
+        name_set = Doctor.objects.filter(name__icontains=query,is_blocked=False).all()
+        name_serializer = DoctorSerializer(name_set,many=True,context={"request":request})
+        for i in name_serializer.data:
+            data = {
+                "id" : i['id'],
+                "doctor_id" : i['doctor_id'],
+                "name" : i['name'],
+                "experience" : i['experience'],
+                "gender" : i['gender']
+            }
+            temp.append(data)
+        
+        dept_set = Department.objects.filter(name__icontains=query).all()
+        dept_serializer = DepartmentSerializer(dept_set,many=True,context={"request":request})
+        for j in dept_serializer.data:
+            queryset = Doctor.objects.filter(department_id__id=j['id'],is_blocked=False).all()
+            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
+            for x in queryset_serializer.data:
+                data = {
+                    "id" : x['id'],
+                    "doctor_id" : x['doctor_id'],
+                    "name" : x['name'],
+                    "experience" : x['experience'],
+                    "gender" : x['gender']
+                }
+                temp.append(data)
+
+        category_set = CategorySpecialist.objects.filter(name__icontains=query).all()
+        category_serializer = CategorySpecialistSerializer(category_set,many=True,context={"request":request})
+        for k in category_serializer.data:
+            queryset = Doctor.objects.filter(department_id__id=k['depts']['id'],is_blocked=False).all()
+            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
+            for y in queryset_serializer.data:
+                data = {
+                    "id" : y['id'],
+                    "doctor_id" : y['doctor_id'],
+                    "name" : y['name'],
+                    "experience" : y['experience'],
+                    "gender" : y['gender']
+                }
+                temp.append(data)
+
+        final = []
+        for a in temp:
+            if a not in final:
+                final.append(i)
+        json_data['doctors'] = final
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+
+
+

@@ -1,3 +1,4 @@
+from calendar import c
 from rest_framework.serializers import ModelSerializer
 from .models import *
 
@@ -15,4 +16,10 @@ class CategorySpecialistSerializer(ModelSerializer):
 class DepartmentSerializer(ModelSerializer):
 	class Meta:
 		model = Department
+		fields='__all__'
+
+
+class DoctorSerializer(ModelSerializer):
+	class Meta:
+		model = Doctor
 		fields='__all__'

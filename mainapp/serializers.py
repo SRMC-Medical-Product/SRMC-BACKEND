@@ -26,3 +26,8 @@ class PatientSerializer(ModelSerializer):
 	class Meta:
 		model = Patient
 		fields='__all__'
+
+class CategoryPromotionSerializer(ModelSerializer):
+	class Meta:
+		model = CategoryPromotion
+		fields='__all__'

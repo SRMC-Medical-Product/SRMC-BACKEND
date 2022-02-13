@@ -1,16 +1,5 @@
 from django.db import models
 
-'''----------Start : Carousel & promotional Model----------'''
-class Carousel(models.Model):
-    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
-    img = models.FileField(upload_to='carousel/',null=True,blank=True)
-
-class PromotionalSlider(models.Model):
-    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
-    img = models.FileField(upload_to='promotional/',null=True,blank=True)
-
-'''----------End : Carousel & promotional Model----------'''
-
 
 '''----------Start : User Model----------'''
 
@@ -60,7 +49,7 @@ class Department(models.Model):
     
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     name=models.CharField(max_length=100)
-    img =models.FileField(upload_to='department/',null=True,blank=True)
+    img =models.FileField(upload_to='media/department/',null=True,blank=True)
     head=models.CharField(max_length=200,null=True,blank=True)
 
     def __str__(self):
@@ -73,15 +62,13 @@ class CategorySpecialist(models.Model):
     """
     id=models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
-    title=models.CharField(max_length=256,null=True,blank=True)
     depts = models.ManyToManyField(Department, blank=True)
-    img =models.FileField(upload_to='categoryspecialist/',null=True,blank=True)
+    img =models.FileField(upload_to='media/categoryspecialist/',null=True,blank=True)
 
     def __str__(self):
         return self.id
 
 class Doctor(models.Model):
-
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     doctor_id=models.CharField(max_length=256,unique=True)
     name=models.CharField(max_length=256)
@@ -89,12 +76,12 @@ class Doctor(models.Model):
     age=models.PositiveIntegerField()
     gender=models.CharField(max_length=1)
     dob=models.DateField()
-    expirence=models.PositiveIntegerField()
+    experience=models.PositiveIntegerField()
     qualification=models.TextField()
     specialisation=models.TextField()
     languages_known=models.JSONField(default=dict,blank=True)
     modified_at=models.DateTimeField(editable=False)
-    
+    is_blocked = models.BooleanField(default=False)
     department_id=models.ForeignKey(Department,null=True,on_delete=models.SET_NULL)
 
     def __str__(self):
@@ -138,5 +125,20 @@ class Patient(models.Model):
     dob = models.CharField(max_length=255,null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
 
-
 '''----------end: Patient Model----------'''
+
+'''----------Start : Carousel & promotional Model----------'''
+class Carousel(models.Model):
+    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
+    img = models.FileField(upload_to='media/carousel/',null=True,blank=True)
+
+class PromotionalSlider(models.Model):
+    id = models.CharField(max_length=256, primary_key=True,unique=True,editable=False)
+    img = models.FileField(upload_to='media/promotional/',null=True,blank=True)
+
+class CategoryPromotion(models.Model):
+    id = models.CharField(max_length=256, primary_key=True,unique=True)
+    title = models.CharField(max_length=256, null=True,blank=True)
+    category = models.ForeignKey(CategorySpecialist,on_delete=models.CASCADE,null=True,blank=True)
+
+'''----------End : Carousel & promotional Model----------'''

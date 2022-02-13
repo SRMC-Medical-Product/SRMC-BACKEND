@@ -13,4 +13,6 @@ urlpatterns=[
     path("home-screen/",HomeScreenAPI.as_view(),name="home-screen"),
     path("all-categories/",CategoriesScreen.as_view(),name="categories-screen"),
     path("patient-notification/",PatientNotificationScreen.as_view(),name="patient-notification"),
+
+    path("search-results/",SearchResults.as_view(),name="search-results"),
 ]
