@@ -1,8 +1,8 @@
 env
-mainapp/migrations
-adminapp/migrations
-mainapp/__pycache__
-adminapp/__pycache__
+mainapp/migrations/
+adminapp/migrations/
+mainapp/__pycache__/
+adminapp/__pycache__/
 srmc/__pycache__
 db.sqlite3
 venv
