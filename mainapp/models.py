@@ -47,7 +47,9 @@ class PatientNotification(models.Model):
 
 
 class Department(models.Model):
-    
+    """
+        This is department model.Example : Cardiologist,Neurologist,Dentist,etc.
+    """
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
     name=models.CharField(max_length=100)
     img =models.FileField(upload_to='media/department/',null=True,blank=True)
