@@ -1,4 +1,7 @@
 '''Django imports'''
+from argparse import Action
+from cgitb import enable
+from re import L
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate 
 from django.db.models import Q
@@ -21,6 +24,7 @@ from .authentication import  *
 '''Serializer Import'''
 from .serializer import *
 from mainapp.serializers import *
+from mainapp.doctor_serializers import *
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -247,6 +251,7 @@ class AdminUserModify(APIView):
 '''Bearer Token Required'''
 # TODO : Add Password Encryption
 class AdminUserPasswordModify(APIView):
+
     serializer_class = AdminDataSerializer 
     authentication_classes = [AdminAuthentication]
     permission_classes = [SuperAdminPermission]
@@ -285,3 +290,304 @@ class AdminUserPasswordModify(APIView):
             body = "User Modified Successfully",
             statuscode = status.HTTP_200_OK
         )    
+ 
+'''Department Get'''
+'''Bearer Token Required'''
+
+class DepartmentsView(APIView):
+
+    # authentication_classes = [AdminAuthentication]
+    # permission_classes = [SuperAdminPermission]
+    
+    '''Get All Departments'''
+    def get(self , request, format=None):
+        ACTION = "Departments GET"
+        snippet = Department.objects.all()
+        print(snippet)
+        if snippet is None:
+            return display_response(
+            msg = ACTION,
+            err= "No data found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        serializer = DepartmentSerializer(snippet,many=True,context={'request' :request}) 
+        json_data = []
+        for i in serializer.data:
+            json_data.append({
+                "id":i["id"],
+                "name":i["name"],
+                "img":i["img"],
+                "head":i["head"],
+                "enable" : i['enable']
+            })
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    '''Create New Departments'''
+    def post(self, request, format=None):
+        ACTION = "Departments POST"
+        data = request.data
+        name = data.get('name') 
+        img = data.get('img')
+        head = data.get('head') 
+        catspl_id = data.get('catspl_id')
+
+
+        '''Check for None Values'''
+        if name in [None,""] or img in [None , ""] or head in [None ,""] or catspl_id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if Department Object exists'''
+        get_category_specialist = CategorySpecialist.objects.filter(id=catspl_id).first()
+        if get_category_specialist is None:
+            return display_response(
+            msg = ACTION,
+            err= "Department Object was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        ''' Create a UID'''
+        while True:
+            uid = uuid.uuid4()
+            '''Checking if the values uid is not available'''
+            check_uid = Department.objects.filter(id=uid).first()
+            if check_uid is None:
+                break  
+        '''Getting the uid Instance of Deparments'''
+        try:
+            new_department = Department.objects.create(
+                id = uid,
+                name = name,
+                img = img,
+                head = head,
+                )
+            get_category_specialist.depts.add(new_department)
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "Department Created Successfully",
+                statuscode = status.HTTP_201_CREATED
+            )
+        except Exception as exception :
+            excep = exceptiontype(exception)
+            msg = exceptionmsg(exception)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+        
+    ''' Modify Departments'''
+    def put(self,request,format=None):
+        ACTION = "Departments PUT"
+        data = request.data
+        id = data.get('id') 
+        name = data.get('name') 
+        img = data.get('img')
+        head = data.get('head') 
+        enable = data.get('enable')
+
+        '''Check for None Values'''
+        if id in [None , ""] :
+            return display_response(
+            msg = ACTION,
+            err= "ID was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        
+        '''Checking if ID object exists'''
+        get_department = Department.objects.filter(id=id).first() 
+        if get_department is None:
+            return display_response(
+            msg = ACTION,
+            err= "Department Object was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if Name object exists''' 
+        if name not in [None , ""]:
+            get_department.name = name 
+            get_department.save()
+
+        '''Checking if img object exists''' 
+        if img not in [None , ""]:
+            get_department.img = img 
+            get_department.save()
+
+        '''Checking if head object exists''' 
+        if head not in [None , ""]:
+            get_department.head = head 
+            get_department.save()
+        
+        '''Checking if enable object exists''' 
+        if enable not in [None , ""] and enable in [True,False]:
+            get_department.enable = enable 
+            get_department.save()
+        
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = "Department Modified Successfully",
+            statuscode = status.HTTP_200_OK 
+        )
+
+class CategorySpecialistView(APIView):
+    # authentication_classes = [AdminAuthentication]
+    # permission_classes = [SuperAdminPermission]
+
+    '''Get All CategorySpecialist''' 
+    def get(self , request , format =None):
+        ACTION = "CategorySpecialist GET"
+        snippet = CategorySpecialist.objects.all()
+        if snippet is None:
+            return display_response(
+            msg = ACTION,
+            err= "No data found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        serializer = CategorySpecialistSerializer(snippet,many=True,context={'request' :request})
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = serializer.data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    '''Create New CategorySpecialist'''
+    def post(self, request, format=None):
+        ACTION = "CategorySpecialist POST"
+        data = request.data
+        name = data.get('name')
+        img = data.get('img') 
+
+        '''Check for None Values'''
+        if name in [None,""] or img in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        ) 
+ 
+        while True:
+            uid = uuid.uuid4()
+            '''Checking if the values uid is not available'''
+            check_uid = CategorySpecialist.objects.filter(id=uid).first()
+            if check_uid is None:
+                break 
+        print(name , img)
+        try:
+            CategorySpecialist.objects.create(
+                id = uid,
+                name = name,
+                img = img,
+            )
+            '''Adding the Department to the CategorySpecialist'''  
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "CategorySpecialist Created Successfully",
+                statuscode = status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            excep = exceptiontype(e)
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+
+    def put(self , request , format=None):
+
+        ACTION = "CategorySpecialist PUT"
+        data = request.data
+        id = data.get('id')
+        name = data.get('name')
+        img = data.get('img')
+
+        '''Check for None Values'''
+        if id in [None , ""] or name in [None , ""] or img in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if ID object exists'''
+        get_category_specialist = CategorySpecialist.objects.filter(id=id).first()
+        if get_category_specialist is None:
+            return display_response(
+            msg = ACTION,
+            err= "CategorySpecialist Object was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if Name exists'''
+        if name not in [None , ""]:
+            get_category_specialist.name = name 
+            get_category_specialist.save()
+        
+        '''Checking if image exists'''        
+        if img not in [None , ""]:
+            get_category_specialist.img = img 
+            get_category_specialist.save()
+
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = "CategorySpecialist Modified Successfully",
+            statuscode = status.HTTP_200_OK 
+        )
+
+''' custom json format to retrive in dashboard '''
+class SpecializationInDetail(APIView):
+
+    def  get(self , request , format=None):
+        ACTION = "SpecializationInDetail GET"
+        snippet = CategorySpecialist.objects.all()
+        serializer = CategorySpecialistSerializer(snippet,many=True,context={'request' :request}) 
+
+        json_data = []
+        for i in serializer.data :
+            data = {
+                "id" : i['id'],
+                "name" : i['name'], 
+                "img" : i['img'],  
+                "departments" : []
+            }
+    
+            for j in i['depts'] :
+                data['departments'].append({
+                    "id" : j['id'],
+                    "name" : j['name'],
+                    "img" : j['img'],
+                    "head" : j['head'],
+                    "enable" : j['enable']
+                })
+                
+            json_data.append(data)
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )

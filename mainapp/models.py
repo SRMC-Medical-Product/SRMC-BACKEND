@@ -52,6 +52,8 @@ class Department(models.Model):
     name=models.CharField(max_length=100)
     img =models.FileField(upload_to='media/department/',null=True,blank=True)
     head=models.CharField(max_length=200,null=True,blank=True)
+    enable = models.BooleanField(default=True) #Enable the service
+
 
     def __str__(self):
         return self.id

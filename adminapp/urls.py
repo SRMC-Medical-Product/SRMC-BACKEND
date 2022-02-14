@@ -11,5 +11,8 @@ urlpatterns = [
     path('user-modify/' , AdminUserModify.as_view() , name='admin-user-modify'),
     path('user-password-modify/' , AdminUserPasswordModify.as_view() , name='admin-user-password-modify'),
 
-
+    # --------------------------------- Department URLS ---------------------------------
+    path("departments/", DepartmentsView.as_view(), name="department"),
+    path("categoryspecialist/", CategorySpecialistView.as_view(), name="admin-categoryspecialist"),
+    path("specialization-details/", SpecializationInDetail.as_view(), name="specialization-details"),
 ]
