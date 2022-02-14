@@ -33,7 +33,6 @@ class UserOtp(models.Model):
     def __str__(self):
         return self.otp+self.code
 
-
 class PatientNotification(models.Model):
     patientid=models.ForeignKey(User,on_delete=models.PROTECT,blank=True)
     message=models.TextField()
@@ -148,3 +147,4 @@ class CategoryPromotion(models.Model):
     category = models.ForeignKey(CategorySpecialist,on_delete=models.CASCADE,null=True,blank=True)
 
 '''----------End : Carousel & promotional Model----------'''
+  

@@ -2,10 +2,6 @@
     File with all API's relating to the patient app
 
 """
-from operator import ge
-import re
-from traceback import print_tb
-from django.shortcuts import render
 from django.utils import timezone
 
 from datetime import datetime as dtt,time,date,timedelta
@@ -554,26 +550,29 @@ class HomeScreenAPI(APIView):
             then add the default image and id
         """
         get_carousel = Carousel.objects.all()
-        
-        first_carousel = get_carousel.filter(id=1).first()
-        if first_carousel is not None:
+        print("-----------------")
+        print(get_carousel.count())
+        if get_carousel.count() > 0:
+            carousel_serializer = CarouselSerializer(get_carousel,many=True,context={"request":request}).data
             json_data['firstcarousel'] = {
-                "id" : first_carousel.id,
-                "img" : first_carousel.img
-            }
+                    "id" : carousel_serializer[0]['id'],
+                    "img" : carousel_serializer[0]['img']
+                }
+            if get_carousel.count() > 1:
+                json_data['lastcarousel'] = {
+                    "id" : carousel_serializer[1]['id'],
+                    "img" : carousel_serializer[1]['img']
+                }
+            else:
+                json_data['lastcarousel'] = {
+                    "id" : "2",
+                    "img" : "#TODO Add default image"
+                }     
         else:
             json_data['firstcarousel'] = {
                 "id" : "1",
                 "img" : "#TODO Add default image"
             }
-
-        last_carousel = get_carousel.filter(id=2).first()
-        if last_carousel is not None:
-            json_data['lastcarousel'] = {
-                "id" : last_carousel.id,
-                "img" : last_carousel.img
-            }        
-        else:
             json_data['lastcarousel'] = {
                 "id" : "2",
                 "img" : "#TODO Add default image"

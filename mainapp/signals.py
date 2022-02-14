@@ -64,7 +64,6 @@ def create_otp_secret(sender,instance,**kwargs):
         instance.expiry_time=timezone.now()+timedelta(minutes=3)
 
 
-
 @receiver(pre_save,sender=Doctor)
 def generate_doctor_id(sender,instance,**kwargs):
     """
@@ -122,3 +121,34 @@ def generate_department_id(sender,instance,**kwargs):
 def update_modified_at(sender,instance,**kwargs):
 
     instance.modified_at=timezone.now()
+
+
+@receiver(pre_save,sender=Carousel)
+def create_carousel_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = Carousel.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=Carousel.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
+
+@receiver(pre_save,sender=PromotionalSlider)
+def create_slider_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = PromotionalSlider.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=PromotionalSlider.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
+
+@receiver(pre_save,sender=CategoryPromotion)
+def create_promotion_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = CategoryPromotion.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=CategoryPromotion.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
