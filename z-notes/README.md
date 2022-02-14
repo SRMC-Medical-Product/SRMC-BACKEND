@@ -2,5 +2,7 @@
 
 It consist of:
 > usermodel
+
 > doctormodel
+
 >views relating to userauthentication,doctorauthentication
