@@ -550,8 +550,7 @@ class HomeScreenAPI(APIView):
             then add the default image and id
         """
         get_carousel = Carousel.objects.all()
-        print("-----------------")
-        print(get_carousel.count())
+
         if get_carousel.count() > 0:
             carousel_serializer = CarouselSerializer(get_carousel,many=True,context={"request":request}).data
             json_data['firstcarousel'] = {
@@ -1255,32 +1254,3 @@ class SearchResults(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
-#-------Data Filtering API --------
-"""
-class DoctorFilter(APIView):
-    authentication_classes = [UserAuthentication]
-    permission_classes = []
-
-    def get(self,request,format=None):
-        
-            # Filtering of doctors data.
-            # GET method:
-            #     query : [String(query),required] Previous query searched by the user.
-            #     specialist : [String(id),optional] Specialist of the doctor will be filtered from the resulted doctors
-            #     exp : [int(customid),optional] Experience of the doctor will be filtered from the resulted doctors
-            #         1 - Relevance
-            #         2 - Low to high
-            #         3 - High to low
-            #     gender : [String(customid),optional] Gender of the doctor will be filtered from the result of the search
-            #         A - All 
-            #         M - Male
-            #         F - Female
-       
-        user = request.user
-        data = request.query_params
-        query = data.get('search', "")
-        specialist = data.get('specialist', None)
-        exp = data.get('experience', 1)
-        gender = data.get('gender','A')
-        
-"""

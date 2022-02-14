@@ -115,6 +115,18 @@ class DoctorSchedule(models.Model):
         def __str__(self):
             return str(self.id)
 
+class DoctorActivity(models.Model):
+    doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE,blank=True,null=True)
+    login = models.JSONField(default=dict,blank=True)
+    logout = models.JSONField(default=dict,blank=True)
+    modified_at=models.DateTimeField(auto_now=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    stats=models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return str(self.doctor_id)
+
+
 '''----------End : Doctor Model----------'''
 
 '''----------Start: Patient Model----------'''
@@ -148,3 +160,24 @@ class CategoryPromotion(models.Model):
 
 '''----------End : Carousel & promotional Model----------'''
   
+'''----------Start : Appointment Model----------'''
+class Appointment(models.Model):
+    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False) #TODO : setup signal to generate id
+    offline = models.BooleanField(default=True)    
+    date = models.CharField(max_length=256,null=True,blank=True)
+    time = models.CharField(max_length=256,null=True,blank=True)
+    doctor_id = models.CharField(max_length=256,null=True,blank=True)
+    patient_id = models.CharField(max_length=256,null=True,blank=True)
+    doctor = models.JSONField(default=dict,blank=True)
+    patient = models.JSONField(default=dict,blank=True)
+    timeline =models.JSONField(default=dict,blank=True)
+    consulted = models.BooleanField(default=False)
+    cancelled = models.BooleanField(default=False)
+    reassigned = models.BooleanField(default=False)
+    counter = models.JSONField(default=dict,blank=True)
+    activity = models.JSONField(default=dict,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return str(self.id)

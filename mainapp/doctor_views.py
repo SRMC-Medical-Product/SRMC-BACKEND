@@ -55,18 +55,25 @@ class LoginDoctor(APIView):
                     "BODY":None
                         },status=status.HTTP_400_BAD_REQUEST)
         
-        token=generate_token({
-                "id":doctor.id
-                    })
+        if doctor.is_blocked == False:
+            token=generate_token({
+                    "id":doctor.id
+                        })
 
-        return Response({
-                    "MSG":"SUCCESS",
-                    "ERR":None,
-                    "BODY":{
-                        "token":token
-                            }
-                        },status=status.HTTP_200_OK) 
-
+            return Response({
+                        "MSG":"SUCCESS",
+                        "ERR":None,
+                        "BODY":{
+                            "token":token
+                                }
+                            },status=status.HTTP_200_OK) 
+        else:
+            return Response({
+                "MSG":"FAILURE",
+                "ERR":"You have been blocked by admin. Contact admin for more details",
+                "BODY":None
+                    },status=status.HTTP_401_UNAUTHORIZED) 
+        
 class ModifyDoctorTimings(APIView):
     """
         
@@ -220,7 +227,6 @@ class ModifyDoctorTimings(APIView):
                 "ERR":None,
                 "BODY":"Doctor Timings updated successfully"
                     },status=status.HTTP_200_OK)
-
 
 class GetDoctorTimingsInProfile(APIView):
 
