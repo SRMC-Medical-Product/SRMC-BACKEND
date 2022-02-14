@@ -9,7 +9,6 @@ API View Todo Screen
 12)Appointments Details Screen 
 16)Upcoming/Live Appointments screen
 18)Doctor Details and Slot Bookings Screen
-    - separate view for changing person,slot time
     - make order models to update that
 19)Confirmation Screen
 ================================================
@@ -38,4 +37,5 @@ Coded Screens
 18)Doctor Details and Slot Bookings Screen
 19)Confirmation Screen
 20)Notifications Screen
+21)doctor Result Screens Filtering
 ================================================

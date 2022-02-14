@@ -4,6 +4,7 @@
 """
 from operator import ge
 import re
+from traceback import print_tb
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -20,7 +21,7 @@ from .auth import *
 from .serializers import *
 from mainapp.doctor_serializers import *
 from .tasks import test_func
-from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,IST_TIMEZONE,YmdTHMSfz
+from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,mdY,IST_TIMEZONE,YmdTHMSfz
 
 #------Profile Lists
 REALTION = ["Father","Mother","Brother","Sister","Husband","Wife","Son","Daughter","Grandfather","Grandmother","Grandson","Granddaughter","Friend","Other"]
@@ -758,79 +759,6 @@ class PatientNotificationScreen(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-#-------Search Screen API--------------------
-class SearchResults(APIView):
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self, request,format=None):
-        json_data = {
-            "isempty" : True,
-            'doctors' : [],
-        }
-
-        query = request.query_params.get('search', "")
-
-        """
-            Search for doctors in their names and their department wise
-        """
-        temp = []
-
-        name_set = Doctor.objects.filter(name__icontains=query,is_blocked=False).all()
-        name_serializer = DoctorSerializer(name_set,many=True,context={"request":request})
-        for i in name_serializer.data:
-            data = {
-                "id" : i['id'],
-                "doctor_id" : i['doctor_id'],
-                "name" : i['name'],
-                "experience" : i['experience'],
-                "gender" : i['gender']
-            }
-            temp.append(data)
-        
-        dept_set = Department.objects.filter(name__icontains=query).all()
-        dept_serializer = DepartmentSerializer(dept_set,many=True,context={"request":request})
-        for j in dept_serializer.data:
-            queryset = Doctor.objects.filter(department_id__id=j['id'],is_blocked=False).all()
-            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
-            for x in queryset_serializer.data:
-                data = {
-                    "id" : x['id'],
-                    "doctor_id" : x['doctor_id'],
-                    "name" : x['name'],
-                    "experience" : x['experience'],
-                    "gender" : x['gender']
-                }
-                temp.append(data)
-
-        category_set = CategorySpecialist.objects.filter(name__icontains=query).all()
-        category_serializer = CategorySpecialistSerializer(category_set,many=True,context={"request":request})
-        for k in category_serializer.data:
-            queryset = Doctor.objects.filter(department_id__id=k['depts']['id'],is_blocked=False).all()
-            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
-            for y in queryset_serializer.data:
-                data = {
-                    "id" : y['id'],
-                    "doctor_id" : y['doctor_id'],
-                    "name" : y['name'],
-                    "experience" : y['experience'],
-                    "gender" : y['gender']
-                }
-                temp.append(data)
-
-        final = []
-        for a in temp:
-            if a not in final:
-                final.append(i)
-        json_data['doctors'] = final
-
-        return display_response(
-            msg = "SUCCESS",
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
-        )
-
 #--------Doctors Details Display In Detail Screen API--------------------
 class DoctorSlotDetails(APIView):
     authentication_classes=[UserAuthentication]
@@ -854,7 +782,7 @@ class DoctorSlotDetails(APIView):
                 "isempty" : True,
                 "slots" : [],
             },
-            "night" :  {
+            "evening" :  {
                 "isempty" : True,
                 "slots" : [],
             },
@@ -917,7 +845,92 @@ class DoctorSlotDetails(APIView):
 
         json_data['familymembers'] = members
         
-        #TODO: Get Dates and slots from the doctor
+        timings = DoctorTimings.objects.filter(doctor_id=doctor).first()
+        dates_arr = []
+        for j in timings.availability['dates_arr']:
+            dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+            dates_arr.append(dt)
+        json_data['dates'] = dates_arr
+
+        """
+            Get the slots for morning.
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        mrngarr = timings.timeslots[timings.availability['dates_arr'][0]]['morning'] 
+        morning_slots = mrngarr.keys()
+
+        for x in morning_slots:
+            if mrngarr[x]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(x, HMS).strftime(IMp),
+                    "count" : mrngarr[x]['count']
+                }
+                json_data['morning']['slots'].append(data)
+        if len(json_data['morning']['slots']) > 0:
+            json_data['morning']['isempty'] = False
+        
+
+        """
+            Get the slots for afternoon.
+            "afternoon" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        noonarr = timings.timeslots[timings.availability['dates_arr'][0]]['afternoon'] 
+        noon_slots = noonarr.keys()
+        
+        for y in noon_slots:
+            if noonarr[y]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(y,HMS).strftime(IMp),
+                    "count" : noonarr[y]['count']
+                }
+                json_data['afternoon']['slots'].append(data)
+                
+        if len(json_data['afternoon']['slots']) > 0:
+            json_data['afternoon']['isempty'] = False
+ 
+        """
+            Get the slots for afternoon.
+            "evening" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """       
+        eveningarr = timings.timeslots[timings.availability['dates_arr'][0]]['evening'] 
+        evening_slots = eveningarr.keys()
+        for z in evening_slots:
+            if eveningarr[z]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(z,HMS).strftime(IMp),
+                    "count" : eveningarr[z]['count']
+                }
+                json_data['evening']['slots'].append(data)
+                
+        if len(json_data['evening']['slots']) > 0:
+            json_data['evening']['isempty'] = False
+
 
         return display_response(
             msg = "SUCCESS",
@@ -925,3 +938,350 @@ class DoctorSlotDetails(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
+#--------Updating the selected member for the user appointment booking--------
+class BookingChangeMember(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def put(self,request):
+        """
+            This put method is responsible for updating the selected user member during the booking.
+            Default is the registered user given as selected="True" and if u want to change the booking for 
+            the different family members,then use this method.
+
+            PUT method:
+                memberid :[String,required] id of the member to be selected
+        """
+        user = request.user
+        memberid = request.data.get('memberid', None)
+
+        if memberid is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Memberid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Checking if the memberid is valid or not and if the memberid is present in the family members list
+        """
+        get_member = Patient.objects.filter(id=memberid).first()
+        if get_member is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Memberid is invalid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        if user.patientid == memberid:
+            """
+                Selected user is the USER model instance person.
+                Then updated user.selected = True and other family_members selected = False
+            """
+            user.selected = True
+            for i in user.family_members:
+                if i['selected'] == True:
+                    i['selected'] = False
+            user.save()   
+        else:
+            """
+                Selected user is the FAMILY member
+                Then updated user.selected = False and other family_members selected = False and selected family member as True
+            """
+            user.selected = False
+            for i in user.family_members:
+                if i['id'] == memberid:
+                    i['selected'] = True
+                else:
+                    if i['selected'] == True:
+                        i['selected'] = False
+            user.save()
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = None,
+            statuscode = status.HTTP_200_OK
+        )
+
+#-------Search Screen API--------------------
+class SearchResults(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self, request,format=None):
+        """
+            If this is default search or first search then display only that results without any filter options
+            GET method:
+                search_type :[String,required] search_type can be either "default" or "first"
+                query : [String(query),required] Previous query searched by the user.        
+        ----------------------------------------------------------
+            Filtering of doctors data.
+            GET method:
+                query : [String(query),required] Previous query searched by the user.
+                specialist : [String(id),optional] Specialist of the doctor will be filtered from the resulted doctors
+                exp : [int(customid),optional] Experience of the doctor will be filtered from the resulted doctors
+                    1 - Relevance
+                    2 - Low to high
+                    3 - High to low
+                gender : [String(customid),optional] Gender of the doctor will be filtered from the result of the search
+                    A - All 
+                    M - Male
+                    F - Female
+        ----------------------------------------------
+        """
+
+        json_data = {
+            "isempty" : True,
+            'doctors' : [],
+            'specialisation':[],
+            'gender' : [
+                {
+                "id" : "A",
+                "title" : "All",
+                "selected" : True,
+                },
+                {
+                "id" : "M",
+                "title" : "Male",
+                "selected" : False,
+                },
+                {
+                "id" : "F",
+                "title" : "Female",
+                "selected" : False,
+                }
+                
+            ],
+            'experience': [
+                {
+                    "id" : 1,
+                    "title" : "Relevance",
+                    "selected" : True,
+                },
+                {
+                    "id" : 2,
+                    "title" : "Low to High",
+                    "selected" : False,
+                },
+                {
+                    "id" :3,
+                    "title" : "High to Low",
+                    "selected" : False,
+                }
+            ],
+        }
+
+        user = request.user
+        data = request.query_params
+        query = data.get('search', "")
+        search_type = data.get("search_type","first")
+        specialist = data.get('specialist', None)
+        exp = int(data.get('exp', 1))
+        gender = data.get('gender','A')
+
+        """
+            Search for doctors in their names and their department wise
+        """
+        temp = []
+
+        name_set = Doctor.objects.filter(name__icontains=query,is_blocked=False).all()
+        name_serializer = DoctorSerializer(name_set,many=True,context={"request":request})
+        for i in name_serializer.data:
+            data = {
+                "id" : i['id'],
+                "doctor_id" : i['doctor_id'],
+                "name" : i['name'],
+                "experience" : i['experience'],
+                "gender" : i['gender'],
+                "deptid" : i['department_id']['id'],
+                "deptname" : i['department_id']['name'],
+            }
+            temp.append(data)
+        
+        dept_set = Department.objects.filter(name__icontains=query).all()
+        dept_serializer = DepartmentSerializer(dept_set,many=True,context={"request":request})
+        for j in dept_serializer.data:
+            queryset = Doctor.objects.filter(department_id__id=j['id'],is_blocked=False).all()
+            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
+            for x in queryset_serializer.data:
+                data = {
+                    "id" : x['id'],
+                    "doctor_id" : x['doctor_id'],
+                    "name" : x['name'],
+                    "experience" : x['experience'],
+                    "gender" : x['gender'],
+                    "deptid" : x['department_id']['id'],
+                    "deptname" : x['department_id']['name'],
+                }
+                temp.append(data)
+
+        category_set = CategorySpecialist.objects.filter(name__icontains=query).all()
+        category_serializer = CategorySpecialistSerializer(category_set,many=True,context={"request":request})
+        for k in category_serializer.data:
+            queryset = Doctor.objects.filter(department_id__id=k['depts']['id'],is_blocked=False).all()
+            queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
+            for y in queryset_serializer.data:
+                data = {
+                    "id" : y['id'],
+                    "doctor_id" : y['doctor_id'],
+                    "name" : y['name'],
+                    "experience" : y['experience'],
+                    "gender" : y['gender'],
+                    "deptid" : y['department_id']['id'],
+                    "deptname" : y['department_id']['name'],
+                }
+                temp.append(data)
+
+        final = []
+        for a in temp:
+            if a not in final:
+                final.append(a)
+        json_data['doctors'] = final
+
+        get_specialisation = Department.objects.all()
+        get_specialisation_serializer = DepartmentSerializer(get_specialisation,many=True,context={"request":request})
+        for l in get_specialisation_serializer.data:
+            data = {
+                "id" : l['id'],
+                "title" : l['name'],
+                "selected" : False,
+            }
+            json_data['specialisation'].append(data)
+
+        if search_type == "first":
+            if len(json_data['doctors']) > 0:
+                json_data['isempty'] = False
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+        else:
+            """
+                Gender : Filtering the gender of the doctor based on the request 
+                A - All
+                M - Male
+                F - Female
+            """
+            initial = json_data['doctors']
+            filter_1 = [] #Filtered data after gender 
+            if gender not in [None,""]:
+                if gender == "M":
+                    for m in initial:
+                        if m['gender'] == 'M':
+                            filter_1.append(m)
+                    for g in json_data['gender']:
+                        if g['id'] == 'M':
+                            g['selected'] = True
+                        else:
+                            g['selected'] = False
+                elif gender=="F":
+                    for f in initial:
+                        if f['gender'] == 'F':
+                            filter_1.append(f)
+                    for g in json_data['gender']:
+                        if g['id'] == 'F':
+                            g['selected'] = True
+                        else:
+                            g['selected'] = False
+                else:
+                    filter_1 = initial
+                    for g in json_data['gender']:
+                        if g['id'] == 'A':
+                            g['selected'] = True
+                        else:
+                            g['selected'] = False
+
+            """
+                Experience : Filtering the doctor based on experience
+                1 - Relevance
+                2 - Low to high
+                3 - High to low
+            """  
+            if exp not in [None,""]:
+                print(exp)
+                if exp == 2:
+                    filter_1.sort(key=lambda e: e['experience'], reverse=False)
+                    for e in json_data['experience']:
+                        if e['id'] == 2:
+                            e['selected'] = True
+                        else:
+                            e['selected'] = False
+                elif exp == 3:
+                    filter_1.sort(key=lambda e: e['experience'], reverse=True)
+                    for e in json_data['experience']:
+                        if e['id'] == 3:
+                            e['selected'] = True
+                        else:
+                            e['selected'] = False
+                else:
+                    for e in json_data['experience']:
+                        if e['id'] == 1:
+                            e['selected'] = True
+                        else:
+                            e['selected'] = False
+
+            """
+                Specialist : Filtering the doctor based on specialist
+                specialist: [String(id)] is required and get department object from that
+            """
+            filter_2 = [] #Filtered data after specialist
+            if specialist not in [None,""]:
+                get_spec = Department.objects.filter(id=specialist).first()
+                for doc in filter_1:
+                    if doc['deptid'] == get_spec.id:
+                        filter_2.append(doc)
+                for s in json_data['specialisation']:
+                    if s['id'] == get_spec.id:
+                        s['selected'] = True
+                    else:
+                        s['selected'] = False
+            else:
+                filter_2 = filter_1      
+                for s in json_data['specialisation']:
+                    s['selected'] = False        
+
+            json_data['doctors'] = filter_2
+            if len(json_data['doctors']) > 0:
+                json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+#-------Data Filtering API --------
+"""
+class DoctorFilter(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self,request,format=None):
+        
+            # Filtering of doctors data.
+            # GET method:
+            #     query : [String(query),required] Previous query searched by the user.
+            #     specialist : [String(id),optional] Specialist of the doctor will be filtered from the resulted doctors
+            #     exp : [int(customid),optional] Experience of the doctor will be filtered from the resulted doctors
+            #         1 - Relevance
+            #         2 - Low to high
+            #         3 - High to low
+            #     gender : [String(customid),optional] Gender of the doctor will be filtered from the result of the search
+            #         A - All 
+            #         M - Male
+            #         F - Female
+       
+        user = request.user
+        data = request.query_params
+        query = data.get('search', "")
+        specialist = data.get('specialist', None)
+        exp = data.get('experience', 1)
+        gender = data.get('gender','A')
+        
+"""
