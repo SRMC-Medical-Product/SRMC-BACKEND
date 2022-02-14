@@ -39,7 +39,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'mainapp.apps.MainappConfig',
     'adminapp.apps.AdminappConfig',
+    #Rest Framework
     'rest_framework',
+    'rest_framework.authtoken',
     'django_celery_beat',
 ]
 
