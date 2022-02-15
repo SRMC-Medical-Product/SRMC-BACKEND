@@ -1,7 +1,4 @@
 '''Django imports'''
-from argparse import Action
-from cgitb import enable
-from re import L
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate 
 from django.db.models import Q
@@ -119,6 +116,290 @@ class AdminLogin(APIView):
         
 #----------------------------End : Admin Auth----------------------------
 
+#----------------------------Start : Promotions and Homepage----------------------------
+class CarouselView(APIView): 
+    authentication_classes = [AdminAuthentication]
+    permission_classes = [SuperAdminPermission] 
+
+    def get(self , request , format=None):
+        ACTION = "Carousel GET" 
+        snippet = Carousel.objects.all()
+        serializer = CarouselSerializer(snippet, many=True , context={'request': request})
+        return display_response( 
+            msg = ACTION,
+            err= None,
+            body = serializer.data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def post(self , request , format=None):
+        ACTION = "Carousel POST" 
+        data = self.request.data
+        img = data.get('img')
+        if img in [None , '']:
+            return display_response(
+            msg = ACTION,
+            err= "Image not found",
+            body = None,
+            statuscode = status.HTTP_200_OK
+        ) 
+        count = Carousel.objects.count()
+        if count < 2:
+
+            try :
+                Carousel.objects.create(img=img)
+
+                return display_response(
+                    msg = ACTION, 
+                    err= None,
+                    body = "Carousel Created Successfully",
+                    statuscode = status.HTTP_200_OK
+                )
+
+            except Exception as e:
+                excep = exceptiontype(e) 
+                msg = exceptionmsg(e)
+                return display_response(
+                    msg = ACTION,
+                    err= f"{excep} || {msg}",
+                    body = None,
+                    statuscode = status.HTTP_409_CONFLICT
+                )
+        else:
+            return display_response(
+                msg = ACTION,
+                err= "Carousel limit (2) reached",
+                body = None,
+                statuscode = status.HTTP_200_OK
+            )
+
+    def delete(self , request , format=None):
+        ACTION = "Carousel DELETE" 
+        data = request.data 
+        id = data.get('id') 
+        if id in [None , '']:
+            return display_response(
+            msg = ACTION,
+            err= "Id not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND 
+        )   
+
+        get_carousel = Carousel.objects.filter(id=id).first()  
+        if get_carousel is None:
+            return display_response(
+            msg = ACTION,
+            err= "Carousel not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND 
+        )
+
+        try :
+            get_carousel.delete() 
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "Carousel Deleted Successfully",
+                statuscode = status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )        
+
+class PromotionalSliderView(APIView): 
+    authentication_classes = [AdminAuthentication]
+    permission_classes = [SuperAdminPermission] 
+
+    def get(self , request , format=None):
+        ACTION = "PromotionalSlider GET" 
+        snippet = PromotionalSlider.objects.all()
+        serializer = PromotionalSliderSerializer(snippet, many=True , context={'request': request})
+        return display_response( 
+            msg = ACTION,
+            err= None,
+            body = serializer.data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def post(self , request , format=None):
+        ACTION = "PromotionalSlider POST" 
+        data = self.request.data
+        img = data.get('img')
+        if img in [None , '']:
+            return display_response(
+            msg = ACTION,
+            err= "Image not found",
+            body = None,
+            statuscode = status.HTTP_200_OK
+        ) 
+        try :
+            PromotionalSlider.objects.create(img=img)
+            return display_response(
+                msg = ACTION, 
+                err= None,
+                body = "PromotionalSlider Created Successfully",
+                statuscode = status.HTTP_200_OK
+            )
+        except Exception as e:
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+
+
+    def delete(self , request , format=None):
+        ACTION = "PromotionalSlider DELETE" 
+        data = request.data 
+        id = data.get('id') 
+        if id in [None , '']:
+            return display_response(
+            msg = ACTION,
+            err= "Id not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND 
+        )   
+
+        get_category_promotion = PromotionalSlider.objects.filter(id=id).first()  
+        if get_category_promotion is None:
+            return display_response(
+            msg = ACTION,
+            err= "PromotionalSlider not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND 
+        )
+
+        try :
+            get_category_promotion.delete() 
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "PromotionalSlider Deleted Successfully",
+                statuscode = status.HTTP_200_OK
+            )
+
+        except Exception as e:
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )        
+
+class CategoryPromotionView(APIView): 
+    authentication_classes = [AdminAuthentication]
+    permission_classes = [SuperAdminPermission] 
+
+    def get(self , request , format=None): 
+        ACTION = "CategoryPromotion GET"
+        snippet = CategoryPromotion.objects.all()
+        serializer = CategoryPromotionSerializer(snippet, many=True , context={'request': request}) 
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = serializer.data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    
+    def post(self , request , format=None):
+        ACTION = "CategoryPromotion POST"
+        data = self.request.data
+        title = data.get('img')
+        category = data.get('category')
+
+        if title in [None , ''] or category in [None , '']: 
+            return display_response(
+            msg = ACTION,
+            err= "Title or Category not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        ) 
+
+        get_category = CategorySpecialist.objects.filter(category=category).first() 
+        if get_category is None: 
+            return display_response(
+            msg = ACTION,
+            err= "Category object does not exists",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        ) 
+
+        try :
+            CategoryPromotion.objects.create(
+                title=title, 
+                category=get_category
+            )
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "CategoryPromotion Created Successfully",
+                statuscode = status.HTTP_201_CREATED
+            )
+
+        except Exception as e:
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+
+
+    def delete(self , request , format=None):
+        ACTION = "CategoryPromotion DELETE"
+        data = request.data
+        id = data.get('id')
+        if id in [None , '']:
+            return display_response(
+            msg = ACTION,
+            err= "Id not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        get_category_promotion = CategoryPromotion.objects.filter(id=id).first()
+        if get_category_promotion is None:
+            return display_response(
+            msg = ACTION,
+            err= "CategoryPromotion not found",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        try :
+            get_category_promotion.delete()
+            return display_response(
+                msg = ACTION,
+                err= None,
+                body = "CategoryPromotion Deleted Successfully",
+                statuscode = status.HTTP_200_OK
+            )
+
+        except Exception as e: 
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+#----------------------------End : Promotions and Homepage----------------------------
+
 '''Admin Data Get'''
 '''Bearer Token Required'''
 class AdminData(APIView):
@@ -152,6 +433,7 @@ class AdminData(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
 '''Admin Each User Data Get'''
 '''Bearer Token Required'''
 class AdminUserGet(APIView):
@@ -591,3 +873,147 @@ class SpecializationInDetail(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
+''' custom json format to retrive doctor data in dashboard '''
+class DoctorGet(APIView):
+    authentication_classes = [AdminAuthentication] 
+    permission_classes = [SuperAdminPermission]
+
+    def get(self , request , format=None):
+        ACTION = "Doctor GET"
+        snippet = Doctor.objects.all() 
+        serializer = DoctorSerializer(snippet,many=True,context={'request' :request})
+        json_data = []
+        for i in serializer.data :
+            json_data.append([{
+                "id" : i['id'],
+                "doctor_id" : i['doctor_id'], 
+                "name" : i['name'],
+                "profile_img" : i['profile_img'],
+                "specialisation" : i['specialisation'],
+                "is_blocked" : i['is_blocked'],
+            }]) 
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+''' single doctor details get'''
+class DoctorDetails(APIView): 
+    authentication_classes = [AdminAuthentication] 
+    permission_classes = [SuperAdminPermission]
+
+    def get(self , request , format=None):
+        ACTION = "DoctorDetails GET"
+        id = request.query_params.get('id')
+
+        json_data = {
+            "details" : {},
+            "timings" : {},
+            "schedule" : {},
+            "appointments" : {}
+        }
+        if id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        snippet = Doctor.objects.filter(id=id).first()
+        serializer = DoctorSerializer(snippet,context={'request' :request})
+        
+        '''Details'''
+        json_data['details'] = serializer.data
+        timings = DoctorTimings.objects.filter(doctor_id__id=id).first()
+        
+        '''Timings'''
+        timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request})
+        json_data['timings'] = timings_serializer.data 
+        
+        '''Schedule'''
+        schedule = DoctorSchedule.objects.filter(doctor_id__id=id).first()
+        schedule_serializer = DoctorScheduleSerializer(schedule,context={'request' :request})
+        json_data['schedule'] = schedule_serializer.data
+
+        return display_response(
+            msg = ACTION,
+            err= None, 
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+''' Patients get'''
+class PatientGet(APIView):
+    authentication_classes = [AdminAuthentication] 
+    permission_classes = [SuperAdminPermission]     
+    def get(self , request , format=None):
+        ACTION = "Patients GET"
+        snippet = Patient.objects.all() 
+        serializer = PatientSerializer(snippet,many=True,context={'request' :request})
+        json_data = []
+        for i in serializer.data :
+            json_data.append([{
+                "id" : i['id'],
+                "name" : i['name'], 
+                "email" : i['email'], 
+                "blood" : i['blood'], 
+                "gender" : i['gender'], 
+            }]) 
+
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )  
+''' single patient details get'''
+class PatientDetails(APIView):
+    authentication_classes = [AdminAuthentication]
+    permission_classes = [SuperAdminPermission] 
+    def get(self , request , format=None):
+        ACTION = "PatientDetails GET"
+        id = request.query_params.get('id')
+
+        json_data = {
+            "details" : {},
+            "appointments" : {}
+        }
+        ''' check id for null ''' 
+        if id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        snippet = Patient.objects.filter(id=id).first()
+        serializer = PatientSerializer(snippet,context={'request' :request})
+        json_data["details"] = serializer.data
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+''' Users get'''
+class UsersGet(APIView): 
+    authentication_classes = [AdminAuthentication] 
+    permission_classes = [SuperAdminPermission]
+    def get(self , request , format=None):
+        ACTION = "Users GET"
+        snippet = User.objects.all() 
+        serializer = UserSerializer(snippet,many=True,context={'request' :request})
+        return display_response(
+            msg = ACTION,
+            err= None, 
+            body = serializer.data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+       

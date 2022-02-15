@@ -6,10 +6,8 @@ API View Todo Screen
 7)Medical Records Screen
 8)Medical Records Details Screen
 11)Appointments History Screen
-    - update the data in the views
 12)Appointments Details Screen 
 16)Upcoming/Live Appointments screen
-    - update the data in the views
 18)Doctor Details and Slot Bookings Screen
     - make order models to update that
 19)Confirmation Screen

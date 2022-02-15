@@ -77,6 +77,7 @@ class Doctor(models.Model):
     doctor_id=models.CharField(max_length=256,unique=True)
     email =models.EmailField(blank=True,unique=True)
     name=models.CharField(max_length=256)
+    profile_img = models.FileField(upload_to='media/doctor/',null=True,blank=True)
     pin=models.CharField(max_length=5)
     age=models.PositiveIntegerField()
     gender=models.CharField(max_length=1)
