@@ -17,7 +17,7 @@ from .auth import *
 from .serializers import *
 from mainapp.doctor_serializers import *
 from .tasks import test_func
-from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,mdY,IST_TIMEZONE,YmdTHMSfz
+from .utils import *
 
 #------Profile Lists
 REALTION = ["Father","Mother","Brother","Sister","Husband","Wife","Son","Daughter","Grandfather","Grandmother","Grandson","Granddaughter","Friend","Other"]

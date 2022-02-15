@@ -3,6 +3,7 @@
 """
 from django.shortcuts import render
 from django.utils import timezone
+from datetime import datetime as dtt,time,date,timedelta
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -14,6 +15,7 @@ from .models import *
 from .auth import *
 from .doctor_serializers import *
 from .utils import *
+#from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,mdY,IST_TIMEZONE,YmdTHMSfz
 
 class LoginDoctor(APIView):
 
@@ -59,6 +61,20 @@ class LoginDoctor(APIView):
             token=generate_token({
                     "id":doctor.id
                         })
+
+            """
+                Setup the doctor activity
+            """
+            activity = DoctorActivity.objects.get_or_create(doctor_id=doctor)[0]
+            now = dtt.now(IST_TIMEZONE)
+            data = {
+                "date" : now.strftime(dmY),
+                "time" : now.strftime(HMS),
+            }
+            if len(activity.login) == 0:
+                activity.login = [data]
+            else:
+                activity.login.append(data)
 
             return Response({
                         "MSG":"SUCCESS",

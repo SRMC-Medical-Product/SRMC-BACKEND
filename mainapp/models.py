@@ -117,8 +117,8 @@ class DoctorSchedule(models.Model):
 
 class DoctorActivity(models.Model):
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE,blank=True,null=True)
-    login = models.JSONField(default=dict,blank=True)
-    logout = models.JSONField(default=dict,blank=True)
+    login = models.JSONField(default=list,blank=True)
+    logout = models.JSONField(default=list,blank=True)
     modified_at=models.DateTimeField(auto_now=True)
     created_at=models.DateTimeField(auto_now_add=True)
     stats=models.JSONField(default=dict,blank=True)
