@@ -1254,3 +1254,81 @@ class SearchResults(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
+#-------Appointment History --------------------------------
+class AppointmentHistory(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self, request,format=None):
+        json_data = {
+            "isemtpy" : True,
+            "appointments" : [],
+        }
+        user = request.user
+        
+        query = Appointment.objects.filter(patient_id=user.id,closed=True).order_by('-created_at').all()
+        serializer = AppointmentSerializer(query,many=True,context={"request":request})
+        for x in serializer.data:
+            data = {
+               #TODO: Add doctor details    
+            }
+            json_data['appointments'].append(data)
+        
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#-------Pending Appointment -------------------------------
+class PendingAppointment(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self, request,format=None):
+        """
+            this view is responsible for getting the pending appointments.
+            maintains two types of appointments for live and upcoming.
+            GET method:
+                type : [int(id),required] Search type in query_params
+                    - 1 : Live appointments
+                    - 2 : Upcoming appointments
+        """
+        json_data = {
+            "type" : None,
+            "isempty" : True,
+            "appointments" : [],
+        }
+        user = request.user
+        search_type = request.query_params.get('type',1)
+        current_date = dtt.now(IST_TIMEZONE).strftime("%Y-%m-%d")
+        
+        if search_type == 1:
+            query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date=current_date).order_by('-created_at').all()
+        else:
+            query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date__gt=current_date).order_by('-created_at').all()
+        
+        serializer = AppointmentSerializer(query,many=True,context={"request":request})
+        for x in serializer.data:
+            data = {
+                #TODO add data her
+            }
+            json_data['appointments'].append(data)
+        
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        json_data['type'] = f"{search_type}"
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+        
+

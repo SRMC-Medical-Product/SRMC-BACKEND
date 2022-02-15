@@ -23,6 +23,7 @@ class CategorySpecialistSerializer(ModelSerializer):
 			self.Meta.depth = 0 
 		else:
 			self.Meta.depth = 4
+			
 class DepartmentSerializer(ModelSerializer):
 	class Meta:
 		model = Department

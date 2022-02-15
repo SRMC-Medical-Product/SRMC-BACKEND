@@ -18,4 +18,7 @@ urlpatterns=[
 
     path('doctors-slots/',DoctorSlotDetails.as_view(),name="doctors-slots"),
     path('change-member-booking/',BookingChangeMember.as_view(),name="change-member-booking"),
+
+    path('appointment-history/',AppointmentHistory.as_view(),name="appointment-history"),
+    path('appointment-pending/',PendingAppointment.as_view(),name="appointment-pending"),
 ]
