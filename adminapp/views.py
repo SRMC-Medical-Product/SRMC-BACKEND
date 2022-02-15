@@ -234,7 +234,7 @@ class PromotionalSliderView(APIView):
         )
 
     def post(self , request , format=None):
-        ACTION = "CategoryPromotion POST" 
+        ACTION = "PromotionalSlider POST" 
         data = self.request.data
         img = data.get('img')
         if img in [None , '']:
@@ -245,11 +245,11 @@ class PromotionalSliderView(APIView):
             statuscode = status.HTTP_200_OK
         ) 
         try :
-            CategoryPromotion.objects.create(img=img)
+            PromotionalSlider.objects.create(img=img)
             return display_response(
                 msg = ACTION, 
                 err= None,
-                body = "CategoryPromotion Created Successfully",
+                body = "PromotionalSlider Created Successfully",
                 statuscode = status.HTTP_200_OK
             )
         except Exception as e:
@@ -264,7 +264,7 @@ class PromotionalSliderView(APIView):
 
 
     def delete(self , request , format=None):
-        ACTION = "CategoryPromotion DELETE" 
+        ACTION = "PromotionalSlider DELETE" 
         data = request.data 
         id = data.get('id') 
         if id in [None , '']:
@@ -275,11 +275,11 @@ class PromotionalSliderView(APIView):
             statuscode = status.HTTP_404_NOT_FOUND 
         )   
 
-        get_category_promotion = CategoryPromotion.objects.filter(id=id).first()  
+        get_category_promotion = PromotionalSlider.objects.filter(id=id).first()  
         if get_category_promotion is None:
             return display_response(
             msg = ACTION,
-            err= "CategoryPromotion not found",
+            err= "PromotionalSlider not found",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND 
         )
@@ -289,7 +289,7 @@ class PromotionalSliderView(APIView):
             return display_response(
                 msg = ACTION,
                 err= None,
-                body = "CategoryPromotion Deleted Successfully",
+                body = "PromotionalSlider Deleted Successfully",
                 statuscode = status.HTTP_200_OK
             )
 
@@ -1020,3 +1020,5 @@ class UsersGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+
+       

@@ -122,3 +122,4 @@ def generate_department_id(sender,instance,**kwargs):
 def update_modified_at(sender,instance,**kwargs):
 
     instance.modified_at=timezone.now()
+
