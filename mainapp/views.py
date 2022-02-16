@@ -1342,7 +1342,21 @@ class BookAppoinment(APIView):
     
     authentication_classes=[UserAuthentication]
     permission_classes=[]
+    """
+        API to book appoinment
+        Allowed methods:
+            -POST
+        
+        Authentication: Required UserAuthentication
 
+        POST:
+            data:
+                patient_id: [string,required] id of the patient
+                date:       [string,required,format: mm/dd/yyyy] date of appoinment
+                time:       [string,required,format: hh:mm:ss] time for the appoinment
+                doctor_id:  [ string,required] id of the doctor
+
+    """
     def post(self,request,format=None):
         data=self.request.data
 
@@ -1352,7 +1366,8 @@ class BookAppoinment(APIView):
         doctor_id=data.get("doctor_id")
 
         validation_arr=["",None]
-
+        
+        """validate data"""
         if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
 
             return Response({
@@ -1361,7 +1376,7 @@ class BookAppoinment(APIView):
                     "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
         
-        doctor_=Doctor.objects.filter(id=doctor_id)
+        doctor_=Doctor.objects.filter(id=doctor_id) #get doctor instance
 
         if doctor_.exists():
             doctor_=doctor_[0]
@@ -1372,7 +1387,7 @@ class BookAppoinment(APIView):
                     "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
 
-        patient_=Patient.objects.filter(id=patiend_id)
+        patient_=Patient.objects.filter(id=patiend_id)  #get patient instance
 
         if patient_.exists():
             patient_=patient_[0]
@@ -1384,7 +1399,7 @@ class BookAppoinment(APIView):
                     "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
 
-        doctor_timings_=DoctorTimings.objects.filter(doctor_id=doctor_)
+        doctor_timings_=DoctorTimings.objects.filter(doctor_id=doctor_)   #get doctor timings instance
 
         if doctor_timings_.exists():
             doctor_timings_=doctor_timings_[0]
@@ -1397,7 +1412,8 @@ class BookAppoinment(APIView):
         
         timeslots_json=doctor_timings_.timeslots
 
-        timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date    ,time)
+        #update doctor timeslot  by increasing the count
+        timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
 
         time_line=dict({
             "step1":{
@@ -1407,13 +1423,14 @@ class BookAppoinment(APIView):
                     },
                 })
         
-        date_date=return_date_type(date)
-        time_time=return_time_type(time)
+        date_date=return_date_type(date)   #convert string date to date object
+        time_time=return_time_type(time)    #convert string time to time object
 
         doctor_serialized_data=DoctorSerializer(doctor_).data
         patient_serialized_data=PatientSerializer(patient_).data
         
-        Appointment.objects.create(
+        """ Populate appoinment model """
+        a=Appointment.objects.create(
                         date=date_date,
                         time=time_time,
                         doctor_id=doctor_id,
@@ -1422,9 +1439,21 @@ class BookAppoinment(APIView):
                         doctor=doctor_serialized_data,
                         patient=patient_serialized_data
                                 )
-        
-        doctor_timings_.timeslots=timeslots_json
+        appoinment_serializer=AppointmentSerializer(a).data
+
+        doctor_timings_.timeslots=timeslots_json               #update doctor timings
         doctor_timings_.save(update_fields=["timeslots"])
+
+        """ Populate HelpDeskAppoinment model for a particular date"""
+        help_desk_appoinment_instance=HelpDeskAppointment.objects.get_or_create(date=date_date,department=doctor_.department_id)[0]
+        
+        help_desk_appoinment_instance.count=help_desk_appoinment_instance.count+1  #increment the count of appoinment for th date
+        
+        arr=help_desk_appoinment_instance.bookings   #add appoinments to json
+        arr.append(appoinment_serializer)
+        help_desk_appoinment_instance.bookings=arr
+        
+        help_desk_appoinment_instance.save()     #save the helpdeskappoinment instance
 
         return Response({
                     "MSG":"SUCCESS",

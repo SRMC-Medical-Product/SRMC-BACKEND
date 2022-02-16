@@ -224,7 +224,7 @@ class HelpDeskUser(models.Model):
         return f"{str(self.id)} - {self.counterno}"
 
 class HelpDeskAppointment(models.Model):
-    user = models.ForeignKey(HelpDeskUser,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
+    department = models.ForeignKey(Department,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
     date = models.DateField(null=True,blank=True)
     count = models.PositiveIntegerField(default=0)
     bookings = models.JSONField(default=list,blank=True)
@@ -235,7 +235,7 @@ class HelpDeskAppointment(models.Model):
     modified_at=models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{str(self.user)} - {self.date}"
+        return f"{str(self.department)} - {self.date}"
 
 
 '''----------End : HelpDesk Model----------'''
