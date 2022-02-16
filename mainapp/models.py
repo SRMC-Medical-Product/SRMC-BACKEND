@@ -211,7 +211,7 @@ class HelpDeskUser(models.Model):
     id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) # TODO add signals
     counterno = models.CharField(max_length=256,null=True,blank=True,unique=True)
     name = models.CharField(max_length=256,null=True,blank=True)
-    email = models.EmailField(null=True,blank=True)
+    email = models.EmailField(null=True,blank=True,unique=True)
     mobile = models.CharField(max_length=256,null=True,blank=True)
     pin = models.CharField(max_length=10,null=True,blank=True)
     is_blocked = models.BooleanField(default=False)
