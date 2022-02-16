@@ -8,7 +8,7 @@ class User(models.Model):
     patientid=models.CharField(max_length=256,blank=True,null=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
     mobile=models.CharField(max_length=15,unique=True)
-    family_members=models.JSONField(null=True)
+    family_members=models.JSONField(null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     selected = models.BooleanField(default=True)
 
@@ -85,7 +85,7 @@ class Doctor(models.Model):
     experience=models.PositiveIntegerField()
     qualification=models.TextField()
     specialisation=models.TextField()
-    languages_known=models.JSONField(default=dict,blank=True)
+    languages_known=models.JSONField(default=dict,blank=True,null=True)
     modified_at=models.DateTimeField(editable=False)
     is_blocked = models.BooleanField(default=False)
     department_id=models.ForeignKey(Department,null=True,on_delete=models.SET_NULL)
@@ -186,21 +186,16 @@ class Appointment(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False) #TODO : setup signal to generate id
     offline = models.BooleanField(default=True)    
     date = models.DateField(null=True,blank=True)
-    time = models.CharField(max_length=256,null=True,blank=True)
-    
-    # Patient and Doctor Data  
+    time = models.TimeField(null=True,blank=True)
     doctor_id = models.CharField(max_length=256,null=True,blank=True)
     patient_id = models.CharField(max_length=256,null=True,blank=True)
     doctor = models.JSONField(default=dict,blank=True)
     patient = models.JSONField(default=dict,blank=True)
-
-    # Timine line format 
-    timeline =models.JSONField(default=dict,blank=True)
+    timeline =models.JSONField(null=True,blank=True)
     consulted = models.BooleanField(default=False)
     cancelled = models.BooleanField(default=False)
     reassigned = models.BooleanField(default=False)
     closed = models.BooleanField(default=False)
-
     counter = models.JSONField(default=dict,blank=True)
     activity = models.JSONField(default=dict,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
@@ -208,3 +203,39 @@ class Appointment(models.Model):
     
     def __str__(self):
         return str(self.id)
+
+'''----------End : Appointment Model----------'''
+
+'''----------Start : HelpDesk Model----------'''
+class HelpDeskUser(models.Model):
+    id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) # TODO add signals
+    counterno = models.CharField(max_length=256,null=True,blank=True,unique=True)
+    name = models.CharField(max_length=256,null=True,blank=True)
+    email = models.EmailField(null=True,blank=True,unique=True)
+    mobile = models.CharField(max_length=256,null=True,blank=True)
+    pin = models.CharField(max_length=10,null=True,blank=True)
+    is_blocked = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+    specialisation=models.ManyToManyField(Department,blank=True)
+    activity=models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return f"{str(self.id)} - {self.counterno}"
+
+class HelpDeskAppointment(models.Model):
+    department = models.ForeignKey(Department,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
+    date = models.DateField(null=True,blank=True)
+    count = models.PositiveIntegerField(default=0)
+    bookings = models.JSONField(default=list,blank=True)
+    consulted =models.JSONField(default=dict,blank=True)
+    missing = models.JSONField(default=dict,blank=True)
+    reassign = models.JSONField(default=dict,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{str(self.department)} - {self.date}"
+
+
+'''----------End : HelpDesk Model----------'''

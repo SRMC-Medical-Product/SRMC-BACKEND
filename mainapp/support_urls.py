@@ -1,7 +1,10 @@
 from django.urls import path
-from mainapp.support_views import *
+from .support_views import *
+
 
 urlpatterns = [
+    # --------------------------------- Login auth URLS ---------------------------------
+    path('login-user/',LoginUser.as_view(),name="login-user"),
 
     # --------------------------------- Departments URLS ---------------------------------
     path('departments/' , DepartmentsView.as_view() , name='departments'),

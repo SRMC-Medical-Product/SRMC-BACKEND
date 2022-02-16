@@ -22,4 +22,5 @@ urlpatterns = [
     path('api/support-desk/',include('mainapp.support_urls')),
     path('api/main/pat/',include('mainapp.urls')),
     path('api/main/doc/',include('mainapp.doctor_urls')),
+    path('api/main/sup/',include('mainapp.support_urls')),
 ]

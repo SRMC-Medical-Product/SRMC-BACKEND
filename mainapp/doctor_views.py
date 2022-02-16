@@ -75,7 +75,7 @@ class LoginDoctor(APIView):
                 activity.login = [data]
             else:
                 activity.login.append(data)
-
+            activity.save()
             return Response({
                         "MSG":"SUCCESS",
                         "ERR":None,

@@ -1,39 +1,101 @@
-'''Django imports'''
-from django.contrib.auth import authenticate 
-from django.db.models import Q
-from django.conf import settings
-from datetime import datetime as dtt , time , timedelta
+"""
+    File with all the API's relating to the help desk user web
+"""
+from django.shortcuts import render
+from django.utils import timezone
+from datetime import datetime as dtt,time,date,timedelta
 
-'''imports'''
-import uuid 
-import math 
-from urllib.parse import urlparse , parse_qs
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+# Create your views here.
 
-#TODO : using admin auth by default
-'''Authentication Permission'''
-from adminapp.authentication import AdminAuthentication
-
-'''Model Import'''
 from .models import *
-from mainapp.models import * 
-
-'''Serializer Import'''
-from mainapp.support_serializers import *
-from mainapp.serializers import *
-from mainapp.doctor_serializers import *
+from .auth import *
+from .utils import *
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 
-'''Rest Framework'''
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-from rest_framework.authtoken.models import Token
+'''Serializer Import'''
+from .support_serializers import *
+from mainapp.serializers import *
+from mainapp.doctor_serializers import *
 
+class LoginUser(APIView):
+    authentication_classes = []
+    permission_classes = []
 
-'''Time Format Imports'''
-from myproject.datetimeformat import HMSf, dmY,Ymd,IMp,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,HMS
+    def post(self,request,format=None):
+        data = request.data
+        userid = data.get("userid", None)  # Both USERID and EMail are accepted
+        pin = data.get("pin", None)
+        
+        if userid in [None,""] or pin in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Please provide userid and pin",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        """
+            First we are checking with the userid and the pin.If the object instance is None then
+            we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
+        """
+
+        user=HelpDeskUser.objects.filter(id=userid,pin=pin)
+        if user is None:
+            user=HelpDeskUser.objects.filter(email=userid,pin=pin)
+        
+        if user.exists():
+            user=user[0]
+        else:
+            return display_response(
+                msg="FAILED",
+                err="User does not exist",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if user.is_blocked == False:
+            token=generate_token({
+                "id":user.id,
+            })
+        
+            """
+                Setup the login activity
+            """
+            now = dtt.now(IST_TIMEZONE)
+            logindata = {
+                "date":now.strftime(dmY),
+                "time":now.strftime(HMS),
+            }
+            if user.activity is None:
+                formatdata = {
+                    "login" :[]
+                }
+                formatdata["login"].append(logindata)
+                user.activity = formatdata
+            else:
+                user.activity["login"].append(logindata)
+
+            user.save()
+            return display_response(
+                msg="SUCCESS",
+                err=None,
+                body={
+                    "token":token
+                },
+                statuscode=status.HTTP_200_OK
+            )
+        else:
+            return display_response(
+                msg="FAILED",
+                err="User is blocked by the admin. Contact the administrator",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            ) 
 
 '''department''' 
 class DepartmentsView(APIView):
