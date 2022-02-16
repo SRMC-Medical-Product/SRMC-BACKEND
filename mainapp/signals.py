@@ -153,6 +153,15 @@ def create_promotion_id(sender,instance,**kwargs):
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
         instance.id=id 
 
+@receiver(pre_save,sender=CategorySpecialist)
+def create_category_promotion_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = CategorySpecialist.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=CategorySpecialist.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
 
 @receiver(pre_save,sender=Appointment)
 def create_appointment_id(sender,instance,**kwargs):
