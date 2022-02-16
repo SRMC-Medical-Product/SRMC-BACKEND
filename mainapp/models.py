@@ -187,15 +187,20 @@ class Appointment(models.Model):
     offline = models.BooleanField(default=True)    
     date = models.DateField(null=True,blank=True)
     time = models.CharField(max_length=256,null=True,blank=True)
+    
+    # Patient and Doctor Data  
     doctor_id = models.CharField(max_length=256,null=True,blank=True)
     patient_id = models.CharField(max_length=256,null=True,blank=True)
     doctor = models.JSONField(default=dict,blank=True)
     patient = models.JSONField(default=dict,blank=True)
+
+    # Timine line format 
     timeline =models.JSONField(default=dict,blank=True)
     consulted = models.BooleanField(default=False)
     cancelled = models.BooleanField(default=False)
     reassigned = models.BooleanField(default=False)
     closed = models.BooleanField(default=False)
+
     counter = models.JSONField(default=dict,blank=True)
     activity = models.JSONField(default=dict,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
