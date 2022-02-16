@@ -34,7 +34,7 @@ from rest_framework.authtoken.models import Token
 
 
 '''Time Format Imports'''
-from myproject.datetimeformat import HMSf, dmY,Ymd,IMp,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,HMS
+from mainapp.utils import  dmY,Ymd,IMp,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,HMS
 
 #----------------------------Start : Admin Auth----------------------------
 '''Admin Registration'''
