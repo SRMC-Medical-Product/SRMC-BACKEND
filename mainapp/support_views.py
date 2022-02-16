@@ -101,8 +101,8 @@ class LoginUser(APIView):
 '''department''' 
 class DepartmentsView(APIView):
 
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission]
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
     
     '''Get All Departments'''
     def get(self , request, format=None):
@@ -153,6 +153,9 @@ class DepartmentsView(APIView):
     ]
 '''
 class SpecializationInDetail(APIView):
+
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
 
     def  get(self , request , format=None):
         ACTION = "SpecializationInDetail GET"
@@ -224,8 +227,8 @@ class SpecializationInDetail(APIView):
 """
 
 class AppointmentsHistory(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    authentication_classes = [HelpDeskAuthentication] 
+    permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "AppointmentsHistory GET"
@@ -263,8 +266,8 @@ class AppointmentsHistory(APIView):
                     
 ''' doctor get '''                    
 class DoctorGet(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    authentication_classes = [HelpDeskAuthentication] 
+    permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "Doctor GET"
@@ -289,8 +292,8 @@ class DoctorGet(APIView):
 
 ''' single doctor details get'''
 class DoctorDetails(APIView): 
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    authentication_classes = [HelpDeskAuthentication] 
+    permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "DoctorDetails GET"
@@ -334,8 +337,9 @@ class DoctorDetails(APIView):
 
 '''patient get'''
 class PatientGet(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]     
+    authentication_classes = [HelpDeskAuthentication] 
+    permission_classes = []     
+
     def get(self , request , format=None):
         ACTION = "Patients GET"
         snippet = Patient.objects.all() 
@@ -359,8 +363,9 @@ class PatientGet(APIView):
 
 ''' single patient details get'''
 class PatientDetails(APIView):
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission] 
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+     
     def get(self , request , format=None):
         ACTION = "PatientDetails GET"
         id = request.query_params.get('id')
