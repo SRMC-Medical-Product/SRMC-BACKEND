@@ -1,6 +1,9 @@
 """
     File with all the API's relating to the help desk user web
 """
+import email
+from tkinter.messagebox import NO
+from unicodedata import name
 from django.shortcuts import render
 from django.utils import timezone
 from datetime import datetime as dtt,time,date,timedelta
@@ -100,8 +103,8 @@ class LoginUser(APIView):
 '''department''' 
 class DepartmentsView(APIView):
 
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission]
+    # authentication_classes = []
+    # permission_classes = []
     
     '''Get All Departments'''
     def get(self , request, format=None):
@@ -223,8 +226,8 @@ class SpecializationInDetail(APIView):
 """
 
 class AppointmentsHistory(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    # authentication_classes = [] 
+    # permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "AppointmentsHistory GET"
@@ -263,8 +266,8 @@ class AppointmentsHistory(APIView):
                     
 ''' doctor get '''                    
 class DoctorGet(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    # authentication_classes = [] 
+    # permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "Doctor GET"
@@ -289,8 +292,8 @@ class DoctorGet(APIView):
 
 ''' single doctor details get'''
 class DoctorDetails(APIView): 
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]
+    # authentication_classes = [] 
+    # permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "DoctorDetails GET"
@@ -334,8 +337,8 @@ class DoctorDetails(APIView):
 
 '''patient get'''
 class PatientGet(APIView):
-    # authentication_classes = [AdminAuthentication] 
-    # permission_classes = [SuperAdminPermission]     
+    # authentication_classes = [] 
+    # permission_classes = []     
     def get(self , request , format=None):
         ACTION = "Patients GET"
         snippet = Patient.objects.all() 
@@ -359,8 +362,8 @@ class PatientGet(APIView):
 
 ''' single patient details get'''
 class PatientDetails(APIView):
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission] 
+    # authentication_classes = []
+    # permission_classes = [] 
     def get(self , request , format=None):
         ACTION = "PatientDetails GET"
         id = request.query_params.get('id')
@@ -388,3 +391,142 @@ class PatientDetails(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+''' get activity log for each support user'''
+class ActivityLog(APIView):
+    # authentication_classes = []
+    # permission_classes = []  
+
+    def get(self , request , format=None):
+        ACTION = "ActivityLog GET"
+        data = request.user 
+        
+        if data.id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Support User was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        
+        get_user = HelpDeskUser.objects.filter(user_id=data.id).first()
+        serializer = HelpDeskUserSerializer(get_user,context={'request' :request}) 
+        
+        data = serializer.data
+        json_data = {
+            "id" : data.id, 
+            "name" : data.name,
+            "activity" : data.activity
+        }
+
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+''' update user data ''' 
+
+class UserData(APIView):  
+    authentication_classes = []
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ACTION = "UserData GET" 
+        data = request.user
+        if data.id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Support User was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        get_user = HelpDeskUser.objects.filter(id=data.id).first()  
+        serializer = HelpDeskUserSerializer(get_user,context={'request' :request})
+        data = serializer.data
+        json_data = {
+            "id" : data.id,
+            "name" : data.name,
+            "email" : data.email,
+            "mobile" : data.mobile,
+            "counterno" : data.counterno,
+            "pin" : data.pin,
+            "is_blocked" : data.is_blocked,
+            "specialisation" : [],
+        }
+
+        for i in data.specialisation : 
+            json_data['specialisation'].append([{
+                "id" : i.id,
+                "name" : i.name
+                }]) 
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def put(self , request , format=None):
+        ACTION = "UserData PUT"
+        data = request.data 
+        id = data.get('id') 
+        name = data.get('name') 
+        email = data.get('email')  
+
+        if id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Support User ID was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        get_user = HelpDeskUser.objects.filter(id=id).first()
+        if name not in [None , ""]:
+            get_user.name = name
+            get_user.save()
+        
+        if email not in [None , ""]:
+            get_user.email = email
+            get_user.save()
+        
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = None,
+            statuscode = status.HTTP_200_OK
+        ) 
+
+class UserPinModify(APIView): 
+    authentication_classes = []
+    permission_classes = [] 
+
+    def put(self , request, format= None): 
+        ACTION = "UserPinModify PUT" 
+        data = request.data
+        id = data.get('id')
+        pin = data.get('pin') 
+
+        ''' check id for null ''' 
+        if id in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Support User ID was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''get user''' 
+        get_user = HelpDeskUser.objects.filter(id=id).first()
+        if pin not in [None , ""]:
+            get_user.set_password(pin)
+            get_user.save()
+
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = "Pin Changed Successfully",
+            statuscode = status.HTTP_200_OK
+        )
