@@ -1,4 +1,5 @@
 env
+myproject/__pycache__/
 mainapp/migrations/
 adminapp/migrations/
 mainapp/__pycache__/

@@ -1,5 +1,3 @@
-from calendar import c
-from urllib import request
 from rest_framework.serializers import ModelSerializer
 from .models import *
 
