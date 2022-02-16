@@ -1,0 +1,41 @@
+==============================================
+API View Todo Screen
+----------------------------------------------
+2)Home screen
+3)My Appointments
+4)My Appointments Filtering screen
+5)My Patients Screen
+6)My Patients Filtering screen
+7)My Patients Search Screen
+8)Analytics Screen
+9)Profile Screen
+10)Personal Details Screen
+11)Change Pin Screen
+12)Notifications Screen
+13)Help and Support Screen
+14)Patient Details and Records
+================================================
+
+
+==============================================
+Coded Screens
+----------------------------------------------
+1)Login screen
+2)Home screen
+3)My Appointments
+4)My Appointments Filtering screen
+5)My Patients Screen
+6)My Patients Filtering screen
+7)My Patients Search Screen
+8)Analytics Screen
+9)Profile Screen
+10)Personal Details Screen
+11)Change Pin Screen
+12)Notifications Screen
+13)Help and Support Screen
+14)Patient Details and Records
+
+
+================================================
+
+
