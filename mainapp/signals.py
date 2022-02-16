@@ -131,6 +131,7 @@ def create_carousel_id(sender,instance,**kwargs):
         pat=Carousel.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=Carousel.objects.filter(id=id)
         instance.id=id 
 
 @receiver(pre_save,sender=PromotionalSlider)
@@ -141,6 +142,7 @@ def create_slider_id(sender,instance,**kwargs):
         pat=PromotionalSlider.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=PromotionalSlider.objects.filter(id=id)
         instance.id=id 
 
 @receiver(pre_save,sender=CategoryPromotion)
@@ -151,6 +153,7 @@ def create_promotion_id(sender,instance,**kwargs):
         pat=CategoryPromotion.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=CategoryPromotion.objects.filter(id=id)
         instance.id=id 
 
 
@@ -163,4 +166,5 @@ def create_appointment_id(sender,instance,**kwargs):
         pat=Appointment.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=Appointment.objects.filter(id=id)
         instance.id=id 

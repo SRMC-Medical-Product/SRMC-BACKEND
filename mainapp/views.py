@@ -2,10 +2,12 @@
     File with all API's relating to the patient app
 
 """
+from logging.config import valid_ident
+from pydoc import doc
 from django.utils import timezone
 
 from datetime import datetime as dtt,time,date,timedelta
-
+import json
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -1331,5 +1333,101 @@ class PendingAppointment(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
-        
 
+
+class BookAppoinment(APIView):
+    
+    #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
+    #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
+    
+    authentication_classes=[UserAuthentication]
+    permission_classes=[]
+
+    def post(self,request,format=None):
+        data=self.request.data
+
+        patiend_id=data.get("patient_id")
+        date=data.get("date")
+        time=data.get("time")
+        doctor_id=data.get("doctor_id")
+
+        validation_arr=["",None]
+
+        if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
+
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Invalid data given",
+                    "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+        
+        doctor_=Doctor.objects.filter(id=doctor_id)
+
+        if doctor_.exists():
+            doctor_=doctor_[0]
+        else:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Invalid doctor id given",
+                    "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+
+        patient_=Patient.objects.filter(id=patiend_id)
+
+        if patient_.exists():
+            patient_=patient_[0]
+        
+        else:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Invalid patient id given",
+                    "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+
+        doctor_timings_=DoctorTimings.objects.filter(doctor_id=doctor_)
+
+        if doctor_timings_.exists():
+            doctor_timings_=doctor_timings_[0]
+        else:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Invalid doctor id given",
+                    "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+        
+        timeslots_json=doctor_timings_.timeslots
+
+        timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date    ,time)
+
+        time_line=dict({
+            "step1":{
+                "title" : "Booking Confirmed",
+                "time" :dtt.now().time().strftime("%H:%M:%S"),
+                "completed" : True
+                    },
+                })
+        
+        date_date=return_date_type(date)
+        time_time=return_time_type(time)
+
+        doctor_serialized_data=DoctorSerializer(doctor_).data
+        patient_serialized_data=PatientSerializer(patient_).data
+        
+        Appointment.objects.create(
+                        date=date_date,
+                        time=time_time,
+                        doctor_id=doctor_id,
+                        patient_id=patiend_id,
+                        timeline=time_line,
+                        doctor=doctor_serialized_data,
+                        patient=patient_serialized_data
+                                )
+        
+        doctor_timings_.timeslots=timeslots_json
+        doctor_timings_.save(update_fields=["timeslots"])
+
+        return Response({
+                    "MSG":"SUCCESS",
+                    "ERR":None,
+                    "BODY":"Appoinment Booked successfully"
+                            },status=status.HTTP_200_OK)
