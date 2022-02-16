@@ -1352,7 +1352,7 @@ class BookAppoinment(APIView):
         POST:
             data:
                 patient_id: [string,required] id of the patient
-                data:       [string,required,format: mm/dd/yyyy] date of appoinment
+                date:       [string,required,format: mm/dd/yyyy] date of appoinment
                 time:       [string,required,format: hh:mm:ss] time for the appoinment
                 doctor_id:  [ string,required] id of the doctor
 
