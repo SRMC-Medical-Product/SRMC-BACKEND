@@ -100,19 +100,19 @@ class AdminLogin(APIView):
     authentication_classes=[]
     permission_classes=[]
 
-    # def post(self , request , format=None): 
-    #     ACTION = "Admin Login"
-    #     data = self.request.data 
-    #     username = data.get('username')
-    #     password = data.get('password') 
-    #     user = authenticate(username=username, password=password) 
-    #     print(user)
-    #     if user is not None:
-    #         token = Token.objects.get_or_create(user=user) 
-    #         if(user.is_superuser):
-    #             return Response({"RESPONSE":{"token":token[0].key,"superuser":True}},status=status.HTTP_200_OK)
-    #         return Response({"RESPONSE":{"token":token[0].key}},status=status.HTTP_200_OK)
-    #     return Response({"RESPONSE":"Invalid credentials given"},status=status.HTTP_400_BAD_REQUEST)
+    def post(self , request , format=None): 
+        ACTION = "Admin Login"
+        data = self.request.data 
+        username = data.get('username')
+        password = data.get('password') 
+        user = authenticate(username=username, password=password) 
+        print(user)
+        if user is not None:
+            token = Token.objects.get_or_create(user=user) 
+            if(user.is_superuser):
+                return Response({"RESPONSE":{"token":token[0].key,"superuser":True}},status=status.HTTP_200_OK)
+            return Response({"RESPONSE":{"token":token[0].key}},status=status.HTTP_200_OK)
+        return Response({"RESPONSE":"Invalid credentials given"},status=status.HTTP_400_BAD_REQUEST)
         
 #----------------------------End : Admin Auth----------------------------
 
@@ -317,7 +317,7 @@ class CategoryPromotionView(APIView):
     def post(self , request , format=None):
         ACTION = "CategoryPromotion POST"
         data = self.request.data
-        title = data.get('img')
+        title = data.get('title')
         category = data.get('category')
 
         if title in [None , ''] or category in [None , '']: 
@@ -1015,5 +1015,3 @@ class UsersGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-
-       
