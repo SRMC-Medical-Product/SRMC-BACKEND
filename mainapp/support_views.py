@@ -179,13 +179,14 @@ class AppointmentsHistory(APIView):
                 "timeline" : i['timeline'],
             })
 
-            for j in i['patient_id'] :
+
+            for j in i['patient'] :
                 patient_data = {
                     "id" : j['id'],
                     "name" : j['name'],
                 }
             
-            for k in i['doctor_id'] : 
+            for k in i['doctor'] : 
                 doctor_data = {
                     "id" : k['id'],
                     "name" : k['name'],
