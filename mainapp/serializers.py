@@ -46,3 +46,18 @@ class AppointmentSerializer(ModelSerializer):
 			self.Meta.depth = 0 
 		else:
 			self.Meta.depth = 4		
+
+class HelpDeskUserSerializer(ModelSerializer):
+	class Meta:
+		model = HelpDeskUser
+		fields='__all__'
+
+	def __init__(self, *args, **kwargs):
+		super(AppointmentSerializer, self).__init__(*args, **kwargs) 
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0 
+		else:
+			self.Meta.depth = 4	

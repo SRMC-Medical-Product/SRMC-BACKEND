@@ -1,4 +1,5 @@
 '''Django imports'''
+import json
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate 
 from django.db.models import Q
@@ -609,7 +610,7 @@ class DepartmentsView(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
-
+    # TODO : Check many to many fields once
     '''Create New Departments'''
     def post(self, request, format=None):
         ACTION = "Departments POST"
@@ -621,7 +622,7 @@ class DepartmentsView(APIView):
 
 
         '''Check for None Values'''
-        if name in [None,""] or img in [None , ""] or head in [None ,""] or catspl_id in [None , ""]:
+        if name in [None,""] or img in [None , ""] or head in [None ,""] or len(catspl_id) ==0:
             return display_response(
             msg = ACTION,
             err= "Data was found None",
@@ -629,32 +630,29 @@ class DepartmentsView(APIView):
             statuscode = status.HTTP_404_NOT_FOUND
         )
 
-        '''Checking if Department Object exists'''
-        get_category_specialist = CategorySpecialist.objects.filter(id=catspl_id).first()
-        if get_category_specialist is None:
-            return display_response(
-            msg = ACTION,
-            err= "Department Object was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
+        '''Checking if all Department Object exists'''
+        for i in range(len(catspl_id)): 
+            category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
+            if category_specialist_instance is None:
+                return display_response(
+                msg = ACTION,
+                err= "Department Object was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
 
-        ''' Create a UID'''
-        while True:
-            uid = uuid.uuid4()
-            '''Checking if the values uid is not available'''
-            check_uid = Department.objects.filter(id=uid).first()
-            if check_uid is None:
-                break  
         '''Getting the uid Instance of Deparments'''
         try:
             new_department = Department.objects.create(
-                id = uid,
                 name = name,
                 img = img,
                 head = head,
                 )
-            get_category_specialist.depts.add(new_department)
+            
+            for i in range(len(catspl_id)): 
+                category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
+                if category_specialist_instance is None: 
+                    new_department.depts.add(new_department)
             return display_response(
                 msg = ACTION,
                 err= None,
@@ -765,17 +763,10 @@ class CategorySpecialistView(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         ) 
- 
-        while True:
-            uid = uuid.uuid4()
-            '''Checking if the values uid is not available'''
-            check_uid = CategorySpecialist.objects.filter(id=uid).first()
-            if check_uid is None:
-                break 
+
         print(name , img)
         try:
             CategorySpecialist.objects.create(
-                id = uid,
                 name = name,
                 img = img,
             )
@@ -1015,3 +1006,152 @@ class UsersGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+''' Help Desk Get'''
+''''
+json_data = [
+    {
+        "id" : 1,
+        "name" : "Dr. A",
+        "email" : "email",
+        "mobile" : "mobile", 
+        "counterno" : "counterno", 
+        "specialization" : [
+            {   
+                "id" : 1,
+                "name" : "Specialization 1"
+            }
+        ],
+        "is_blocked" : True,
+    }
+]
+'''
+class HelpDeskTeam(APIView):
+    authentication_classes = [AdminAuthentication] 
+    permission_classes = [SuperAdminPermission]
+    def get(self , request , format=None):
+        ACTION = "HelpDeskTeam GET"
+        snippet = HelpDeskUser.objects.all() 
+        serializer = HelpDeskUserSerializer(snippet,many=True,context={'request' :request})
+        json_data = []
+        
+        for i in serializer.data : 
+            data = {
+                "id" : i['id'],
+                "name" : i['name'], 
+                "email" : i['email'], 
+                "mobile" : i['mobile'], 
+                "counterno" : i['counterno'], 
+                "specialisation" : [], 
+                "is_blocked" : i['is_blocked'], 
+            }
+            for j in i['specialisation']:
+                data["specilisation"].append({
+                    "id" : j['id'],
+                    "name" : j['name'],
+                })
+            json_data.append(data) 
+        
+        return display_response(
+            msg = ACTION,
+            err= None, 
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        ) 
+
+    def post (self , request , format = None): 
+        ACTION = "HelpDeskTeam POST"
+        data = request.data
+        counterno = data.get('counterno') 
+        name = data.get('name')
+        email = data.get('email') 
+        mobile = data.get('mobile')
+        pin = data.get('pin')
+        is_blocked = data.get('is_blocked')
+        #Many-Many fields
+        specialisation = data.get('specialisation')
+
+        ''' check null values'''
+        if counterno in [None , ""] or name in [None , ""] or email in [None , ""] or mobile in [None , ""] or pin in [None , ""] or is_blocked in [None , ""] or len(specilisation) == 0 :
+            return display_response(
+                msg = ACTION,
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            ) 
+
+        ''' check if counterno and mobile is unique'''
+        if HelpDeskUser.objects.filter(counterno=counterno).first():
+            return display_response(
+                msg = ACTION,
+                err= "Counterno is already exist",
+                body = None,
+                statuscode = status.HTTP_406_NOT_ACCEPTABLE
+            ) 
+
+        if HelpDeskUser.objects.filter(mobile=mobile).first():
+            return display_response(
+                msg = ACTION,
+                err= "Mobile number is already exist",
+                body = None,
+                statuscode = status.HTTP_406_NOT_ACCEPTABLE
+            )    
+        
+        ''' checking if specialisation id exists'''
+        for i in range(len(specialisation)):
+            specialisation_instance = CategorySpecialist.objects.filter(id=specialisation[i]).first() 
+            if specialisation_instance is None: 
+                return display_response(
+                    msg = ACTION,
+                    err= "Specialisation id not found",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+
+        ''' pin length should be mmore than 6'''
+        if len(pin) < 6:
+                return display_response(
+                    msg = ACTION,
+                    err= "Pin length should be greater than 6",
+                    body = None,
+                    statuscode = status.HTTP_406_NOT_ACCEPTABLE
+                )
+
+        '''create support user object '''
+        try: 
+            support_user = HelpDeskUser.objects.create(  
+                counterno = counterno,
+                name = name,
+                email = email,
+                mobile = mobile,
+                is_blocked = is_blocked,
+            )
+
+            '''create support user pin'''
+            support_user.set_password(pin) 
+            support_user.save()  
+
+            '''create many to many relation''' 
+            for k in range(len(specialisation)):
+                specialisation_instance = CategorySpecialist.objects.filter(id=specialisation[k]).first() 
+                if specialisation_instance is None: 
+                    support_user.specialisation.add(specialisation_instance)
+                
+            return display_response( 
+                msg = ACTION,
+                err= None,
+                body = "Successfully Support User created", 
+                statuscode = status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            excep = exceptiontype(e) 
+            msg = exceptionmsg(e)
+            return display_response(
+                msg = ACTION,
+                err= f"{excep} || {msg}",
+                body = None,
+                statuscode = status.HTTP_409_CONFLICT
+            )
+     
+
+
+        
