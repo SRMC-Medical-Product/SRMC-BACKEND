@@ -21,5 +21,6 @@ urlpatterns=[
 
     path('appointment-history/',AppointmentHistory.as_view(),name="appointment-history"),
     path('appointment-pending/',PendingAppointment.as_view(),name="appointment-pending"),
+    path('appointment-indetail/',AppointmentInDetail.as_view(),name="appointment-indetail"),
     path('book-appoinment/',BookAppoinment.as_view(),name="book-appoinment"),
 ]

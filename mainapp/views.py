@@ -20,7 +20,7 @@ from .serializers import *
 from mainapp.doctor_serializers import *
 from .tasks import test_func
 from .utils import *
-#from .utils import dmY,Ymd,IMp,HMS,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,mdY,IST_TIMEZONE,YmdTHMSfz
+from myproject.infocontent import *
 
 #------Profile Lists
 REALTION = ["Father","Mother","Brother","Sister","Husband","Wife","Son","Daughter","Grandfather","Grandmother","Grandson","Granddaughter","Friend","Other"]
@@ -142,7 +142,7 @@ class RegisterUser(APIView):
                 statuscode=status.HTTP_406_NOT_ACCEPTABLE
             )
         
-        patient_instance=Patient.objects.create(name=name,primary=True)
+        patient_instance=Patient.objects.create(name=name,primary=True,relation="User")
         user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
@@ -1334,7 +1334,156 @@ class PendingAppointment(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+#-------AppointmentInDetails --------------------------------
+class AppointmentInDetail(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
 
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def get(self, request,format=None):
+        json_data = {
+            "appointmentid" : "",
+            "status" : "Pending",
+            "details" : [],
+            "timeline" : {},
+            "doctor" : {},
+            "patient" : {},
+            "counter" :{},
+            "measures" :MEASURES_TO_BE_TAKEN,
+        }
+        user = request.user
+        appointment_id = request.query_params.get('appointmentid',None)
+
+        if appointment_id in [None,""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "Appointment id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        appointment = Appointment.objects.filter(id=appointment_id).first()
+        if appointment is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Appointment not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+        serializer = AppointmentSerializer(appointment,context={"request":request}).data
+        
+        """
+            Updating the appointment id.Updating the status based on the appointment status.
+        """
+        json_data['appointmentid'] = serializer['id']
+        if serializer['closed'] == True:
+            if serializer['consulted'] == True:
+                json_data['status'] = "Completed"
+            else:
+                json_data['status'] = "Missed"
+        else:
+            """
+                Check in timeline and update the status as processing or pending
+            """
+            if serializer['timeline']['step2']['completed'] == True:
+                json_data['status'] = "Processing"
+            else:
+                json_data['status'] = "Pending"
+
+        """
+            Adding the appointment date,time,venue,consultation type.
+            if closed != True:
+                Add the estimated arrival for the appointment.
+        """
+        time_format = dtt.strptime(serializer['time'],HMS).strftime(IMp)
+        date_format = dtt.strptime(serializer['date'],Ymd).strftime(dmY)
+        details_data = [
+            {
+                "title": "Venue",
+                "subtitle" : "Sri Ramachandra Medical Hospital Hospital",
+            },
+            {
+                "title": "Date & Time",
+                "subtitle" : f"{date_format} , {time_format}",
+            },
+            {
+                "title": "Consultation",
+                "subtitle" : "In Visit",
+            }
+        ]
+        json_data['details'] = details_data
+        if serializer['closed'] == True:
+            #TODO: @Aravind : Calculate the estimated arrival time for the patient and append it to the json_data['details']
+            ...
+
+        """
+            Updating the timeline data.Converting HMS into IMP format.
+        """    
+        json_data['timeline'] = serializer['timeline']
+        step1 = json_data['timeline']['step1']
+        step2 = json_data['timeline']['step2']
+        step3 = json_data['timeline']['step3']
+        if step1['completed'] == True:
+            step1['time'] = self.convert_to_imp(step1['time'])
+        else:
+            step1['time'] = "00:00"
+        
+        if step2['completed'] == True:
+            step2['time'] = self.convert_to_imp(step2['time'])
+        else:
+            step2['time'] = "00:00"
+        
+        if step3['completed'] == True:
+            step3['time'] = self.convert_to_imp(step3['time'])
+        else:
+            step3['time'] = "00:00"
+    
+        """
+            Updating the doctor data.
+        """
+        doctor_data = {
+            "img" : serializer['doctor']['profile_img'],
+            "name" : serializer['doctor']['name'],
+            "qualification" : f"{serializer['doctor']['qualification']} | {serializer['doctor']['specialisation']}",
+            "gender" : "Male" if serializer['doctor']['gender'] == 'M' else "Female" if serializer['doctor']['gender'] == "F" else "Other",
+        }
+        json_data['doctor'] = doctor_data
+
+        """
+            Updating the patient details
+        """
+        patient_data = {
+            "id" : serializer['patient']['id'],
+            "name" : serializer['patient']['name'],
+            "email" : serializer['patient']['email'],
+            "relation" : serializer['patient']['relation'],
+            "mobile" : user.mobile
+        }
+        json_data['patient'] = patient_data
+
+        """
+            Add the counter details to the json_data
+            format : {
+                "info" : COUNTER_INFO,
+                "counters" : {
+                    "counter" : "counter1",
+                    "location" : "firstfloor | right side to main entrance"
+                }
+            }
+        """
+        #TODO: Add the counter details to the json_data
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#------Appointment Booking----------
 class BookAppoinment(APIView):
     
     #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
@@ -1413,7 +1562,15 @@ class BookAppoinment(APIView):
         timeslots_json=doctor_timings_.timeslots
 
         #update doctor timeslot  by increasing the count
-        timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
+        try:
+            timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
+        except Exception as e:
+            return display_response(
+                msg="FAILED",
+                err="Date or Time slot for the particular doctor is invalid",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
 
         time_line=dict({
             "step1":{
