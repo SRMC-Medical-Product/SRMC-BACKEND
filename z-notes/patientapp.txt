@@ -1,15 +1,14 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-4)Home Screen
-    -Upcoming Appointments json_format query 
 7)Medical Records Screen
 8)Medical Records Details Screen
-11)Appointments History Screen
-12)Appointments Details Screen 
-16)Upcoming/Live Appointments screen
+12)Appointments Details Screen
+    -  Calculate the estimated arrival time for the patient and append it to the json_data['details']
+    - Add the counter details to the json_data
 18)Doctor Details and Slot Bookings Screen
-    - make order models to update that
+    - Perform count check for the appointments
+    - Change ID format in signals.py
 19)Confirmation Screen
 ================================================
 

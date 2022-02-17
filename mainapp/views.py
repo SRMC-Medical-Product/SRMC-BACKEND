@@ -511,8 +511,16 @@ class FamilyMembers(APIView):
    
 #---------Home Screen API --------------------
 class HomeScreenAPI(APIView):
-    authentication_classes=[]
+    authentication_classes=[UserAuthentication]
     permission_classes=[]
+
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
 
     def get(self,request,format=None):
         
@@ -520,7 +528,7 @@ class HomeScreenAPI(APIView):
             Home Screen API format.It has all the contents of the frontend ui based json fields.
             All are generated here in api json_data
         """
-
+        user = request.user
         json_data =  {
             "firstcarousel" : {},
             "lastcarousel":{},
@@ -538,7 +546,10 @@ class HomeScreenAPI(APIView):
                 "isempty" : True,
                 "depts" : [],
             },
-            "upcomingappointments" : [], #TODO : Add the upcomingappointments
+            "upcomingappointments" : {
+                "isempty" : True,
+                "appointments" : [],
+            },
             "endcontent":{
                 "building":"1",
                 "doctors" : "50+",
@@ -568,16 +579,16 @@ class HomeScreenAPI(APIView):
             else:
                 json_data['lastcarousel'] = {
                     "id" : "2",
-                    "img" : "#TODO Add default image"
+                    "img" : LAST_CAROUSEL
                 }     
         else:
             json_data['firstcarousel'] = {
                 "id" : "1",
-                "img" : "#TODO Add default image"
+                "img" : FIRST_CAROUSEL
             }
             json_data['lastcarousel'] = {
                 "id" : "2",
-                "img" : "#TODO Add default image"
+                "img" : LAST_CAROUSEL
             }   
 
         """
@@ -631,6 +642,25 @@ class HomeScreenAPI(APIView):
                     categorydata['departments'].append(deptdata)
                 json_data['promotiondeparts']['depts'].append(categorydata)
 
+        """
+            Add the upcoming live appointments
+        """
+        current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
+        query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date=current_date).order_by('-created_at').all()
+        
+        serializer = AppointmentSerializer(query,many=True,context={"request":request})
+        for x in serializer.data:
+            data = {
+                "img" : x['doctor']['profile_img'],
+                "name" : x['doctor']['name'],
+                "specialisation" : x['doctor']['specialisation'],
+                "time" : self.convert_to_imp(x['time']),
+                "date" : self.convert_to_dBY(x['date']),   
+            }
+            json_data['upcomingappointments']['appointments'].append(data)
+        
+        if len(json_data['upcomingappointments']['appointments']) > 0:
+            json_data['upcomingappointments']['isempty'] = False
 
         return display_response(
             msg = "SUCCESS",
