@@ -645,12 +645,17 @@ class HomeScreenAPI(APIView):
         """
             Add the upcoming live appointments
         """
+        patients_id = []
+        patients_id.append(user.patientid)
+        for mem in user.family_members:
+            patients_id.append(mem['id'])
+
         current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
-        query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date=current_date).order_by('-created_at').all()
-        
+        query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
         for x in serializer.data:
             data = {
+                "id" : x['id'],
                 "img" : x['doctor']['profile_img'],
                 "name" : x['doctor']['name'],
                 "specialisation" : x['doctor']['specialisation'],
@@ -1307,10 +1312,17 @@ class AppointmentHistory(APIView):
             "appointments" : [],
         }
         user = request.user
-        query = Appointment.objects.filter(patient_id=user.patientid,closed=True).order_by('-created_at').all()
+
+        patients_id = []
+        patients_id.append(user.patientid)
+        for mem in user.family_members:
+            patients_id.append(mem['id'])
+
+        query = Appointment.objects.filter(patient_id__in=patients_id,closed=True).order_by('-created_at').all()
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
         for x in serializer.data:
             data = {
+                "id" : x['id'],
                 "img" : x['doctor']['profile_img'],
                 "name" : x['doctor']['name'],
                 "specialisation" : x['doctor']['specialisation'],
@@ -1359,15 +1371,21 @@ class PendingAppointment(APIView):
         user = request.user
         search_type = int(request.query_params.get('type',1))
         current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
-        
+
+        patients_id = []
+        patients_id.append(user.patientid)
+        for mem in user.family_members:
+            patients_id.append(mem['id'])
+ 
         if search_type == 1:
-            query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date=current_date).order_by('-created_at').all()
+            query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
         else:
-            query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date__gt=current_date).order_by('-created_at').all()
+            query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date__gt=current_date).order_by('-created_at').all()
         
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
         for x in serializer.data:
             data = {
+                "id" : x["id"],
                 "img" : x['doctor']['profile_img'],
                 "name" : x['doctor']['name'],
                 "specialisation" : x['doctor']['specialisation'],
