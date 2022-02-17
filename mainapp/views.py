@@ -1700,3 +1700,78 @@ class BookAppoinment(APIView):
                     "ERR":None,
                     "BODY":"Appoinment Booked successfully"
                             },status=status.HTTP_200_OK)
+
+#-----Confirmation Screen API-----
+class ConfirmationScreen(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data = {
+            "details" : [],
+            "doctor" : {},
+            "patient" : {},
+            "measures" : MEASURES_TO_BE_TAKEN,
+            "changemember" : CHANGE_MEMBER_INFO
+        }
+        user = request.user
+        data = request.data
+
+        date = data.get("date",None)
+        time = data.get("time",None)
+        patientid = data.get("patientid",None)
+        doctorid = data.get("doctorid",None)
+
+        if patientid in [None,""] or doctorid in [None,""] or date  in [None,""] or time in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Adding the patient and doctor information and details of appoinment
+        """
+        patient = Patient.objects.filter(id=patientid).first()
+        patient_data = {
+            "id" : patient.id,
+            "name" : patient.name,
+            "email" : patient.email,
+            "relation" : patient.relation,
+            "mobile" : user.mobile
+        }
+        json_data['patient'] = patient_data
+
+        doctor = Doctor.objects.filter(id=doctorid).first()
+        doctor_data = {
+            "id":doctor.id,
+            "img" : f"{doctor.profile_img}",
+            "name" : f"{doctor.name}",
+            "qualification" : f"{doctor.qualification} | {doctor.specialisation}",
+            "gender" : "Male" if doctor.gender == 'M' else "Female" if doctor.gender == "F" else "Other",
+        }
+        json_data['doctor'] = doctor_data
+
+        details_data = [
+            {
+                "title": "Venue",
+                "subtitle" : "Sri Ramachandra Medical Hospital Hospital",
+            },
+            {
+                "title": "Date & Time",
+                "subtitle" : f"{date} , {time}",
+            },
+            {
+                "title": "Consultation",
+                "subtitle" : "In Visit",
+            }
+        ]
+        json_data['details'] = details_data
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )

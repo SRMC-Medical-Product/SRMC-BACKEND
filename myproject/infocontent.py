@@ -5,6 +5,8 @@ MEASURES_TO_BE_TAKEN = [
     "Sanitize yourselves well"
 ]
 
+CHANGE_MEMBER_INFO = "*If this appointment is not for you,please go back and change"
+
 SERVICE_COUNTER_INFO = "*You are requested to approach this counter number for your appointment procedures and guidance"
 
 APPOINTMENT_INFO = "*Pleae report before 15mins of your consultation time and take neccessary precautions before arrival of your appointment"
