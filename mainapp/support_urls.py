@@ -22,4 +22,6 @@ urlpatterns = [
     path('patient-all-get/' , PatientGet.as_view() , name='patient-all-get'),
     path('patient-indetail/' , PatientDetails.as_view() , name='patient-indetail'),
 
+    # --------------------------------- Activity URLS ---------------------------------
+    path('activity-log/' , ActivityLog.as_view() , name='activity-log'),
 ]
