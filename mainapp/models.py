@@ -179,6 +179,11 @@ class CategoryPromotion(models.Model):
             "time" : "IMP format",
             "completed" : bool
         },
+        "cancel":{
+            "title" : "Cancelled",
+            "time" : "IMP format",
+            "completed" : bool
+        }
     }
 """
 

@@ -1412,6 +1412,10 @@ class AppointmentInDetail(APIView):
             {
                 "title": "Consultation",
                 "subtitle" : "In Visit",
+            },
+            {
+                'title': "Location",
+                "subtitle" : SRMC_LOC_URL,
             }
         ]
         json_data['details'] = details_data
@@ -1423,9 +1427,11 @@ class AppointmentInDetail(APIView):
             Updating the timeline data.Converting HMS into IMP format.
         """    
         json_data['timeline'] = serializer['timeline']
+        json_data['timeline']['cancelled'] = serializer['cancelled']
         step1 = json_data['timeline']['step1']
         step2 = json_data['timeline']['step2']
         step3 = json_data['timeline']['step3']
+        stepcancel = json_data['timeline']['cancel']
         if step1['completed'] == True:
             step1['time'] = self.convert_to_imp(step1['time'])
         else:
@@ -1440,7 +1446,14 @@ class AppointmentInDetail(APIView):
             step3['time'] = self.convert_to_imp(step3['time'])
         else:
             step3['time'] = "00:00"
+        
+        if stepcancel['completed'] == True:
+            stepcancel['time'] = self.convert_to_imp(stepcancel['time'])
+        else:
+            stepcancel['time'] = "00:00"
     
+
+
         """
             Updating the doctor data.
         """
@@ -1488,6 +1501,7 @@ class BookAppoinment(APIView):
     
     #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
     #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
+    #TODO: Perform count check for the appointments
     
     authentication_classes=[UserAuthentication]
     permission_classes=[]
@@ -1572,13 +1586,29 @@ class BookAppoinment(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
 
-        time_line=dict({
+        timeline_data = {
             "step1":{
                 "title" : "Booking Confirmed",
                 "time" :dtt.now().time().strftime("%H:%M:%S"),
                 "completed" : True
                     },
-                })
+            "step2":{
+                "title" : "Arrived at Hospital",
+                "time" : "",
+                "completed" : False,
+                    },
+            "step3":{
+                "title" : "Booking Confirmed",
+                "time" :"",
+                "completed" : False
+                    },
+            "cancel":{
+                "title" : "Cancelled",
+                "time" : "",
+                "completed" : False
+            }
+        }
+        time_line=timeline_data
         
         date_date=return_date_type(date)   #convert string date to date object
         time_time=return_time_type(time)    #convert string time to time object
