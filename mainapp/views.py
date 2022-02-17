@@ -1263,18 +1263,29 @@ class AppointmentHistory(APIView):
     authentication_classes = [UserAuthentication]
     permission_classes = []
 
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
     def get(self, request,format=None):
         json_data = {
-            "isemtpy" : True,
+            "isempty" : True,
             "appointments" : [],
         }
         user = request.user
-        
-        query = Appointment.objects.filter(patient_id=user.id,closed=True).order_by('-created_at').all()
+        query = Appointment.objects.filter(patient_id=user.patientid,closed=True).order_by('-created_at').all()
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
         for x in serializer.data:
             data = {
-               #TODO: Add doctor details    
+                "img" : x['doctor']['profile_img'],
+                "name" : x['doctor']['name'],
+                "specialisation" : x['doctor']['specialisation'],
+                "time" : self.convert_to_imp(x['time']),
+                "date" : self.convert_to_dBY(x['date']),   
             }
             json_data['appointments'].append(data)
         
@@ -1293,6 +1304,14 @@ class PendingAppointment(APIView):
     authentication_classes = [UserAuthentication]
     permission_classes = []
 
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
     def get(self, request,format=None):
         """
             this view is responsible for getting the pending appointments.
@@ -1308,8 +1327,8 @@ class PendingAppointment(APIView):
             "appointments" : [],
         }
         user = request.user
-        search_type = request.query_params.get('type',1)
-        current_date = dtt.now(IST_TIMEZONE).strftime("%Y-%m-%d")
+        search_type = int(request.query_params.get('type',1))
+        current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
         
         if search_type == 1:
             query = Appointment.objects.filter(patient_id = user.patientid,closed=False,date=current_date).order_by('-created_at').all()
@@ -1319,7 +1338,11 @@ class PendingAppointment(APIView):
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
         for x in serializer.data:
             data = {
-                #TODO add data her
+                "img" : x['doctor']['profile_img'],
+                "name" : x['doctor']['name'],
+                "specialisation" : x['doctor']['specialisation'],
+                "time" : self.convert_to_imp(x['time']),
+                "date" : self.convert_to_dBY(x['date']),   
             }
             json_data['appointments'].append(data)
         
@@ -1502,7 +1525,7 @@ class BookAppoinment(APIView):
     #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
     #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
     #TODO: Perform count check for the appointments
-    
+
     authentication_classes=[UserAuthentication]
     permission_classes=[]
     """
