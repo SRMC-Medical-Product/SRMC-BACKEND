@@ -187,3 +187,23 @@ def create_help_desk_user_id(sender,instance,**kwargs):
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
         instance.id=id 
+
+
+@receiver(pre_save,sender=Medicines)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = Medicines.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=Medicines.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
+
+@receiver(pre_save,sender=PatientTickets)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        ticket_count=PatientTickets.objects.count()
+        zeros="0"*(9-len(ticket_count))
+        instance.id=f"{year}"+zeros+ticket_count
+

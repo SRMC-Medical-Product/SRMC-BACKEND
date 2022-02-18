@@ -249,3 +249,44 @@ class HelpDeskAppointment(models.Model):
 
 
 '''----------End : HelpDesk Model----------'''
+
+'''----------Start : Medicines Model----------'''
+
+class Medicines(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    name = models.CharField(max_length=256,null=True,blank=True)
+    description = models.TextField(null=True,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)    
+
+'''----------End : Medicines Model----------'''
+
+'''----------Start : Tickets/Issues Model----------'''
+class PatientTickets(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patient_id = models.ForeignKey(Patient,on_delete=models.CASCADE,null=True,blank=True)
+    admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
+    closed = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True) 
+    issues = models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+class DoctorTickets(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    doctor_id = models.ForeignKey(Doctor,on_delete=models.CASCADE,null=True,blank=True)
+    admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
+    closed = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True) 
+    issues = models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+'''----------End : Tickets/Issues Model----------'''
