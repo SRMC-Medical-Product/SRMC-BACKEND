@@ -33,6 +33,9 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 
+'''encrypt'''
+import hashlib 
+
 
 '''Time Format Imports'''
 from mainapp.utils import  dmY,Ymd,IMp,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,HMS
@@ -1026,8 +1029,8 @@ json_data = [
 ]
 '''
 class HelpDeskTeam(APIView):
-    authentication_classes = [AdminAuthentication] 
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [] 
+    permission_classes = []
     def get(self , request , format=None):
         ACTION = "HelpDeskTeam GET"
         snippet = HelpDeskUser.objects.all() 
@@ -1042,10 +1045,10 @@ class HelpDeskTeam(APIView):
                 "mobile" : i['mobile'], 
                 "counterno" : i['counterno'], 
                 "specialisation" : [], 
-                "is_blocked" : i['is_blocked'], 
+                "is_blocked" : i['is_blocked'],
             }
             for j in i['specialisation']:
-                data["specilisation"].append({
+                data["specialisation"].append({
                     "id" : j['id'],
                     "name" : j['name'],
                 })
@@ -1058,6 +1061,9 @@ class HelpDeskTeam(APIView):
             statuscode = status.HTTP_200_OK
         ) 
 
+
+    #TODO : Pin code encryption
+
     def post (self , request , format = None): 
         ACTION = "HelpDeskTeam POST"
         data = request.data
@@ -1066,12 +1072,12 @@ class HelpDeskTeam(APIView):
         email = data.get('email') 
         mobile = data.get('mobile')
         pin = data.get('pin')
-        is_blocked = data.get('is_blocked')
         #Many-Many fields
         specialisation = data.get('specialisation')
 
+        print(data)
         ''' check null values'''
-        if counterno in [None , ""] or name in [None , ""] or email in [None , ""] or mobile in [None , ""] or pin in [None , ""] or is_blocked in [None , ""] or len(specilisation) == 0 :
+        if counterno in [None , ""] or name in [None , ""] or email in [None , ""] or mobile in [None , ""] or pin in [None , ""] or len(specialisation) == 0 :
             return display_response(
                 msg = ACTION,
                 err= "Data was found None",
@@ -1079,11 +1085,19 @@ class HelpDeskTeam(APIView):
                 statuscode = status.HTTP_404_NOT_FOUND
             ) 
 
-        ''' check if counterno and mobile is unique'''
+        ''' check if counterno , email  and mobile is unique'''
         if HelpDeskUser.objects.filter(counterno=counterno).first():
             return display_response(
                 msg = ACTION,
-                err= "Counterno is already exist",
+                err= "Counterno already exist",
+                body = None,
+                statuscode = status.HTTP_406_NOT_ACCEPTABLE
+            ) 
+
+        if HelpDeskUser.objects.filter(email=email).first():
+            return display_response(
+                msg = ACTION,
+                err= "Email already exist",
                 body = None,
                 statuscode = status.HTTP_406_NOT_ACCEPTABLE
             ) 
@@ -1091,24 +1105,24 @@ class HelpDeskTeam(APIView):
         if HelpDeskUser.objects.filter(mobile=mobile).first():
             return display_response(
                 msg = ACTION,
-                err= "Mobile number is already exist",
+                err= "Mobile number already exist",
                 body = None,
                 statuscode = status.HTTP_406_NOT_ACCEPTABLE
             )    
         
         ''' checking if specialisation id exists'''
         for i in range(len(specialisation)):
-            specialisation_instance = CategorySpecialist.objects.filter(id=specialisation[i]).first() 
+            specialisation_instance = Department.objects.filter(id=specialisation[i]).first() 
             if specialisation_instance is None: 
                 return display_response(
                     msg = ACTION,
-                    err= "Specialisation id not found",
+                    err= "Department id not found",
                     body = None,
                     statuscode = status.HTTP_404_NOT_FOUND
                 )
 
         ''' pin length should be mmore than 6'''
-        if len(pin) < 6:
+        if len(str(pin)) < 6:
                 return display_response(
                     msg = ACTION,
                     err= "Pin length should be greater than 6",
@@ -1118,22 +1132,23 @@ class HelpDeskTeam(APIView):
 
         '''create support user object '''
         try: 
+            
+            '''encrypt pin and save'''
+            encryptpin = hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
+
             support_user = HelpDeskUser.objects.create(  
                 counterno = counterno,
                 name = name,
                 email = email,
                 mobile = mobile,
-                is_blocked = is_blocked,
+                is_blocked = False,
+                pin = encryptpin,
             )
-
-            '''create support user pin'''
-            support_user.set_password(pin) 
-            support_user.save()  
 
             '''create many to many relation''' 
             for k in range(len(specialisation)):
-                specialisation_instance = CategorySpecialist.objects.filter(id=specialisation[k]).first() 
-                if specialisation_instance is None: 
+                specialisation_instance = Department.objects.filter(id=specialisation[k]).first() 
+                if specialisation_instance is not None: 
                     support_user.specialisation.add(specialisation_instance)
                 
             return display_response( 

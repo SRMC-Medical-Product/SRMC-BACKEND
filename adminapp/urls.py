@@ -34,6 +34,6 @@ urlpatterns = [
     path("users-get/", UsersGet.as_view(), name="users-get"),
 
     # --------------------------------- Support Team URLS ---------------------------------
-    path("support-team-get/", HelpDeskTeam.as_view(), name="support-team-get"), 
+    path("help-desk/", HelpDeskTeam.as_view(), name="help-desk"), 
     
 ]
