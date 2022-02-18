@@ -9,6 +9,7 @@ API View Todo Screen
 18)Doctor Details and Slot Bookings Screen
     - Perform count check for the appointments
     - Change ID format in signals.py
+    - Add notification to both doctor and patient
 ================================================
 
 

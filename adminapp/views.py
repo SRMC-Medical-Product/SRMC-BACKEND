@@ -960,6 +960,7 @@ class PatientGet(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )  
+
 ''' single patient details get'''
 class PatientDetails(APIView):
     authentication_classes = [AdminAuthentication]

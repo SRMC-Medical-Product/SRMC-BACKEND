@@ -127,6 +127,11 @@ class DoctorActivity(models.Model):
     def __str__(self):
         return str(self.doctor_id)
 
+class DoctorNotification(models.Model):
+    doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE,blank=True)
+    message=models.TextField()
+    seen = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
 
 '''----------End : Doctor Model----------'''
 
