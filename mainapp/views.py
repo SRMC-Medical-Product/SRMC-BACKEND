@@ -730,7 +730,7 @@ class CategoriesScreen(APIView):
 
 #---------Notifications Screen API --------------------
 class PatientNotificationScreen(APIView):
-    permission_classes = []
+    permission_classes = [UserAuthentication]
     authentication_classes=[]
 
     def convertdateformat(self, req_date):
@@ -774,7 +774,7 @@ class PatientNotificationScreen(APIView):
             else:
                 then in 'x' created_at format
         """
-        query = PatientNotification.objects.all() #FIXME filter(patientid=patient)
+        query = PatientNotification.objects.filter(patientid=patient).order_by('-created_at')
         if len(query) > 0:
             json_data['isempty'] = False
             serializer = PatientNotificationSerializer(query,many=True,context={"request":request})
@@ -1786,6 +1786,77 @@ class ConfirmationScreen(APIView):
             }
         ]
         json_data['details'] = details_data
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#----Raise Tickets API-----
+class PatientTicketsIssues(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def post(self,request):
+        user = request.user
+        data = request.data
+        appointmentid = data.get('appointmentid', None)
+        title = data.get("title",None)
+        description = data.get("description",None)
+
+        if title in [None,""] or description in [None,""] or appointmentid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        """
+            Populate Ticket model
+        """
+        get_appointment = Appointment.objects.filter(id=appointmentid).first()
+        get_doctor = Doctor.objects.filter(id=get_appointment.doctor_id).first()
+        get_dept = Department.objects.filter(id=get_doctor.department_id.id).first()
+
+        data = {
+            "title" : title,
+            "description" : description,
+        }
+        PatientTickets.objects.create(
+            user_id = user,
+            dept = get_dept,
+            issues = data
+        )
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def get(self , request , format=None):
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+        }
+
+        user = request.user
+
+        tickets = PatientTickets.objects.filter(user_id=user).order_by("-created_at")
+        serializer = PatientTicketsSerializer(tickets,many=True,context={"request":request}).data
+        for i in serializer:
+            data = {
+                "id": i['id'],
+                "closed" : i['closed'],
+                "issues" : i['issues'],
+            }
+            json_data['tickets'].append(data)
+        
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
 
         return display_response(
             msg="SUCCESS",

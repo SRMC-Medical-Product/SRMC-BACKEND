@@ -53,6 +53,7 @@ class Department(models.Model):
     name=models.CharField(max_length=100)
     img =models.FileField(upload_to='media/department/',null=True,blank=True)
     head=models.CharField(max_length=200,null=True,blank=True)
+    counter = models.JSONField(default=dict,null=True,blank=True)
     enable = models.BooleanField(default=True) #Enable the service
 
 
@@ -74,6 +75,7 @@ class CategorySpecialist(models.Model):
 
 class Doctor(models.Model):
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+    phone = models.CharField(max_length=15,null=True,blank=True)
     doctor_id=models.CharField(max_length=256,unique=True)
     email =models.EmailField(blank=True,unique=True)
     name=models.CharField(max_length=256)
@@ -218,8 +220,7 @@ class Appointment(models.Model):
 
 '''----------Start : HelpDesk Model----------'''
 class HelpDeskUser(models.Model):
-    id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) # TODO add signals
-    counterno = models.CharField(max_length=256,null=True,blank=True,unique=True)
+    id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) 
     name = models.CharField(max_length=256,null=True,blank=True)
     email = models.EmailField(null=True,blank=True,unique=True)
     mobile = models.CharField(max_length=256,null=True,blank=True)
@@ -231,7 +232,7 @@ class HelpDeskUser(models.Model):
     activity=models.JSONField(default=dict,blank=True)
 
     def __str__(self):
-        return f"{str(self.id)} - {self.counterno}"
+        return f"{str(self.id)}"
 
 class HelpDeskAppointment(models.Model):
     department = models.ForeignKey(Department,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
@@ -267,7 +268,8 @@ class Medicines(models.Model):
 '''----------Start : Tickets/Issues Model----------'''
 class PatientTickets(models.Model):
     id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
-    patient_id = models.ForeignKey(Patient,on_delete=models.CASCADE,null=True,blank=True)
+    user_id = models.ForeignKey(User,on_delete=models.CASCADE,null=True,blank=True)
+    dept = models.ForeignKey(Department,on_delete=models.CASCADE,null=True,blank=True)
     admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
     closed = models.BooleanField(default=False)
     created_at=models.DateTimeField(auto_now_add=True)
@@ -280,6 +282,7 @@ class PatientTickets(models.Model):
 class DoctorTickets(models.Model):
     id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
     doctor_id = models.ForeignKey(Doctor,on_delete=models.CASCADE,null=True,blank=True)
+    dept = models.ForeignKey(Department,on_delete=models.CASCADE,null=True,blank=True)
     admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
     closed = models.BooleanField(default=False)
     created_at=models.DateTimeField(auto_now_add=True)

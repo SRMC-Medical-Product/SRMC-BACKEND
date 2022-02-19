@@ -25,4 +25,7 @@ urlpatterns=[
 
     path('book-appoinment/',BookAppoinment.as_view(),name="book-appoinment"),
     path('appointment-confirm/',ConfirmationScreen.as_view(),name="appointment-confirm"),
+
+    path('patient-tickets/',PatientTicketsIssues.as_view(),name="patient-tickets"),
+
 ]

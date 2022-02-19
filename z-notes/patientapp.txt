@@ -37,4 +37,5 @@ Coded Screens
 19)Confirmation Screen
 20)Notifications Screen
 21)doctor Result Screens Filtering
+22)Patient Tickets
 ================================================

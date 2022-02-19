@@ -8,11 +8,7 @@ API View Todo Screen
 6)My Patients Filtering screen
 7)My Patients Search Screen
 8)Analytics Screen
-9)Profile Screen
-10)Personal Details Screen
-11)Change Pin Screen
-12)Notifications Screen
-13)Help and Support Screen
+13)Help and Support Screen , Raise Tickets Screen
 14)Patient Details and Records
 ================================================
 
@@ -34,8 +30,7 @@ Coded Screens
 12)Notifications Screen
 13)Help and Support Screen
 14)Patient Details and Records
-
-
+15)Raise Tickets
 ================================================
 
 

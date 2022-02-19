@@ -204,6 +204,13 @@ def create_medicine_id(sender,instance,**kwargs):
     if instance.id in ["",None]:
         year=timezone.now().year
         ticket_count=PatientTickets.objects.count()
-        zeros="0"*(9-len(ticket_count))
-        instance.id=f"{year}"+zeros+ticket_count
+        zeros="0"*(9-len(str(ticket_count)))
+        instance.id=f"{year}"+zeros+str(ticket_count)
 
+@receiver(pre_save,sender=DoctorTickets)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        ticket_count=DoctorTickets.objects.count()
+        zeros="0"*(9-len(str(ticket_count)))
+        instance.id=f"{year}"+zeros+str(ticket_count)
