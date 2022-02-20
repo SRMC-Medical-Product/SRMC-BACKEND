@@ -2,14 +2,13 @@
 API View Todo Screen
 ----------------------------------------------
 2)Home screen
-3)My Appointments
 4)My Appointments Filtering screen
 5)My Patients Screen
 6)My Patients Filtering screen
 7)My Patients Search Screen
 8)Analytics Screen
-13)Help and Support Screen , Raise Tickets Screen
 14)Patient Details and Records
+16)Appointments in Details
 ================================================
 
 
@@ -18,7 +17,7 @@ Coded Screens
 ----------------------------------------------
 1)Login screen
 2)Home screen
-3)My Appointments
+3)My Appointments - Live,history
 4)My Appointments Filtering screen
 5)My Patients Screen
 6)My Patients Filtering screen
@@ -31,6 +30,7 @@ Coded Screens
 13)Help and Support Screen
 14)Patient Details and Records
 15)Raise Tickets
+16)Appointments in Details
 ================================================
 
 

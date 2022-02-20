@@ -140,6 +140,7 @@ class DoctorNotification(models.Model):
 '''----------Start: Patient Model----------'''
 class Patient(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    img =models.FileField(upload_to='media/patient/',null=True,blank=True)
     primary = models.BooleanField(default=False)
     name=models.CharField(max_length=256,null=True,blank=True)
     email=models.EmailField(null=True,blank=True)

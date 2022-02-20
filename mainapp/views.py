@@ -231,8 +231,10 @@ class UserProfile(APIView):
             "blood" : BLOOD,
         }
         query = Patient.objects.filter(id=request.user.patientid).first()
-        serializer=PatientSerializer(query,context={"request":request})
-        json_data['profile']=serializer.data
+        serializer=PatientSerializer(query,context={"request":request}).data
+        json_data['profile']=serializer
+        print(json_data['profile'])
+        json_data['profile'].__setitem__('defaultimg' , serializer['name'][0:1])
         test_func.delay()
         return Response({
                     "MSG":"SUCCESS",
@@ -249,6 +251,7 @@ class UserProfile(APIView):
         blood =data.get("blood",None)
         dob =data.get("dob",None)
         email=data.get("email",None)
+        img =data.get("img",None)
         aadhar=data.get("aadhar",None) #optional              
         
         patient = Patient.objects.filter(id=user.patientid).first()
@@ -285,6 +288,10 @@ class UserProfile(APIView):
             patient.dob= dob
             patient.save()
         
+        if img not in [None,""]:
+            patient.img = img
+            patient.save()
+
         return display_response(
             msg="SUCCESS",
             err=None,
@@ -306,6 +313,9 @@ class FamilyMembers(APIView):
         serializer=UserSerializer(request.user)
         json_data['user']=serializer.data
         
+        for i in json_data['user']['family_members']:
+            i.__setitem__('defaultimg' , i['name'][0:1])
+ 
         if len(json_data['user']['family_members']) > 0:
             json_data['isempty'] = False
 
@@ -345,6 +355,7 @@ class FamilyMembers(APIView):
         blood =data.get("blood",None)
         dob =data.get("dob",None)
         email=data.get("email",None)
+        img =data.get("img",None)
         aadhar=data.get("aadhar",None) #optional
 
         #validating the user data
@@ -373,7 +384,10 @@ class FamilyMembers(APIView):
         if email not in [None,""]:
             patient_instance.email = email
             patient_instance.save()
-        
+        if img not in [None,""]:
+            patient_instance.img = img
+            patient_instance.save()
+
         patient_serializer = PatientSerializer(patient_instance).data
         patient_serializer['selected'] = False
 
@@ -423,6 +437,7 @@ class FamilyMembers(APIView):
         blood =data.get("blood",None)
         dob =data.get("dob",None)
         email=data.get("email",None)
+        img =data.get("img",None)
         aadhar=data.get("aadhar",None) #optional
 
         if id in [None,""]:
@@ -476,6 +491,9 @@ class FamilyMembers(APIView):
                 if dob not in [None,""]:
                     i['dob'] = dob
                     user.save()
+                if img not in [None,""]:
+                    i['img'] = img
+                    user.save()
                     
 
         if name not in [None,""]:
@@ -500,6 +518,10 @@ class FamilyMembers(APIView):
 
         if dob not in [None,""]:
             get_user.dob= dob
+            get_user.save()
+
+        if img not in [None,""]:
+            get_user.img = img
             get_user.save()
 
         return display_response(
@@ -857,6 +879,7 @@ class DoctorSlotDetails(APIView):
             "gender" : doc_serialize.data['gender'],
             "qualification" : doc_serialize.data['qualification'],
             "specialisation" : doc_serialize.data['specialisation'],
+            "defaultimg" : doc_serialize.data['name'][0:1]
         }
 
         """
@@ -1325,6 +1348,7 @@ class AppointmentHistory(APIView):
                 "id" : x['id'],
                 "img" : x['doctor']['profile_img'],
                 "name" : x['doctor']['name'],
+                "defaultimg" : x['doctor']['name'][0:1],
                 "specialisation" : x['doctor']['specialisation'],
                 "time" : self.convert_to_imp(x['time']),
                 "date" : self.convert_to_dBY(x['date']),   
@@ -1388,6 +1412,7 @@ class PendingAppointment(APIView):
                 "id" : x["id"],
                 "img" : x['doctor']['profile_img'],
                 "name" : x['doctor']['name'],
+                "defaultimg" : x['doctor']['name'][0:1],
                 "specialisation" : x['doctor']['specialisation'],
                 "time" : self.convert_to_imp(x['time']),
                 "date" : self.convert_to_dBY(x['date']),   
@@ -1531,6 +1556,7 @@ class AppointmentInDetail(APIView):
         doctor_data = {
             "img" : serializer['doctor']['profile_img'],
             "name" : serializer['doctor']['name'],
+            "defaultimg" : serializer['doctor']['name'][0:1],
             "qualification" : f"{serializer['doctor']['qualification']} | {serializer['doctor']['specialisation']}",
             "gender" : "Male" if serializer['doctor']['gender'] == 'M' else "Female" if serializer['doctor']['gender'] == "F" else "Other",
         }
@@ -1542,6 +1568,7 @@ class AppointmentInDetail(APIView):
         patient_data = {
             "id" : serializer['patient']['id'],
             "name" : serializer['patient']['name'],
+            "defaultimg" : serializer['patient']['name'][0:1],
             "email" : serializer['patient']['email'],
             "relation" : serializer['patient']['relation'],
             "mobile" : user.mobile
@@ -1755,6 +1782,8 @@ class ConfirmationScreen(APIView):
         patient_data = {
             "id" : patient.id,
             "name" : patient.name,
+            "img" : patient.img,
+            "defaultimg" : patient.name[0:1],
             "email" : patient.email,
             "relation" : patient.relation,
             "mobile" : user.mobile
@@ -1765,6 +1794,7 @@ class ConfirmationScreen(APIView):
         doctor_data = {
             "id":doctor.id,
             "img" : f"{doctor.profile_img}",
+            "defaultimg": f"{doctor.name[0:1]}",
             "name" : f"{doctor.name}",
             "qualification" : f"{doctor.qualification} | {doctor.specialisation}",
             "gender" : "Male" if doctor.gender == 'M' else "Female" if doctor.gender == "F" else "Other",

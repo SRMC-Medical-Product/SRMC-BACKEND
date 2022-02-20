@@ -15,6 +15,7 @@ from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 from .models import *
 from .auth import *
 from .doctor_serializers import *
+from .serializers import *
 from .utils import *
 
 
@@ -413,5 +414,167 @@ class DoctorNotificationScreen(APIView):
             err= None,
             body = json_data,
             statuscode = status.HTTP_200_OK
+        )
+
+#---------Tickets Screen API --------------------
+class DoctorTicketsScreen(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+        }
+
+        user = request.user
+
+        tickets = DoctorTickets.objects.filter(doctor_id=user).order_by("-created_at")
+        serializer = DoctorTicketsSerializer(tickets,many=True,context={"request":request}).data
+        for i in serializer:
+            data = {
+                "id": i['id'],
+                "closed" : i['closed'],
+                "issues" : i['issues'],
+            }
+            json_data['tickets'].append(data)
+        
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def post(self,request):
+        user = request.user
+        data = request.data
+        title = data.get("title",None)
+        description = data.get("description",None)
+
+        if title in [None,""] or description in [None,""] :
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        """
+            Populate Ticket model
+        """
+        get_dept = Department.objects.filter(id=user.department_id.id).first()
+
+        data = {
+            "title" : title,
+            "description" : description,
+        }
+        DoctorTickets.objects.create(
+            doctor_id = user,
+            dept = get_dept,
+            issues = data
+        )
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+#-------Live Appointment Screen API --------------------
+class LiveAppointment(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
+    def get(self , request , format=None):
+        json_data = {
+            "isempty" : True,
+            "appointments" : [],
+        }
+
+        user = request.user
+        appointments = Appointment.objects.filter(doctor_id=user.id,closed=False).order_by("-created_at")
+        serializer = AppointmentSerializer(appointments,many=True,context={"request":request}).data
+        for i in serializer:
+            data = {
+                "id": i['id'],
+                "patientid": i['patient_id'],
+                "patientname" : i['patient']['name'],
+                "gender" : i['patient']['gender'],
+                "blood" : i['patient']['blood'],
+                "img" : i['patient']['img'],
+                "defaultimg" : f"{i['patient']['name'][0:1]}",
+                "time" : self.convert_to_imp(i['time']),
+                "date" : self.convert_to_dBY(i['date']),
+                "status" : "Pending" if i['closed']==False else "Completed",      
+            }
+            json_data['appointments'].append(data)
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#-------History Appointment Screen API --------------------
+class HistoryAppointment(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
+    def get(self , request , format=None):
+        json_data = {
+            "isempty" : True,
+            "appointments" : [],
+        }
+
+        user = request.user
+        appointments = Appointment.objects.filter(doctor_id=user.id,closed=True).order_by("-created_at")
+        serializer = AppointmentSerializer(appointments,many=True,context={"request":request}).data
+        for i in serializer:
+            data = {
+                "id": i['id'],
+                "patientid": i['patient_id'],
+                "patientname" : i['patient']['name'],
+                "gender" : i['patient']['gender'],
+                "blood" : i['patient']['blood'],
+                "img" : i['patient']['img'],
+                "defaultimg" : f"{i['patient']['name'][0:1]}",
+                "time" : self.convert_to_imp(i['time']),
+                "date" : self.convert_to_dBY(i['date']),
+                "status" : "Consulted" if i['consulted']==True else "Missed" if i['cancelled'] == True else "Completed",      
+            }
+            json_data['appointments'].append(data)
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
         )
 
