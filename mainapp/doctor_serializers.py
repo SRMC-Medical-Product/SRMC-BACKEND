@@ -33,7 +33,6 @@ class DepartmentSerializer(ModelSerializer):
 		model = Department
 		fields='__all__'
 
-
 class DoctorSerializer(ModelSerializer):
 	class Meta:
 		model = Doctor
@@ -48,3 +47,33 @@ class DoctorSerializer(ModelSerializer):
 				self.Meta.depth = 0 
 		else:
 			self.Meta.depth = 3
+
+class DoctorTicketsSerializer(ModelSerializer):
+	class Meta:
+		model = DoctorTickets
+		fields='__all__'
+	
+	def __init__(self,*args, **kwargs):
+		super(DoctorTicketsSerializer,self).__init__(*args,**kwargs)
+		request=self.context.get('request')
+		if request and request.method=='POST' :
+			self.Meta.depth = 0
+		elif request and request.method=='PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth =3
+
+class DoctorNotificationSerializer(ModelSerializer):
+	class Meta:
+		model = DoctorNotification
+		fields='__all__'
+	
+	def __init__(self,*args, **kwargs):
+		super(DoctorNotificationSerializer,self).__init__(*args,**kwargs)
+		request=self.context.get('request')
+		if request and request.method=='POST' :
+			self.Meta.depth = 0
+		elif request and request.method=='PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth =3

@@ -61,3 +61,36 @@ class HelpDeskUserSerializer(ModelSerializer):
 			self.Meta.depth = 0 
 		else:
 			self.Meta.depth = 4	
+		
+
+class PatientTicketsSerializer(ModelSerializer):
+	class Meta:
+		model = PatientTickets
+		fields='__all__'
+	
+	def __init__(self, *args, **kwargs):
+		super(PatientTicketsSerializer, self).__init__(*args, **kwargs)
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth = 4
+
+
+class DoctorTicketsSerializer(ModelSerializer):
+	class Meta:
+		model = DoctorTickets
+		fields='__all__'
+	
+	def __init__(self, *args, **kwargs):
+		super(DoctorTicketsSerializer, self).__init__(*args, **kwargs)
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth = 4
+	
