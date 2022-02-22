@@ -15,6 +15,9 @@ from .models import *
 from .auth import *
 from .utils import *
 
+'''encrypt'''
+import hashlib 
+
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 
@@ -27,11 +30,13 @@ class LoginUser(APIView):
     authentication_classes = []
     permission_classes = []
 
+    #TODO : Pin code encryption 
+    
     def post(self,request,format=None):
         data = request.data
         userid = data.get("userid", None)  # Both USERID and EMail are accepted
         pin = data.get("pin", None)
-        
+        print(userid,pin)
         if userid in [None,""] or pin in [None,""]:
             return display_response(
                 msg="FAILED",
@@ -48,7 +53,7 @@ class LoginUser(APIView):
         user=HelpDeskUser.objects.filter(id=userid,pin=pin)
         if user is None:
             user=HelpDeskUser.objects.filter(email=userid,pin=pin)
-        
+        print(user) 
         if user.exists():
             user=user[0]
         else:
@@ -395,6 +400,7 @@ class PatientDetails(APIView):
         )
 
 ''' get activity log for each support user'''
+# todo : activity json_field
 class ActivityLog(APIView):
     # authentication_classes = []
     # permission_classes = []  
@@ -524,7 +530,9 @@ class UserPinModify(APIView):
         '''get user''' 
         get_user = HelpDeskUser.objects.filter(id=id).first()
         if pin not in [None , ""]:
-            get_user.set_password(pin)
+            '''encrypt pin and save'''
+            encryptpin = hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
+            get_user.pin = encryptpin
             get_user.save()
 
         return display_response(
@@ -533,3 +541,20 @@ class UserPinModify(APIView):
             body = "Pin Changed Successfully",
             statuscode = status.HTTP_200_OK
         )
+
+#TODO : json bookings
+
+class BookAppointments(APIView):
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self , request , format=None):
+        ACTION = "HelpDesk BookAppointments POST"
+        data = request.data 
+        department = data.get('department')
+        date = data.get('date')
+        count = data.get('count')
+        bookings = data.get('bookings') 
+
+        
+        
