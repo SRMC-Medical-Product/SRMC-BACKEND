@@ -1,3 +1,4 @@
+from tkinter import E
 from rest_framework.serializers import ModelSerializer
 from .models import *
 
@@ -102,6 +103,22 @@ class MedicalRecordsSerializer(ModelSerializer):
 	
 	def __init__(self, *args, **kwargs):
 		super(MedicalRecordsSerializer, self).__init__(*args, **kwargs)
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth = 3
+
+
+class MedicalPrescriptionsSerializer(ModelSerializer):
+	class Meta:
+		model = MedicalPrescriptions
+		fields='__all__'
+	
+	def __init__(self, *args, **kwargs):
+		super(MedicalPrescriptionsSerializer, self).__init__(*args, **kwargs)	
 		request = self.context.get('request')
 		if request and request.method == 'POST':
 			self.Meta.depth = 0

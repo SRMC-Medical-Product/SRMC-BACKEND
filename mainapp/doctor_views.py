@@ -1,6 +1,10 @@
 """
     File with all the API's relating to the doctor app
 """
+from email.mime import audio
+from re import S
+import re
+from traceback import print_tb
 from django.utils import timezone
 from datetime import datetime as dtt,time,date,timedelta
 import uuid
@@ -590,7 +594,9 @@ class ProcedureMedicalRecords(APIView):
         """
             Getting a list of procedures that are available.
             Medical Records must be uploaded into this instance.
-            Displaying only the medical records related to the doctor specialisation
+            Displaying only the medical records related to the doctor specialisation.
+            --------------------------
+            Used in patients medical records screen.
         """
         patientid = request.query_params.get("patientid",None)
         json_data = {
@@ -1014,4 +1020,333 @@ class AppointmentReport(APIView):
             statuscode=status.HTTP_200_OK
         )
 
+#-------Get all Patients------------
+class AllPatients(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
 
+    def get(self , request , format=None):
+        """
+            Get all the patients related to this particular doctor.
+            This is the search view too
+            Get methods:
+                search : [String,optional] search the patient by name
+        """
+        json_data = {
+            "isempty" : True,
+            "patients" : [],
+        }
+        user = request.user
+        search = request.query_params.get('search', None)
+        query = Appointment.objects.filter(doctor_id=user.id).order_by('-created_at').all()
+
+        query_serializer = AppointmentSerializer(query,many=True,context={"request":request}).data
+        temp = []
+        for i in query_serializer:
+            temp.append(i['patient_id'])
+    
+        patientids = list(set(temp))
+
+        if search not in [None,""]:
+            get_patients = Patient.objects.filter(id__in=patientids,name__icontains = search).all()
+        else:
+            get_patients = Patient.objects.filter(id__in=patientids).all()
+        
+        serializer = PatientSerializer(get_patients,many=True,context={"request":request}).data
+
+        for x in serializer:
+            data = {
+                "id" : x['id'],
+                "name" : x['name'],
+                "img" : x['img'],
+                "gender" : x['gender'],
+                "defaultimg" : f"{x['name'][0:1]}",
+            }
+            json_data['patients'].append(data)
+
+        if len(json_data['patients']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#------electronic Prescription----------
+class ElectronicPrescription(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get the details of the electronic record id
+        """
+        data = request.query_params
+        prescriptionid = data.get('prescriptionid',None)
+
+        if prescriptionid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        get_prescription = MedicalPrescriptions.objects.filter(id=prescriptionid).first()
+        if get_prescription is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = MedicalPrescriptionsSerializer(get_prescription,context={"request":request}).data
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=serializer,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def post(self, request):
+        """
+            This the method for creating for the medical prescription instance
+            POST Method:
+                appointmentid : [String,required] id of the appointment 
+                recordid : [String,required] id of the medical record
+                available : [bool,required] if the appointment is available or not  
+        """
+        doctor = request.user
+        data = request.data
+        appointmentid = data.get('appointmentid',None)
+        recordid = data.get("recordid",None)
+        available = data.get("available",True)
+
+        if appointmentid in [None,""] or recordid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        """
+            Check if the appointment is already added to the medical records files.
+            If not then add it to the medical records files.
+        """
+        records = MedicalRecords.objects.filter(id=recordid).first()
+        if records is None:
+            return display_response(
+                msg="FAILED",
+                err="Medical Records not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = MedicalRecordsSerializer(records,context={"request":request}).data
+        
+        get_appointment = Appointment.objects.filter(id=appointmentid).first()
+        if get_appointment is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        appointment_serializer = AppointmentSerializer(get_appointment,context={"request":request}).data
+  
+        if available == False or available == "False":
+            is_dept_exists = False
+            is_dept_index = 0
+            is_appointment_exists = False
+            is_appointment_index = 0
+            for i in serializer['records']:
+                if i['deptid'] == doctor.department_id.id:
+                    is_dept_exists = True
+                    is_dept_index = serializer['records'].index(i)
+                    for j in i['records']:
+                        if j['appointmentid'] == appointmentid:
+                            is_appointment_exists = True
+                            is_appointment_index = i['records'].index(j)
+                            break
+                    break
+            
+            if is_dept_exists == False:
+                """
+                    The Specialisation department is not created and must create a new one
+                """
+                dept_data = {
+                    "deptid" : doctor.department_id.id,
+                    "deptname" : doctor.department_id.name,
+                    "created_at" :str(dtt.now(IST_TIMEZONE)),
+                    "records" : []
+                }  
+                serializer['records'].append(dept_data)
+                is_dept_index = -1    
+            
+            
+            """
+                else:
+                    The Specialisation department is created and must append the files to records
+            """
+            if is_appointment_exists == False:
+                """
+                    Create an appointment record and append it to the specialisation index
+                """
+                appointment_data = {
+                    "appointmentid" : appointment_serializer['id'],
+                    "doctorname" : appointment_serializer['doctor']['name'],
+                    "date" : appointment_serializer['date'],
+                    "created_at" :str(dtt.now(IST_TIMEZONE)),
+                    "files" : []
+                }
+                serializer['records'][is_dept_index]['records'].append(appointment_data)
+                is_appointment_index = -1
+
+                get_appointment.save()
+                records.save()
+                
+            """
+                Else:
+                    Appointment id in the list already exists.
+                    Create Medical Prescription instance        
+            """
+            
+
+        MedicalPrescriptions.objects.create(
+            patientid = get_appointment.patient_id,
+            appointmentid = get_appointment.id,
+            doctorid = doctor.id,
+            records = {
+                "title": "",
+                "medicines": [],
+                "created_at": dtt.now(IST_TIMEZONE).strftime(YmdTHMSfz),
+            }
+        )
+        return display_response(
+                msg="SUCCESS",
+                err=None,
+                body=None,
+                statuscode=status.HTTP_200_OK
+            )
+        
+
+    def delete(self , request , format=None):
+        """
+            To remove a particular data from the medicines list before generating
+        """
+        user = request.user
+        data = request.data
+        prescriptionid = data.get("prescriptionid",None)
+        medicineid = data.get("medicineid",None)
+
+        if prescriptionid in [None,""] or medicineid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        get_prescription = MedicalPrescriptions.objects.filter(id=prescriptionid).first()
+        if get_prescription is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        """
+            Remove the medicine which matches that medicineid
+        """
+        for i in get_prescription.records['medicines']:
+            if str(i['medicineid']) == str(medicineid):
+                get_prescription.records['medicines'].remove(i)
+                get_prescription.save()
+                break
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def put(self, request):
+        """
+            This view is used to update the electronic prescription of a patient
+            PUT method:
+                prescription : [String,required] prescription
+            ------------
+            Format to be sent:
+                {
+                    "prescriptionid" : "string-id",
+                    "name": "tablet name",
+                    "dosage": [0,0,0,0], #only 4 values indication mn,af,ev,nt
+                    "beforefood" : bool,
+                    "afterfood" : bool,
+                    "qty" : int,
+                    "days" : int,
+                }
+        """
+        user = request.user
+        data = request.data
+        prescriptionid = data.get("prescriptionid",None)
+        medname = data.get("name",None)
+        dosage = data.get("dosage",None)
+        beforefood = data.get("beforefood",False)
+        afterfood = data.get("afterfood",False)
+        qty = data.get("qty",None)
+        days = data.get("days",None)
+
+
+        if prescriptionid in [None,""] or medname in [None,""] or dosage in [None,""] or qty in [None,""] or days in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )      
+
+        get_prescrip = MedicalPrescriptions.objects.filter(id=prescriptionid).first()
+        if get_prescrip is None:
+            return display_response(
+                msg="FAILED",
+                err="Medical E-Presciption Instance not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )  
+
+        medicineid = len(get_prescrip.records['medicines'])+1
+
+        medicinedata = {
+            "medicineid" : medicineid,
+            "name": medname,
+            "mrng": dosage[0],
+            "noon": dosage[1],
+            "evening": dosage[2],
+            "night": dosage[3],
+            "beforefood" : beforefood,
+            "afterfood" : afterfood,
+            "quantity": str(qty),
+            "duration": str(days),
+        }
+
+        get_prescrip.records['medicines'].append(medicinedata) 
+        get_prescrip.save()
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+#----Generate E-Prescription------------
+class GenerateEPrescription(APIView):
+    ...
+
+ 

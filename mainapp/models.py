@@ -1,3 +1,4 @@
+from pydoc import doc
 from django.db import models
 
 
@@ -338,4 +339,40 @@ class MedicalRecords(models.Model):
     def __str__(self):
         return str(self.id)
 
+"""
+    Json_format of records : {
+        "title": "e-prescription-title",
+        "created_at": "date",
+        medicines : [
+            {
+                "medicineid" : "id",
+                "name": "tablet name",
+                "mrng": bool,
+                "noon": bool,
+                "evening": bool,
+                "night": bool,
+                "beforefood" : bool,
+                "afterfood" : bool,
+                "quantity": "30",
+                "duration": "in days"
+            }
+        ]
+    }
+"""
+
+class MedicalPrescriptions(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patientid = models.CharField(max_length=256,null=True,blank=True)
+    appointmentid = models.CharField(max_length=256,null=True,blank=True)
+    doctorid = models.CharField(max_length=256,null=True,blank=True)
+    records = models.JSONField(default=dict,blank=True)
+    generated = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
 '''----------End : Medical Records Model----------'''
+
+

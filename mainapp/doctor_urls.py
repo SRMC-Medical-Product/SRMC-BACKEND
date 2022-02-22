@@ -20,5 +20,8 @@ urlpatterns=[
 
     path('medical-records-appointments/',MedicalRecordsAppointments.as_view(),name="medical-records-appointments"),
     path('medical-reports/',AppointmentReport.as_view(),name="medical-reports"),
+    path('all-patients/',AllPatients.as_view(),name="all-patients"),
 
+    path('e-prescription/',ElectronicPrescription.as_view(),name="e-prescription"),
+    
 ]

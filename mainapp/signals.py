@@ -222,3 +222,11 @@ def create_record_id(sender,instance,**kwargs):
         record_count=MedicalRecords.objects.count()
         zeros="0"*(9-len(str(record_count)))
         instance.id=f"{year}"+zeros+str(record_count)
+
+@receiver(pre_save,sender=MedicalPrescriptions)
+def create_record_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        record_count=MedicalPrescriptions.objects.count()
+        zeros="0"*(9-len(str(record_count)))
+        instance.id=f"{year}"+zeros+str(record_count)
