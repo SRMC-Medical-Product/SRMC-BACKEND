@@ -18,4 +18,7 @@ urlpatterns=[
     path('procedure-medical/',ProcedureMedicalRecords.as_view(),name="procedure-medical"),
     path('medical-records/',AllMedicalRecords.as_view(),name="medical-records"),
 
+    path('medical-records-appointments/',MedicalRecordsAppointments.as_view(),name="medical-records-appointments"),
+    path('medical-reports/',AppointmentReport.as_view(),name="medical-reports"),
+
 ]

@@ -298,6 +298,7 @@ class DoctorTickets(models.Model):
 '''----------Start : Medical Records Model----------'''
 """
     json_format:
+    "" : "",
     records : [
         {
             "deptid": "id",
@@ -308,6 +309,7 @@ class DoctorTickets(models.Model):
                     "appointmentid" : "id",
                     "doctorname" : "",
                     "created_at" : "date",
+                    "date" : "appointmentdate",
                     "files" : [
                         {
                             "type" : "pdf",

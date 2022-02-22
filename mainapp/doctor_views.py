@@ -581,6 +581,7 @@ class HistoryAppointment(APIView):
 
 
 #-------Add medical records API --------------------
+#---#PR1-----
 class ProcedureMedicalRecords(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
@@ -702,33 +703,19 @@ class ProcedureMedicalRecords(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
 
+#---#AMR1-----
 class AllMedicalRecords(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
     
     def get(self , request , format=None):
         """
-            Getting the medical records that are available for the given specialisation.
-            Get methods:
-                recordid = [String,required] id of the medical records
-            --------------------
-            file_format = [
-                {
-                    "date" : "",
-                    files : [],
-                }
-            ]
+            Get all medical records of a current record id.
+            *Testing View
         """
-        
-        json_data = {
-            "isempty" : True,
-            "appointments" : [],
-        }
-        doctor = request.user
-        data = request.query_params
-        recordid = data.get("recordid",None)
+        recordid = request.query_params.get("recordid",None)
 
-        if recordid in [None,""]:
+        if recordid is None:
             return display_response(
                 msg="FAILED",
                 err="Invalid data given",
@@ -738,30 +725,10 @@ class AllMedicalRecords(APIView):
 
         get_record = MedicalRecords.objects.filter(id=recordid).first()
         serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data 
-        json_data['records'] = serializer
-        # for i in serializer['records']:
-        #     if i['deptid'] == doctor.department_id.id:
-        #         for j in i['records']:    
-        #             data = {
-        #                     "appointmentid" : j['appointmentid'],
-        #                     "doctorname"  : j['doctorname'],
-        #                     "date" : dtt.strptime(j['created_at'], Ymd).strftime(dBY),
-        #                     "files" : j['files']
-        #                 }
-        #         json_data['appointments'].append(data)
-
-        # for x in json_data['appointments']['files']:
-        #     ...
-        
-        #TODO
-
-        if len(json_data['appointments']) > 0:
-            json_data['isempty'] = False
-        
         return display_response(
             msg="SUCCESS",
             err=None,
-            body=json_data,
+            body=serializer,
             statuscode=status.HTTP_200_OK
         )
 
@@ -841,7 +808,8 @@ class AllMedicalRecords(APIView):
             appointment_data = {
                 "appointmentid" : appointment_serializer['id'],
                 "doctorname" : appointment_serializer['doctor']['name'],
-                "created_at" : appointment_serializer['date'],
+                "date" : appointment_serializer['date'],
+                "created_at" :str(dtt.now(IST_TIMEZONE)),
                 "files" : []
             }
             serializer['records'][is_dept_index]['records'].append(appointment_data)
@@ -888,4 +856,162 @@ class AllMedicalRecords(APIView):
             statuscode=status.HTTP_200_OK
         )
 
- 
+#---#AMR2-----
+class MedicalRecordsAppointments(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Getting the medical records that are available for the given specialisation.
+            Get methods:
+                recordid = [String,required] id of the medical records
+                appointmentid = [String,optional] id of the appointment.Required necessry when displaying the records from medical appointments page
+            ---------------------
+            Cases:
+                1)Record-ID -> Then display the records and their appointment ids with presentbookings['available'] = False and no 
+                    checking required
+                2)AppointmentId -> Then display the records and their appointment ids with presentbookings['available'] = True/False
+                    based on checking which makes the add-new-record for current appointment available
+
+        """
+        
+        json_data = {
+            "isempty" : True,
+            "appointments" : [],
+            "presentbooking" : {
+                "title" : "Add medical record for the current appointment",
+                "available" : False,
+                "currentappointmentid" : None,
+            },
+            "params" : 1,
+            "recordid" : None,
+        }
+        doctor = request.user
+        data = request.query_params
+        recordid = data.get("recordid",None)
+        appointmentid = data.get("appointmentid",None)
+        
+        if recordid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        if appointmentid not in [None,""]:
+            get_appointment = Appointment.objects.filter(id=appointmentid).first()
+            if get_appointment is None:
+                return display_response(
+                    msg="FAILED",
+                    err="Appointment not found",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST
+                )
+
+        get_record = MedicalRecords.objects.filter(id=recordid).first()
+        serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data 
+        json_data['recordid'] = recordid
+        for i in serializer['records']:
+            if i['deptid'] == doctor.department_id.id:
+                for j in i['records']:    
+                    data = {
+                            "appointmentid" : j['appointmentid'],
+                            "doctorname"  : j['doctorname'],
+                            "date" : dtt.strptime(j['created_at'], Ymd).strftime(dBY),
+                        }
+                    json_data['appointments'].append(data)
+
+        """
+            Check the availability of medical records for the current appointment if
+            the appointment is available
+        """
+        if appointmentid not in [None,""]:
+            for x in json_data['appointments']:
+                if x['appointmentid'] == str(appointmentid):
+                    json_data['presentbooking']['available'] = True
+                    json_data['presentbooking']['currentappointmentid'] = appointmentid
+                    json_data['params'] = 2
+                    break
+        else:
+            json_data['presentbooking']['available'] = True
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#---#AR1-----
+class AppointmentReport(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            This views displays all the medical records files that are available in a current appointment id
+            GET method:
+                recordid : [String,required] medical record id
+                appointmentid : [String,required] appointment id
+        """
+        json_data = {
+            "isempty": False,
+            "appointmentid": None,
+            "recordid": None,
+            "files": [],
+        }
+        user = request.user
+        data = request.query_params
+        recordid = data.get("recordid",None)
+        appointmentid = data.get("appointmentid",None)
+
+        if recordid in [None,""] or appointmentid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        get_record = MedicalRecords.objects.filter(id=recordid).first()
+        serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data
+        temp = []
+        for i in serializer['records']:
+            if i['deptid'] == user.department_id.id:
+                for j in i['records']:
+                    if j['appointmentid'] == appointmentid:
+                        temp = j['files']
+                        break
+                break   
+
+        for x in temp:
+            data = {
+                "type" : x['type'],
+                "name" : x['name'],
+                "url" : x['url'],
+                "username" : f"{x['username']}",
+                "userid" : f"{x['userid']}",
+                "user" : f"{x['user']}",
+                "created_at" : dtt.strptime(x['created_at'], YmdHMSfz).strftime(dBY),
+            }
+            json_data['files'].append(data)
+
+        json_data['appointmentid'] = appointmentid
+        json_data['recordid'] = recordid
+
+        if len(json_data['files']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body= json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+
