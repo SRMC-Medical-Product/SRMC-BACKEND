@@ -11,7 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from pathlib import Path
-
+import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-4ahwj39q+l^&=#)j1=!b)d5h2%!%*ejuvfeqqqn()@mzsp&+7n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -39,6 +39,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'mainapp.apps.MainappConfig',
     'adminapp.apps.AdminappConfig',
+    #Storage
+    'storages',
     #Rest Framework
     'rest_framework',
     'rest_framework.authtoken',
@@ -121,12 +123,36 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
-STATIC_URL = 'static/'
+#Azure Maps Subscription key
+AZURE_SUBSCRIPTION_KEY = 'lH4klHHUVJo_XM-yQOeyiBYHtIchIcynlS5oFPa8ewA'
+
+#tesing
+AZURE_ACCOUNT_NAME = "garudatest"
+AZURE_ACCOUNT_KEY = 'Vgbnjt6LBP9U/o/nHvYp+AaDJV53QXoUOr124UDVrzBTkj7BheB27xxfosH+GTTeL27VBUBmt8rQpkPOHUmxiA=='
+AZURE_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=garudatest;AccountKey=Vgbnjt6LBP9U/o/nHvYp+AaDJV53QXoUOr124UDVrzBTkj7BheB27xxfosH+GTTeL27VBUBmt8rQpkPOHUmxiA==;EndpointSuffix=core.windows.net"
+# Static files (CSS, JavaScript, Images)
+if DEBUG==True :
+    STATIC_URL = '/static/'
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+else:
+    #AzureMediaStorage in Production mode
+    DEFAULT_FILE_STORAGE = 'project.custom_azure.AzureMediaStorage'
+    STATICFILES_STORAGE = 'project.custom_azure.AzureStaticStorage'
+    STATIC_LOCATION = "static"
+    MEDIA_LOCATION = "media"
+    AZURE_ACCOUNT_NAME = "garudatest"
+    AZURE_CUSTOM_DOMAIN = f'{AZURE_ACCOUNT_NAME}.blob.core.windows.net'
+    AZURE_ACCOUNT_KEY = 'Vgbnjt6LBP9U/o/nHvYp+AaDJV53QXoUOr124UDVrzBTkj7BheB27xxfosH+GTTeL27VBUBmt8rQpkPOHUmxiA=='
+        
+    STATIC_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{STATIC_LOCATION}/'
+    MEDIA_URL = f'https://{AZURE_CUSTOM_DOMAIN}/{MEDIA_LOCATION}/'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 
 CELERY_BROKER_URL="redis://127.0.0.1:6379"

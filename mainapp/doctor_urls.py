@@ -15,4 +15,7 @@ urlpatterns=[
     path('live-appointments/',LiveAppointment.as_view(),name="live-appointments"),
     path('history-appointments/',HistoryAppointment.as_view(),name="history-appointments"),
 
+    path('procedure-medical/',ProcedureMedicalRecords.as_view(),name="procedure-medical"),
+    path('medical-records/',AllMedicalRecords.as_view(),name="medical-records"),
+
 ]

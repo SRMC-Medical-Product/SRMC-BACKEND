@@ -294,3 +294,46 @@ class DoctorTickets(models.Model):
         return str(self.id)
 
 '''----------End : Tickets/Issues Model----------'''
+
+'''----------Start : Medical Records Model----------'''
+"""
+    json_format:
+    records : [
+        {
+            "deptid": "id",
+            "deptname" : "name",
+            "created_at" : "date",
+            "records" : [
+                {
+                    "appointmentid" : "id",
+                    "doctorname" : "",
+                    "created_at" : "date",
+                    "files" : [
+                        {
+                            "type" : "pdf",
+                            "url" : "url"
+                            "name" : "name",
+                            "username" : "name",
+                            "userid":"",
+                            "user":"",
+                            "created_at" : "date"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+"""
+class MedicalRecords(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patientid = models.CharField(max_length=256,null=True,blank=True)
+    title = models.CharField(max_length=256,null=True,blank=True)
+    records = models.JSONField(default=list,blank=True)
+    created_by = models.CharField(max_length=256,null=True,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+'''----------End : Medical Records Model----------'''

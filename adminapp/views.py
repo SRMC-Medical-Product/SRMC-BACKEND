@@ -37,62 +37,11 @@ from rest_framework.authtoken.models import Token
 '''Time Format Imports'''
 from mainapp.utils import  dmY,Ymd,IMp,YmdHMS,dmYHMS,YmdTHMSf,YmdHMSf,HMS
 
+from mainapp.serializers import *
+from mainapp.doctor_serializers import *
+from mainapp.models import *
+
 #----------------------------Start : Admin Auth----------------------------
-'''Admin Registration'''
-class AdminRegister(APIView):
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission]
-    
-   #TODO : by aravind S (Backend developer)
-    # def post(self , request , format=None):
-    #     ACTION = "AdminRegister"
-    #     is_superuser = False
-    #     data = self.request.data
-    #     username = data.get('username')
-    #     email = data.get('email')
-    #     password = data.get('password')
-    #     is_superstaff=data.get("is_superstaff")
-        
-    #     print(data)
-    #     if is_superstaff == True:
-    #         is_superstaff = True
-        
-    #     if username is None or email is None or password is None:
-    #         return display_response(
-    #         msg = ACTION,
-    #         err= "Values found null",
-    #         body = None,
-    #         statuscode = status.HTTP_200_OK
-    #     )  
-
-    #     print("60")
-    #     # todo ERROR : keyword error username
-    #     user=User.objects.filter(username=username)
-    #     print(user)
-    #     if user.exists():
-    #          return display_response(
-    #         msg = ACTION,
-    #         err= "User already exists",
-    #         body = None,
-    #         statuscode = status.HTTP_200_OK
-    #     )  
-    #     if len(password) < 8:
-    #         return display_response(
-    #         msg = ACTION,
-    #         err= "Password must be atleast 8 characters long",
-    #         body = None,
-    #         statuscode = status.HTTP_200_OK
-    #     ) 
-
-    #     user=User.objects.create(username=username,email=email,is_staff=True,is_superuser=is_superuser)
-    #     user.set_password(password)
-    #     user.save()
-    #     return display_response(
-    #         msg = ACTION,
-    #         err= None,
-    #         body = "User Created Successfully",
-    #         statuscode = status.HTTP_200_OK
-    #     ) 
     
 '''Admin Login'''
 #TODO : by aravind S (Backend developer)
@@ -611,6 +560,7 @@ class DepartmentsView(APIView):
             statuscode = status.HTTP_200_OK
         )
     # TODO : Check many to many fields once
+    
     '''Create New Departments'''
     def post(self, request, format=None):
         ACTION = "Departments POST"

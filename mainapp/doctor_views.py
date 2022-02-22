@@ -1,9 +1,9 @@
 """
     File with all the API's relating to the doctor app
 """
-from django.shortcuts import render
 from django.utils import timezone
 from datetime import datetime as dtt,time,date,timedelta
+import uuid
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -18,6 +18,7 @@ from .doctor_serializers import *
 from .serializers import *
 from .utils import *
 
+from .azurefunctions import *
 
 class LoginDoctor(APIView):
 
@@ -578,3 +579,313 @@ class HistoryAppointment(APIView):
             statuscode=status.HTTP_200_OK
         )
 
+
+#-------Add medical records API --------------------
+class ProcedureMedicalRecords(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Getting a list of procedures that are available.
+            Medical Records must be uploaded into this instance.
+            Displaying only the medical records related to the doctor specialisation
+        """
+        patientid = request.query_params.get("patientid",None)
+        json_data = {
+            "isempty" : True,
+            "records" : [],
+            "patient" : {},
+        }
+
+        user = request.user
+        
+        if patientid is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        records = MedicalRecords.objects.filter(patientid=patientid).order_by("-created_at")
+        serializer = MedicalRecordsSerializer(records,many=True,context={"request":request}).data
+        for i in serializer:
+            if len(i['records']) > 0:
+                for j in i['records']:
+                    if j['deptid'] == user.department_id.id:
+                        doctor = Doctor.objects.filter(id=i['created_by']).first()
+                        data = {
+                            "id": i['id'],
+                            "title" : i['title'],
+                            "created_at" : dtt.strptime(i['created_at'], YmdTHMSfz).strftime(mdY),
+                            "created_by" : doctor.name
+                        }
+                        json_data['records'].append(data)
+            else:
+                doctor = Doctor.objects.filter(id=i['created_by']).first()
+                data = {
+                    "id": i['id'],
+                    "title" : i['title'],
+                    "created_at" : dtt.strptime(i['created_at'], YmdTHMSfz).strftime(mdY),
+                    "created_by" : doctor.name
+                }
+                json_data['records'].append(data)
+        
+        if len(json_data['records']) > 0:
+            json_data['isempty'] = False
+                
+        getpatient = Patient.objects.filter(id=patientid).first()
+
+        pat_data = {
+            "id" : f"{getpatient.id}",
+            "name" : f"{getpatient.name}",
+            "img" : f"{getpatient.img}",
+            "defaultimg" : f"{getpatient.name[0:1]}",
+            "gender" : f"{getpatient.gender}",
+            "blood" : f"{getpatient.blood}",
+        }
+        json_data['patient'] = pat_data
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def post(self, request , format=None):
+        """
+            Procedure Medical Records is the main title of the records.
+            Inside this multiple specialization and their records are associated 
+            POST methods:
+                title : [String,required] title of the procedure records
+        """
+        data = request.data
+        user = request.user
+        title = data.get("title",None)
+        patientid =data.get("patientid",None)
+
+        if title in [None,""] or patientid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        get_patient = Patient.objects.filter(id=patientid).first()
+        if get_patient is None:
+            return display_response(
+                msg="FAILED",
+                err="Patient not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            MedicalRecords.objects.create(
+                created_by = user.id,
+                title = title,
+                patientid = get_patient.id
+            )
+            return display_response(
+                msg="SUCCESS",
+                err=None,
+                body=None,
+                statuscode=status.HTTP_200_OK
+            )    
+        except Exception as e:
+            return display_response(
+                msg="FAILED",
+                err=f"{str(e)}",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+class AllMedicalRecords(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+    
+    def get(self , request , format=None):
+        """
+            Getting the medical records that are available for the given specialisation.
+            Get methods:
+                recordid = [String,required] id of the medical records
+            --------------------
+            file_format = [
+                {
+                    "date" : "",
+                    files : [],
+                }
+            ]
+        """
+        
+        json_data = {
+            "isempty" : True,
+            "appointments" : [],
+        }
+        doctor = request.user
+        data = request.query_params
+        recordid = data.get("recordid",None)
+
+        if recordid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        get_record = MedicalRecords.objects.filter(id=recordid).first()
+        serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data 
+        json_data['records'] = serializer
+        # for i in serializer['records']:
+        #     if i['deptid'] == doctor.department_id.id:
+        #         for j in i['records']:    
+        #             data = {
+        #                     "appointmentid" : j['appointmentid'],
+        #                     "doctorname"  : j['doctorname'],
+        #                     "date" : dtt.strptime(j['created_at'], Ymd).strftime(dBY),
+        #                     "files" : j['files']
+        #                 }
+        #         json_data['appointments'].append(data)
+
+        # for x in json_data['appointments']['files']:
+        #     ...
+        
+        #TODO
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+    def post(self , request , format=None):
+        doctor = request.user
+        data = request.data
+        appointmentid = data.get("appointmentid",None)
+        recordid = data.get("recordid",None)
+        files = data.get("files",None)
+        filename =data.get("filename",None)
+
+        if appointmentid in [None,""] or recordid in [None,""] or files in [None,""] or filename in [None , ""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        records = MedicalRecords.objects.filter(id=recordid).first()
+        if records is None:
+            return display_response(
+                msg="FAILED",
+                err="Medical Records not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        serializer = MedicalRecordsSerializer(records,context={"request":request}).data
+        
+        get_appointment = Appointment.objects.filter(id=appointmentid).first()
+        if get_appointment is None:
+            return display_response(
+                msg="FAILED",
+                err="Appointment not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        appointment_serializer = AppointmentSerializer(get_appointment,context={"request":request}).data
+        
+        is_dept_exists = False
+        is_dept_index = 0
+        is_appointment_exists = False
+        is_appointment_index = 0
+        for i in serializer['records']:
+            if i['deptid'] == doctor.department_id.id:
+                is_dept_exists = True
+                is_dept_index = serializer['records'].index(i)
+                for j in i['records']:
+                    if j['appointmentid'] == appointmentid:
+                        is_appointment_exists = True
+                        is_appointment_index = i['records'].index(j)
+                        break
+                break
+        
+        if is_dept_exists == False:
+            """
+                The Specialisation department is not created and must create a new one
+            """
+            dept_data = {
+                "deptid" : doctor.department_id.id,
+                "deptname" : doctor.department_id.name,
+                "created_at" :str(dtt.now(IST_TIMEZONE)),
+                "records" : []
+            }  
+            serializer['records'].append(dept_data)
+            is_dept_index = -1    
+        
+        
+        """
+            else:
+                The Specialisation department is created and must append the files to records
+        """
+        if is_appointment_exists == False:
+            """
+                Create an appointment record and append it to the specialisation index
+            """
+            appointment_data = {
+                "appointmentid" : appointment_serializer['id'],
+                "doctorname" : appointment_serializer['doctor']['name'],
+                "created_at" : appointment_serializer['date'],
+                "files" : []
+            }
+            serializer['records'][is_dept_index]['records'].append(appointment_data)
+            is_appointment_index = -1
+
+        """
+            Else:
+                Append the files to the appointment record files.
+            Now we have the dept_index and appointment_index,so that files can be added easily
+        """
+        
+        file_ext = files.content_type.split('/')[1]
+        custom_filename = f"{files.name.split('.')[0]}_{str(uuid.uuid4())[:7]}.{file_ext}"
+        final_path = f"{records.id}/{doctor.department_id.name}/{appointmentid}/{custom_filename}"
+        azure_data = upload_medical_files_cloud(
+            uploadfile=files,
+            uploadfilename=final_path,
+            uploadmime = files.content_type
+        )
+        if azure_data['success'] == True:
+            filedata = {
+                "type" :f"{file_ext}",
+                "name" : f"{filename}",
+                "url" : azure_data['url'],
+                "username" : f"{doctor.name}",
+                "userid" : f"{doctor.id}",
+                "user":"doctor",
+                "created_at" : str(dtt.now(IST_TIMEZONE))
+            }
+        else:
+            return display_response(
+                msg="FAILED",
+                err="Failed to upload the file",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        serializer['records'][is_dept_index]['records'][is_appointment_index]['files'].append(filedata)
+        records.save()
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+ 
