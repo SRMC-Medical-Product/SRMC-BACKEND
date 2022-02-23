@@ -3,8 +3,6 @@ API View Todo Screen
 ----------------------------------------------
 2)Home screen
 4)My Appointments Filtering screen
-8)Analytics Screen
-18)Tap Consulted to Update in Appointments Screen
 ================================================
 
 

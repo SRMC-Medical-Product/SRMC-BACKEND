@@ -2,6 +2,7 @@
     File with all the API's relating to the doctor app
 """
 from datetime import datetime as dtt,time,date,timedelta
+import json
 import uuid
 
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -549,11 +550,16 @@ class HistoryAppointment(APIView):
     def get(self , request , format=None):
         json_data = {
             "isempty" : True,
+            "totalappointment" : 0,
+            "totalconsulted" : 0,
+            "totalcancelled" : 0,
+            "totalpending" : 0,
             "appointments" : [],
         }
 
         user = request.user
-        appointments = Appointment.objects.filter(doctor_id=user.id,closed=True).order_by("-created_at")
+        query = Appointment.objects.filter(doctor_id=user.id).order_by("-created_at")
+        appointments = query.filter(closed=True) 
         serializer = AppointmentSerializer(appointments,many=True,context={"request":request}).data
         for i in serializer:
             data = {
@@ -570,6 +576,11 @@ class HistoryAppointment(APIView):
             }
             json_data['appointments'].append(data)
 
+        json_data['totalappointment'] = query.count()
+        json_data['totalconsulted'] = query.filter(consulted=True,closed=True).count()
+        json_data['totalcancelled'] = query.filter(cancelled=True,closed=True).count()
+        json_data['totalpending'] = query.filter(closed=False).count()
+
         if len(json_data['appointments']) > 0:
             json_data['isempty'] = False
         
@@ -579,7 +590,6 @@ class HistoryAppointment(APIView):
             body=json_data,
             statuscode=status.HTTP_200_OK
         )
-
 
 #-------Add medical records API --------------------
 #---#PR1-----
@@ -1652,4 +1662,91 @@ class AppointmentConsulted(APIView):
             statuscode=status.HTTP_200_OK
         )
 
+#----Analytics Screen API -----
+class AppointmentAnalytics(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data = {
+            "totalappointment" : 0,
+            "totalconsulted" : 0,
+            "totalcancelled" : 0,
+            "totalpending" : 0,
+        }
+
+        doctor = request.user
+        get_appointments = Appointment.objects.filter(doctor_id=doctor.id)
+        
+        json_data['totalappointment'] = get_appointments.count()
+        json_data['totalconsulted'] = get_appointments.filter(consulted=True,closed=True).count()
+        json_data['totalcancelled'] = get_appointments.filter(cancelled=True,closed=True).count()
+        json_data['totalpending'] = get_appointments.filter(closed=False).count()
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#=---Time Summary Analytics API -----
+class WeeklyAppointmentAnalytics(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
+    def get(self , request , format=None):
+        json_data = {
+            "isempty" : True,
+            "totalappointment" : 0,
+            "totalconsulted" : 0,
+            "totalcancelled" : 0,
+            "totalpending" : 0,
+            "appointments" : [],
+        }
+
+        user = request.user
+
+        previous_date = dtt.now() - timedelta(days=7)
+
+        query = Appointment.objects.filter(doctor_id=user.id,created_at__gte = previous_date).order_by("-created_at")       
+        appointments = query.filter(closed=True)
+        serializer = AppointmentSerializer(appointments,many=True,context={"request":request}).data
+        for i in serializer:
+            data = {
+                "id": i['id'],
+                "patientid": i['patient_id'],
+                "patientname" : i['patient']['name'],
+                "gender" : i['patient']['gender'],
+                "blood" : i['patient']['blood'],
+                "img" : i['patient']['img'],
+                "defaultimg" : f"{i['patient']['name'][0:1]}",
+                "time" : self.convert_to_imp(i['time']),
+                "date" : self.convert_to_dBY(i['date']),
+                "status" : "Consulted" if i['consulted']==True else "Missed" if i['cancelled'] == True else "Completed",      
+            }
+            json_data['appointments'].append(data)
+
+        json_data['totalappointment'] = query.count()
+        json_data['totalconsulted'] = query.filter(consulted=True,closed=True).count()
+        json_data['totalcancelled'] = query.filter(cancelled=True,closed=True).count()
+        json_data['totalpending'] = query.filter(closed=False).count()
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
 
