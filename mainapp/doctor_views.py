@@ -1559,3 +1559,97 @@ class GenerateEPrescription(APIView):
                 body=None,
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
+
+#---Marking as Consulted/Visited View------
+class AppointmentConsulted(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def put(self , request , format=None):
+        """
+            Marking the appointment as visited.Firstly check if the step - 2 is marked as True or not, if not true then check if the appointment
+            is marked as cancelled.If the appointment is not cancelled and step-2 is True then mark the appointment as visited.
+        """
+        doctor = request.user
+        data = request.data
+        appointmentid = data.get('appointmentid',None)
+
+        if appointmentid is None:
+            return display_response(
+                msg="FAILED",
+                err="Appointment ID is required",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        get_appointment = Appointment.objects.filter(id=appointmentid).first()
+        if get_appointment is None:
+            return display_response(
+                msg="FAILED",
+                err="Appointment not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = AppointmentSerializer(get_appointment,context={"request":request}).data
+
+        if serializer['closed'] == True:
+            return display_response(
+                msg="FAILED",
+                err="Appointment is closed already",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        if serializer['cancelled'] == True:
+            return display_response(
+                msg="FAILED",
+                err="Appointment is cancelled",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        if serializer['consulted'] == True:
+            return display_response(
+                msg="FAILED",
+                err="Appointment is already marked as visited",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        if serializer['timeline']['step2']['completed'] == False:
+            return display_response(
+                msg="FAILED",
+                err="Patient didn't visit the counter.Please visit the counter and then close the appointment",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Validated all steps.Now mark the appointment as visited.
+            Make the activity log.
+        """
+        get_appointment.consulted = True
+        get_appointment.closed = True
+        get_appointment.timeline['step3']['completed'] = True
+
+        activitydata = {
+            "activity" : "Appointment marked as visited by doctor",
+            "log" : f'''The appointment {serializer['id']} is marked as visited by doctor {doctor.name}.The ID of the doctor is {doctor.id}''',
+            "created_at" : str(dtt.now(IST_TIMEZONE))
+        }
+        if get_appointment.activity == {}:
+            get_appointment.activity = []
+        
+        get_appointment.activity.append(activitydata)
+
+        get_appointment.save()
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+
