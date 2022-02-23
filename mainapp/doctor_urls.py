@@ -23,5 +23,8 @@ urlpatterns=[
     path('all-patients/',AllPatients.as_view(),name="all-patients"),
 
     path('e-prescription/',ElectronicPrescription.as_view(),name="e-prescription"),
+
+    path('test/',generate_pdf,name="test"),
+    path('generate-prescription/',GenerateEPrescription.as_view(),name="generate-prescription"),
     
 ]

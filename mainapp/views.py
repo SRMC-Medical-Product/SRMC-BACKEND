@@ -1713,7 +1713,7 @@ class BookAppoinment(APIView):
 
         doctor_serialized_data=DoctorSerializer(doctor_).data
         patient_serialized_data=PatientSerializer(patient_).data
-        
+        patient_serialized_data['contact'] = request.user.mobile
         """ Populate appoinment model """
         a=Appointment.objects.create(
                         date=date_date,

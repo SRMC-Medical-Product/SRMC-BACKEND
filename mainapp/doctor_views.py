@@ -1,19 +1,9 @@
 """
     File with all the API's relating to the doctor app
 """
-from email.mime import audio
-from re import S
-import re
-from traceback import print_tb
-from django.utils import timezone
 from datetime import datetime as dtt,time,date,timedelta
 import uuid
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
-
-'''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 
 from .models import *
@@ -21,8 +11,15 @@ from .auth import *
 from .doctor_serializers import *
 from .serializers import *
 from .utils import *
-
 from .azurefunctions import *
+
+from django.http import HttpResponse,FileResponse
+from django.template.loader import get_template
+from xhtml2pdf import pisa
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
 
 class LoginDoctor(APIView):
 
@@ -829,7 +826,7 @@ class AllMedicalRecords(APIView):
         
         file_ext = files.content_type.split('/')[1]
         custom_filename = f"{files.name.split('.')[0]}_{str(uuid.uuid4())[:7]}.{file_ext}"
-        final_path = f"{records.id}/{doctor.department_id.name}/{appointmentid}/{custom_filename}"
+        final_path = f"{records.id}/{doctor.department_id.id}/{appointmentid}/{custom_filename}"
         azure_data = upload_medical_files_cloud(
             uploadfile=files,
             uploadfilename=final_path,
@@ -921,11 +918,12 @@ class MedicalRecordsAppointments(APIView):
         json_data['recordid'] = recordid
         for i in serializer['records']:
             if i['deptid'] == doctor.department_id.id:
-                for j in i['records']:    
+                for j in i['records']: 
+                    print(j['created_at'])   
                     data = {
                             "appointmentid" : j['appointmentid'],
                             "doctorname"  : j['doctorname'],
-                            "date" : dtt.strptime(j['created_at'], Ymd).strftime(dBY),
+                            "date" : dtt.strptime(j['created_at'], YmdHMSfz).strftime(dBY),
                         }
                     json_data['appointments'].append(data)
 
@@ -1346,7 +1344,218 @@ class ElectronicPrescription(APIView):
         )
 
 #----Generate E-Prescription------------
-class GenerateEPrescription(APIView):
-    ...
+def generate_pdf(json_data):
+    template_path = 'index.html'
+    context = json_data
+    print(context)
+    # Create a Django response object, and specify content_type as pdf
+    response = HttpResponse(content_type='application/pdf')
+    #if for display in browser add this line
+    response['Content-Disposition'] = 'attachment; filename="report.pdf"'
+    
+    
+    # find the template and render it.
+    template = get_template(template_path)
+    html = template.render(context)
+    # create a pdf
+    pisa_status = pisa.CreatePDF(html, dest=response)
+    
+    if pisa_status.err:
+        return {
+            "res": False,
+            "err": "Error in generating PDF",
+        }
 
- 
+    final_path = context['path']
+
+    azure_data = upload_medical_files_cloud(
+        uploadfile=response,
+        uploadfilename=final_path,
+        uploadmime = "application/pdf"
+    )
+    if azure_data['success'] == True:
+       return {
+            "res": True,
+            "err": None,
+            "data" : azure_data 
+        }
+
+    return {
+            "res": False,
+            "err": "Error in uploading to cloud PDF",
+        }
+    
+class GenerateEPrescription(APIView):
+    
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data = {
+            "doctor" : {},
+            "patient" : {},
+            "hospital" : {
+                "name" : "Sri Ramachandra Medical Hospital",
+                "loc" : "Porur, Chennai",
+                "phone" : "044-24242424",
+            },
+            "recordid" : "",
+            "appointmentid" : "",
+            "medicines" : [],
+        }
+        doctor = request.user
+        data = request.query_params
+        medicalid = data.get('medicalid',None)
+        recordid = data.get("recordid",None)
+        appointmentid = data.get("appointmentid",None)
+
+        if medicalid is None or recordid is None or appointmentid is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        get_medical = MedicalPrescriptions.objects.filter(id=medicalid).first()
+        if get_medical is None:
+            return display_response(
+                msg="FAILED",
+                err="Medical E-Presciption Instance not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        get_record = MedicalRecords.objects.filter(id=recordid).first()
+        serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data
+        
+        get_appointment = Appointment.objects.filter(id=appointmentid).first()
+        appointment_serializer = AppointmentSerializer(get_appointment,context={"request":request}).data
+        if get_record is None or get_appointment is None:
+            return display_response(
+                msg="FAILED",
+                err="Medical Record Instance not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        json_data['doctor'] = {
+            "name" : f"{get_appointment.doctor['name']}",
+            "department" : f"{get_appointment.doctor['specialisation']}",
+            "qualification" : f"{get_appointment.doctor['qualification']}",
+        }
+        json_data['recordid'] = f"{recordid}"
+        json_data['appointmentid'] = f"{appointmentid}"
+        json_data['patient'] = {
+            "name" : f"{get_appointment.patient['name']}",
+            "contact" : f"{get_appointment.patient['contact']}",
+            "date" : dtt.now(IST_TIMEZONE).strftime(dBYIMp),
+        }
+
+        for i in get_medical.records['medicines']:
+            dosage = f"{i['mrng']}-{i['noon']}-{i['evening']}-{i['night']}".replace("True","1")
+            dosage.replace("False","0")
+            intake = "NS"
+            if i['beforefood'] == True:
+                intake = "BF"
+            elif i['afterfood'] == True:
+                intake = "AF"
+            data = {
+                "medicineid" : f"{i['medicineid']}",
+                "name" : f"{i['name']}",
+                "dosage" : dosage,
+                "intake" :intake,
+                "quantity" : f"{i['quantity']}",
+                "duration" : f"{i['duration']}",
+            }
+            json_data['medicines'].append(data)
+
+        custom_filename = f"{str(uuid.uuid4())[:4]}{get_medical.records['title']}-{str(uuid.uuid4())[:7]}.pdf"
+        final_path = f"{get_record.id}/{request.user.department_id.id}/{appointmentid}/{custom_filename}"
+        json_data['filename'] = custom_filename
+        json_data['path'] = final_path
+
+        res = generate_pdf(json_data)
+
+        if res['res'] == True:
+            """
+                Add the data url to the database and in medical records
+            """
+            is_dept_exists = False
+            is_dept_index = 0
+            is_appointment_exists = False
+            is_appointment_index = 0
+            for i in serializer['records']:
+                if i['deptid'] == doctor.department_id.id:
+                    is_dept_exists = True
+                    is_dept_index = serializer['records'].index(i)
+                    for j in i['records']:
+                        if j['appointmentid'] == appointmentid:
+                            is_appointment_exists = True
+                            is_appointment_index = i['records'].index(j)
+                            break
+                    break
+        
+            if is_dept_exists == False:
+                """
+                    The Specialisation department is not created and must create a new one
+                """
+                dept_data = {
+                    "deptid" : doctor.department_id.id,
+                    "deptname" : doctor.department_id.name,
+                    "created_at" :str(dtt.now(IST_TIMEZONE)),
+                    "records" : []
+                }  
+                serializer['records'].append(dept_data)
+                is_dept_index = -1    
+            
+        
+            """
+                else:
+                    The Specialisation department is created and must append the files to records
+            """
+            if is_appointment_exists == False:
+                """
+                    Create an appointment record and append it to the specialisation index
+                """
+                appointment_data = {
+                    "appointmentid" : appointment_serializer['id'],
+                    "doctorname" : appointment_serializer['doctor']['name'],
+                    "date" : appointment_serializer['date'],
+                    "created_at" :str(dtt.now(IST_TIMEZONE)),
+                    "files" : []
+                }
+                serializer['records'][is_dept_index]['records'].append(appointment_data)
+                is_appointment_index = -1
+
+            """
+                Else:
+                    Append the files to the appointment record files.
+                Now we have the dept_index and appointment_index,so that files can be added easily
+            """
+            filedata = {
+                "type" :"pdf",
+                "name" : f"{get_medical.records['title']}",
+                "url" : res['data']['url'],
+                "username" : f"{doctor.name}",
+                "userid" : f"{doctor.id}",
+                "user":"doctor",
+                "created_at" : str(dtt.now(IST_TIMEZONE))
+            }
+            serializer['records'][is_dept_index]['records'][is_appointment_index]['files'].append(filedata)
+            get_record.save()
+
+            return display_response(
+                msg="SUCCESS",
+                err=None,
+                body=None,
+                statuscode=status.HTTP_200_OK
+            )
+
+        else:
+            return display_response(
+                msg="FAILED",
+                err=res['err'],
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
