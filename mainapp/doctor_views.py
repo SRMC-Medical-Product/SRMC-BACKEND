@@ -4,8 +4,10 @@
 from datetime import datetime as dtt,time,date,timedelta
 import json
 import uuid
+from webbrowser import get
 
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
+from myproject.notifications import *
 
 from .models import *
 from .auth import *
@@ -354,8 +356,8 @@ class ChangeDoctorPin(APIView):
 
 #---------Notifications Screen API --------------------
 class DoctorNotificationScreen(APIView):
-    permission_classes = [DoctorAuthentication]
-    authentication_classes=[]
+    authentication_classes=[DoctorAuthentication]
+    permission_classes = []
 
     def convertdateformat(self, req_date):
         a = dtt.now(IST_TIMEZONE)
@@ -417,6 +419,36 @@ class DoctorNotificationScreen(APIView):
             err= None,
             body = json_data,
             statuscode = status.HTTP_200_OK
+        )
+
+    def put(self , request):
+        notificationid = request.data.get('notificationid', None)
+        if notificationid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        doctor = request.user
+        
+        query = DoctorNotification.objects.filter(doctor_id__id=doctor.id,id=notificationid).first()
+        if query is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        query.seen = True
+        query.save()
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
         )
 
 #---------Tickets Screen API --------------------
@@ -861,6 +893,15 @@ class AllMedicalRecords(APIView):
             )
         serializer['records'][is_dept_index]['records'][is_appointment_index]['files'].append(filedata)
         records.save()
+
+        try:
+            msg = f"Your Dr. {doctor.name} has uploaded a medical records. Please find the attached file in your records section."
+            create_patient_notification(
+                patientid=get_appointment.patient_id,
+                msg = msg
+            )
+        except Exception as e:
+            pass
 
         return display_response(
             msg="SUCCESS",
@@ -1555,6 +1596,15 @@ class GenerateEPrescription(APIView):
             serializer['records'][is_dept_index]['records'][is_appointment_index]['files'].append(filedata)
             get_record.save()
 
+            try:
+                msg = f"Your Dr. {doctor.name} has created a medical e-prescription. Please find the attached PDF file in your records section."
+                create_patient_notification(
+                    patientid=get_medical.patientid,
+                    msg = msg
+                )
+            except Exception as e:
+                pass
+
             return display_response(
                 msg="SUCCESS",
                 err=None,
@@ -1652,8 +1702,16 @@ class AppointmentConsulted(APIView):
             get_appointment.activity = []
         
         get_appointment.activity.append(activitydata)
-
         get_appointment.save()
+
+        try:
+            msg = f"Your appointment #{serializer['id']} has been completed successfully.Please check medical records section for futher records"
+            create_patient_notification(
+                patientid=serializer['patient']['id'],
+                msg = msg
+            )
+        except Exception as e:
+            pass
 
         return display_response(
             msg="SUCCESS",

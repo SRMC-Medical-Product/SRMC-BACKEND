@@ -144,6 +144,7 @@ class RegisterUser(APIView):
         
         patient_instance=Patient.objects.create(name=name,primary=True,relation="User")
         user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
+        patient_instance.appuser = user_instance.id
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
         if user_otp_instance.expiry_time<=timezone.now():
@@ -370,7 +371,8 @@ class FamilyMembers(APIView):
         patient_instance = Patient.objects.create(
             relation=relation,
             name=name,
-            primary=False
+            primary=False,
+            appuser = user.id
         )
         if gender not in [None,""]:
             patient_instance.gender = gender

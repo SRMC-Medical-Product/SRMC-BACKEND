@@ -2,7 +2,7 @@
 API View Todo Screen
 ----------------------------------------------
 2)Home screen
-4)My Appointments Filtering screen
+
 ================================================
 
 
@@ -12,7 +12,7 @@ Coded Screens
 1)Login screen
 2)Home screen
 3)My Appointments - Live,history
-4)My Appointments Filtering screen
+4)My Appointments Filtering screen (Removed from UI*)
 5)My Patients Screen
 6)My Patients Filtering screen
 7)My Patients Search Screen
