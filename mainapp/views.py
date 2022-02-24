@@ -1924,24 +1924,21 @@ class FamilyMedicalRecord(APIView):
             "patientid" : serializer['patientid'],
             "name" : serializer['name'],
             "img" : serializer['img'],
+            "relation" : "Myself"
         }
         json_data['members'].append(user_data)
 
         for i in user.family_members:
             data = {
-                "patientid" : f"{i.id}",
-                "name" : f"{i.name}",
-                "img" : f"{i.img}",
+                "patientid" : f"{i['id']}",
+                "name" : f"{i['name']}",
+                "img" : f"{i['img']}",
+                "relation" : f"{i['relation']}"
             }
-        
-        # json_data['user']=serializer.data
-        
-        # for i in json_data['user']['family_members']:
-        #     i.__setitem__('defaultimg' , i['name'][0:1])
- 
-        # if len(json_data['user']['family_members']) > 0:
-        #     json_data['isempty'] = False
+            json_data['members'].append(data)
 
+        if len(json_data['members']) > 0:
+            json_data['isempty'] = False
 
 
         return display_response(
@@ -1951,8 +1948,122 @@ class FamilyMedicalRecord(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+#----procedural records API -----
+class PatientProceduralRecord(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
 
+    def get(self,request,format=None):
+        json_data = {
+            "isempty": True,
+            "patientid" : "",
+            "procedures" : [],
+        }
+        patientid = request.query_params.get('patientid',None)
 
+        if patientid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        json_data['patientid'] = patientid
 
+        procedures = MedicalRecords.objects.filter(patientid=patientid).order_by("-created_at")
+        serializer = MedicalRecordsSerializer(procedures,many=True,context={"request":request}).data
+        for i in serializer:
+            created_by = Doctor.objects.filter(id=i['created_by']).first()  
+            data = {
+                "id": i['id'],
+                "title" : i['title'],
+                "created_by" : f"Dr. {created_by.name}" if created_by != None else None,
+                "patientid" : f"{i['patientid']}",
+                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
+                "dept" : []
+            }
+            for x in i['records']:
+                data['dept'].append({
+                    "deptid" : x['deptid'],
+                    "deptname" : x['deptname'],
+                    "created_at" : dtt.strptime(x['created_at'],YmdHMSfz).strftime(dBYIMp)
+                })
+            json_data['procedures'].append(data)
 
+        if len(json_data['procedures']) > 0:
+            json_data['isempty'] = False
 
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+#----Display medical Records-----
+class DisplayMedicalRecords(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self,request,format=None):
+        
+        json_data = {
+            "isempty": True,
+            "recordid" : "",
+            "deptid" : "",
+            "records" : [],
+        }
+        
+        data = request.query_params
+        recordid = data.get('recordid',None)
+        deptid = data.get('deptid',None)
+
+        if recordid in [None,""] or deptid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        medicalrecord = MedicalRecords.objects.filter(id=recordid).first()
+        is_dept_index = 0
+
+        for x in medicalrecord.records:
+            if x['deptid'] == deptid:
+                is_dept_index = medicalrecord.records.index(x)
+                break
+        
+        for i in medicalrecord.records[is_dept_index]['records']:
+            print(i)
+            data = {
+                "appointmentid" : i['appointmentid'],
+                "doctorname" : i['doctorname'],
+                "created_at" : dtt.strptime(i['created_at'],YmdHMSfz).strftime(dBYIMp),
+                "date" : dtt.strptime(i['date'],Ymd).strftime(dBY),
+                "files" : []
+            }
+            for j in i['files']:
+                data['files'].append({
+                    "type" : j['type'],
+                    "url" : j['url'],
+                    "title" : j['name'],
+                    "username" : j['username'],
+                    "user" : j['user'],
+                    "userid" : j['userid'],
+                    "created_at" : dtt.strptime(j['created_at'],YmdHMSfz).strftime(dBYIMp)
+                })
+            json_data['records'].append(data)
+        
+        if len(json_data['records']) > 0:
+            json_data['isempty'] = False
+
+        json_data['recordid'] = recordid
+        json_data['deptid'] = deptid
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )

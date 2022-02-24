@@ -361,7 +361,6 @@ class MedicalRecords(models.Model):
         ]
     }
 """
-
 class MedicalPrescriptions(models.Model):
     id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
     patientid = models.CharField(max_length=256,null=True,blank=True)
