@@ -1,26 +1,26 @@
 {
-    "homescreen" :  {
-        "firstcarousel" : {},
-        "lastcarousel":{},
-        "slider" : {
-            "title" : "Best of Us",
-            "content" : [],
+    "homescreen": {
+        "firstcarousel": {},
+        "lastcarousel": {},
+        "slider": {
+            "title": "Best of Us",
+            "content": [],
             "isempty": true
         },
-        "categoryspecialist" : {
-            "title" : "Our Doctors",
-            "isempty" : true,
-            "categories" : []
-        }, 
-        "promotiondeparts" : {
-            "isempty" : true,
-            "depts" : []
+        "categoryspecialist": {
+            "title": "Our Doctors",
+            "isempty": true,
+            "categories": []
         },
-        "upcomingappointments" : [], 
-        "endcontent":{
-            "building":"1",
-            "doctors" : "50+",
-            "patients" : "150+"
+        "promotiondeparts": {
+            "isempty": true,
+            "depts": []
+        },
+        "upcomingappointments": [],
+        "endcontent": {
+            "building": "1",
+            "doctors": "50+",
+            "patients": "150+"
         }
     }
 }

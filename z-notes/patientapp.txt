@@ -1,8 +1,6 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-7)Medical Records Screen
-8)Medical Records Details Screen
 12)Appointments Details Screen
     -  Calculate the estimated arrival time for the patient and append it to the json_data['details']
     - Add the counter details to the json_data

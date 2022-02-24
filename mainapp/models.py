@@ -10,6 +10,7 @@ class User(models.Model):
     name=models.CharField(max_length=256,null=True,blank=True)
     mobile=models.CharField(max_length=15,unique=True)
     family_members=models.JSONField(null=True,blank=True)
+    img =models.FileField(upload_to='media/patient/',null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     selected = models.BooleanField(default=True)
 
@@ -360,7 +361,6 @@ class MedicalRecords(models.Model):
         ]
     }
 """
-
 class MedicalPrescriptions(models.Model):
     id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
     patientid = models.CharField(max_length=256,null=True,blank=True)
