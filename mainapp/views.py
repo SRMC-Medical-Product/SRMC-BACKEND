@@ -273,7 +273,13 @@ class UserProfile(APIView):
             user.name=name
             patient.save()
             user.save()
-
+ 
+        if img not in [None,""]:
+            patient.img = img
+            user.img = img
+            patient.save()
+            user.save()
+ 
         if email not in [None,""]:
             patient.email = email
             patient.save()
@@ -294,9 +300,6 @@ class UserProfile(APIView):
             patient.dob= dob
             patient.save()
         
-        if img not in [None,""]:
-            patient.img = img
-            patient.save()
 
         return display_response(
             msg="SUCCESS",
@@ -1901,3 +1904,55 @@ class PatientTicketsIssues(APIView):
             body=json_data,
             statuscode=status.HTTP_200_OK
         )
+
+
+#------medical Records Screen API -----
+class FamilyMedicalRecord(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self,request,format=None):
+        json_data = {
+            "isempty": True,
+            "members" : [], 
+        } 
+
+        user = request.user
+        serializer=UserSerializer(user).data
+        
+        user_data = {
+            "patientid" : serializer['patientid'],
+            "name" : serializer['name'],
+            "img" : serializer['img'],
+        }
+        json_data['members'].append(user_data)
+
+        for i in user.family_members:
+            data = {
+                "patientid" : f"{i.id}",
+                "name" : f"{i.name}",
+                "img" : f"{i.img}",
+            }
+        
+        # json_data['user']=serializer.data
+        
+        # for i in json_data['user']['family_members']:
+        #     i.__setitem__('defaultimg' , i['name'][0:1])
+ 
+        # if len(json_data['user']['family_members']) > 0:
+        #     json_data['isempty'] = False
+
+
+
+        return display_response(
+            msg = "SUCCESS",
+            err = None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+
+
+
+
