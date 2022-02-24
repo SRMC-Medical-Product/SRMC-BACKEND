@@ -29,4 +29,6 @@ urlpatterns=[
 
     path('analytics/',AppointmentAnalytics.as_view(),name="analytics"),
     path('weekly-analytics/',WeeklyAppointmentAnalytics.as_view(),name="weekly-analytics"),
+
+    path('home-screen/',HomeScreen.as_view(),name="home-screen"),
 ]

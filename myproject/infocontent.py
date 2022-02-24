@@ -16,3 +16,6 @@ SRMC_LOC_URL = "https://www.google.com/maps/place/Sri+Ramachandra+Institute+of+H
 FIRST_CAROUSEL = "https://images.unsplash.com/photo-1584982751601-97dcc096659c?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1172&q=80"
 
 LAST_CAROUSEL = "https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?ixlib=rb-1.2.1&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=1332&q=80"
+
+DOCTOR_DEFAULT_IMG = "" #TODO
+PATIENT_DEFAULT_IMG = "" #TODO

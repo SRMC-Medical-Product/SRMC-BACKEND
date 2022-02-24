@@ -1808,3 +1808,134 @@ class WeeklyAppointmentAnalytics(APIView):
             statuscode=status.HTTP_200_OK
         )
 
+
+#--------Home Screen API --------------------
+class HomeScreen(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data = {
+            "doctor" : {},
+            "todaytrack" : {
+                "totalappointment" : 0,
+                "totalpending" : 0,
+                "totalpatients" : 0,
+            },
+            "upcomingappointments" : {
+                "totalappointment" : 0,
+                "appointments" : []
+            },
+            "patients" : [],
+            "lastappointments" : {
+                "isempty" : True,
+                "appointments" : []
+            },
+            "pendingappointments" : {
+                "totalappointment" : 0,
+                "appointments" : []
+            },  
+        }
+
+        doctor = request.user
+
+        """
+            Get the doctor details
+        """
+        json_data['doctor'] = {
+            "name" : f"{doctor.name}",
+            "img" : f"{doctor.profile_img}",
+            "id" : f"{doctor.id}",
+        }
+
+        today = dtt.now(IST_TIMEZONE).strftime(Ymd)
+        query = Appointment.objects.filter(doctor_id=doctor.id)
+        today_appointments = query.filter(date=today) 
+        serializer = AppointmentSerializer(today_appointments,many=True,context={"request":request}).data
+        
+        """
+            Get the today's track details
+        """
+        todays_patients = []
+        for i in serializer:
+            todays_patients.append(i['patient_id'])
+
+        json_data['todaytrack']['totalpending'] = today_appointments.filter(closed=False).count()
+        json_data['todaytrack']['totalappointment'] = today_appointments.count()
+        json_data['todaytrack']['totalpatients'] = len(set(todays_patients))
+
+        """
+            Upcoming Appointments
+        """
+        upcoming_appointments = query.filter(closed=False,date__gte=today).order_by("-created_at")
+        upcoming_serializer = AppointmentSerializer(upcoming_appointments,many=True,context={"request":request}).data
+        for j in upcoming_serializer:
+            data = {
+                "id": j['id'],  
+                "patientid": j['patient_id'],
+                "patientname" : j['patient']['name'],
+                "date" : dtt.strptime(j['date'],Ymd).strftime(dBY),
+                "time" : dtt.strptime(j['time'],HMS).strftime(IMp),
+            }   
+            json_data['upcomingappointments']['appointments'].append(data)
+        json_data['upcomingappointments']['totalappointment'] = upcoming_appointments.count()     
+
+        """
+            Patients List
+        """
+        related_patients = query.filter(closed=True).order_by("-created_at")
+        patient_serializer = AppointmentSerializer(related_patients,many=True,context={"request":request}).data
+        
+        all_patients = list(set([x['patient_id'] for x in patient_serializer]))
+        get_patients = Patient.objects.filter(id__in=all_patients)
+        patient_serializer = PatientSerializer(get_patients,many=True,context={"request":request}).data
+        for k in patient_serializer:
+            data = {
+                "id": k['id'],
+                "name" : k['name'],
+                "img" : k['img'],
+                "appuser" : k['appuser'],
+            }
+            json_data['patients'].append(data)
+        
+        """
+            Last 7 Appointments
+        """
+        last_appointments = query.filter(closed=True).order_by("-created_at")[:7]
+        last_serializer = AppointmentSerializer(last_appointments,many=True,context={"request":request}).data
+        for l in last_serializer:
+            data = {
+                "id": l['id'],
+                "patientid": l['patient_id'],
+                "patientname" : l['patient']['name'],
+                "date" : dtt.strptime(l['date'],Ymd).strftime(dBY),
+                "time" : dtt.strptime(l['time'],HMS).strftime(IMp),
+            }
+            json_data['lastappointments']['appointments'].append(data)
+        
+        if len(json_data['lastappointments']['appointments']) > 0:
+            json_data['lastappointments']['isempty'] = False
+
+
+        """
+            Pending Appointments
+        """
+        pending_appointments = query.filter(closed=False,date__lt = today).order_by("-created_at")
+        pending_serializer = AppointmentSerializer(pending_appointments,many=True,context={"request":request}).data
+        for m in pending_serializer:
+            data = {
+                "id": m['id'],  
+                "patientid": m['patient_id'],
+                "patientname" : m['patient']['name'],
+                "date" : dtt.strptime(m['date'],Ymd).strftime(dBY),
+                "time" : dtt.strptime(m['time'],HMS).strftime(IMp),
+            }   
+            json_data['pendingappointments']['appointments'].append(data)
+        json_data['pendingappointments']['totalappointment'] = pending_appointments.count()  
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )

@@ -142,7 +142,12 @@ class RegisterUser(APIView):
                 statuscode=status.HTTP_406_NOT_ACCEPTABLE
             )
         
-        patient_instance=Patient.objects.create(name=name,primary=True,relation="User")
+        patient_instance=Patient.objects.create(
+            name=name,
+            primary=True,
+            relation="User",
+            #img: "PATIENT_TODO_IMG"
+        )
         user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
         patient_instance.appuser = user_instance.id
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
