@@ -131,6 +131,7 @@ def create_carousel_id(sender,instance,**kwargs):
         pat=Carousel.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=Carousel.objects.filter(id=id)
         instance.id=id 
 
 @receiver(pre_save,sender=PromotionalSlider)
@@ -141,6 +142,7 @@ def create_slider_id(sender,instance,**kwargs):
         pat=PromotionalSlider.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=PromotionalSlider.objects.filter(id=id)
         instance.id=id 
 
 @receiver(pre_save,sender=CategoryPromotion)
@@ -151,8 +153,18 @@ def create_promotion_id(sender,instance,**kwargs):
         pat=CategoryPromotion.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=CategoryPromotion.objects.filter(id=id)
         instance.id=id 
 
+@receiver(pre_save,sender=CategorySpecialist)
+def create_category_specialist_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = CategorySpecialist.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=CategorySpecialist.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
 
 @receiver(pre_save,sender=Appointment)
 def create_appointment_id(sender,instance,**kwargs):
@@ -163,4 +175,58 @@ def create_appointment_id(sender,instance,**kwargs):
         pat=Appointment.objects.filter(id=id)
         while pat.exists():
             id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            pat=Appointment.objects.filter(id=id)
         instance.id=id 
+
+@receiver(pre_save,sender=HelpDeskUser)
+def create_help_desk_user_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = HelpDeskUser.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=HelpDeskUser.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
+
+
+@receiver(pre_save,sender=Medicines)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = Medicines.objects.count()
+        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        pat=Medicines.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        instance.id=id 
+
+@receiver(pre_save,sender=PatientTickets)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        ticket_count=PatientTickets.objects.count()
+        zeros="0"*(9-len(str(ticket_count)))
+        instance.id=f"{year}"+zeros+str(ticket_count)
+
+@receiver(pre_save,sender=DoctorTickets)
+def create_medicine_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        ticket_count=DoctorTickets.objects.count()
+        zeros="0"*(9-len(str(ticket_count)))
+        instance.id=f"{year}"+zeros+str(ticket_count)
+
+@receiver(pre_save,sender=MedicalRecords)
+def create_record_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        record_count=MedicalRecords.objects.count()
+        zeros="0"*(9-len(str(record_count)))
+        instance.id=f"{year}"+zeros+str(record_count)
+
+@receiver(pre_save,sender=MedicalPrescriptions)
+def create_record_id(sender,instance,**kwargs):
+    if instance.id in ["",None]:
+        year=timezone.now().year
+        record_count=MedicalPrescriptions.objects.count()
+        zeros="0"*(9-len(str(record_count)))
+        instance.id=f"{year}"+zeros+str(record_count)

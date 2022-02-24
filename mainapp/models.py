@@ -1,3 +1,4 @@
+from pydoc import doc
 from django.db import models
 
 
@@ -8,7 +9,7 @@ class User(models.Model):
     patientid=models.CharField(max_length=256,blank=True,null=True,editable=False)
     name=models.CharField(max_length=256,null=True,blank=True)
     mobile=models.CharField(max_length=15,unique=True)
-    family_members=models.JSONField(null=True)
+    family_members=models.JSONField(null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     selected = models.BooleanField(default=True)
 
@@ -53,6 +54,7 @@ class Department(models.Model):
     name=models.CharField(max_length=100)
     img =models.FileField(upload_to='media/department/',null=True,blank=True)
     head=models.CharField(max_length=200,null=True,blank=True)
+    counter = models.JSONField(default=dict,null=True,blank=True)
     enable = models.BooleanField(default=True) #Enable the service
 
 
@@ -74,6 +76,7 @@ class CategorySpecialist(models.Model):
 
 class Doctor(models.Model):
     id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
+    phone = models.CharField(max_length=15,null=True,blank=True)
     doctor_id=models.CharField(max_length=256,unique=True)
     email =models.EmailField(blank=True,unique=True)
     name=models.CharField(max_length=256)
@@ -85,7 +88,7 @@ class Doctor(models.Model):
     experience=models.PositiveIntegerField()
     qualification=models.TextField()
     specialisation=models.TextField()
-    languages_known=models.JSONField(default=dict,blank=True)
+    languages_known=models.JSONField(default=dict,blank=True,null=True)
     modified_at=models.DateTimeField(editable=False)
     is_blocked = models.BooleanField(default=False)
     department_id=models.ForeignKey(Department,null=True,on_delete=models.SET_NULL)
@@ -127,13 +130,20 @@ class DoctorActivity(models.Model):
     def __str__(self):
         return str(self.doctor_id)
 
+class DoctorNotification(models.Model):
+    doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE,blank=True)
+    message=models.TextField()
+    seen = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
 
 '''----------End : Doctor Model----------'''
 
 '''----------Start: Patient Model----------'''
 class Patient(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    img =models.FileField(upload_to='media/patient/',null=True,blank=True)
     primary = models.BooleanField(default=False)
+    appuser = models.CharField(max_length=256,null=True,blank=True)
     name=models.CharField(max_length=256,null=True,blank=True)
     email=models.EmailField(null=True,blank=True)
     relation =models.CharField(max_length=256,null=True,blank=True)
@@ -179,6 +189,11 @@ class CategoryPromotion(models.Model):
             "time" : "IMP format",
             "completed" : bool
         },
+        "cancel":{
+            "title" : "Cancelled",
+            "time" : "IMP format",
+            "completed" : bool
+        }
     }
 """
 
@@ -186,12 +201,12 @@ class Appointment(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False) #TODO : setup signal to generate id
     offline = models.BooleanField(default=True)    
     date = models.DateField(null=True,blank=True)
-    time = models.CharField(max_length=256,null=True,blank=True)
+    time = models.TimeField(null=True,blank=True)
     doctor_id = models.CharField(max_length=256,null=True,blank=True)
     patient_id = models.CharField(max_length=256,null=True,blank=True)
     doctor = models.JSONField(default=dict,blank=True)
     patient = models.JSONField(default=dict,blank=True)
-    timeline =models.JSONField(default=dict,blank=True)
+    timeline =models.JSONField(null=True,blank=True)
     consulted = models.BooleanField(default=False)
     cancelled = models.BooleanField(default=False)
     reassigned = models.BooleanField(default=False)
@@ -208,8 +223,7 @@ class Appointment(models.Model):
 
 '''----------Start : HelpDesk Model----------'''
 class HelpDeskUser(models.Model):
-    id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) # TODO add signals
-    counterno = models.CharField(max_length=256,null=True,blank=True,unique=True)
+    id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) 
     name = models.CharField(max_length=256,null=True,blank=True)
     email = models.EmailField(null=True,blank=True,unique=True)
     mobile = models.CharField(max_length=256,null=True,blank=True)
@@ -221,10 +235,10 @@ class HelpDeskUser(models.Model):
     activity=models.JSONField(default=dict,blank=True)
 
     def __str__(self):
-        return f"{str(self.id)} - {self.counterno}"
+        return f"{str(self.id)}"
 
 class HelpDeskAppointment(models.Model):
-    user = models.ForeignKey(HelpDeskUser,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
+    department = models.ForeignKey(Department,on_delete=models.PROTECT,null=True,blank=True,related_name="help_desk_user")
     date = models.DateField(null=True,blank=True)
     count = models.PositiveIntegerField(default=0)
     bookings = models.JSONField(default=list,blank=True)
@@ -235,7 +249,131 @@ class HelpDeskAppointment(models.Model):
     modified_at=models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"{str(self.user)} - {self.date}"
+        return f"{str(self.department)} - {self.date}"
 
 
 '''----------End : HelpDesk Model----------'''
+
+'''----------Start : Medicines Model----------'''
+
+class Medicines(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    name = models.CharField(max_length=256,null=True,blank=True)
+    description = models.TextField(null=True,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)    
+
+'''----------End : Medicines Model----------'''
+
+'''----------Start : Tickets/Issues Model----------'''
+class PatientTickets(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    user_id = models.ForeignKey(User,on_delete=models.CASCADE,null=True,blank=True)
+    dept = models.ForeignKey(Department,on_delete=models.CASCADE,null=True,blank=True)
+    admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
+    closed = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True) 
+    issues = models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+class DoctorTickets(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    doctor_id = models.ForeignKey(Doctor,on_delete=models.CASCADE,null=True,blank=True)
+    dept = models.ForeignKey(Department,on_delete=models.CASCADE,null=True,blank=True)
+    admin_id = models.ForeignKey(HelpDeskUser,on_delete=models.CASCADE,null=True,blank=True)
+    closed = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True) 
+    issues = models.JSONField(default=dict,blank=True)
+
+    def __str__(self):
+        return str(self.id)
+
+'''----------End : Tickets/Issues Model----------'''
+
+'''----------Start : Medical Records Model----------'''
+"""
+    json_format:
+    "" : "",
+    records : [
+        {
+            "deptid": "id",
+            "deptname" : "name",
+            "created_at" : "date",
+            "records" : [
+                {
+                    "appointmentid" : "id",
+                    "doctorname" : "",
+                    "created_at" : "date",
+                    "date" : "appointmentdate",
+                    "files" : [
+                        {
+                            "type" : "pdf",
+                            "url" : "url"
+                            "name" : "name",
+                            "username" : "name",
+                            "userid":"",
+                            "user":"",
+                            "created_at" : "date"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+"""
+class MedicalRecords(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patientid = models.CharField(max_length=256,null=True,blank=True)
+    title = models.CharField(max_length=256,null=True,blank=True)
+    records = models.JSONField(default=list,blank=True)
+    created_by = models.CharField(max_length=256,null=True,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+"""
+    Json_format of records : {
+        "title": "e-prescription-title",
+        "created_at": "date",
+        medicines : [
+            {
+                "medicineid" : "id",
+                "name": "tablet name",
+                "mrng": bool,
+                "noon": bool,
+                "evening": bool,
+                "night": bool,
+                "beforefood" : bool,
+                "afterfood" : bool,
+                "quantity": "30",
+                "duration": "in days"
+            }
+        ]
+    }
+"""
+
+class MedicalPrescriptions(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    patientid = models.CharField(max_length=256,null=True,blank=True)
+    appointmentid = models.CharField(max_length=256,null=True,blank=True)
+    doctorid = models.CharField(max_length=256,null=True,blank=True)
+    records = models.JSONField(default=dict,blank=True)
+    generated = models.BooleanField(default=False)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.id)
+
+'''----------End : Medical Records Model----------'''
+
+

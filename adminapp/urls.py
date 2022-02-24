@@ -5,7 +5,6 @@ urlpatterns = [
 
     # --------------------------------- Admin User URLS ---------------------------------
     path('login/' , AdminLogin.as_view() , name='admin-login'),
-    path('register/' , AdminRegister.as_view() , name='admin-register'),
     path('all-get/' , AdminData.as_view() , name='admin-all-get'),
     path('user-get/' , AdminUserGet.as_view() , name='admin-user-get'),
     path('user-modify/' , AdminUserModify.as_view() , name='admin-user-modify'),
@@ -33,4 +32,7 @@ urlpatterns = [
     # --------------------------------- Users data URLS ---------------------------------
     path("users-get/", UsersGet.as_view(), name="users-get"),
 
+    # --------------------------------- Support Team URLS ---------------------------------
+    path("help-desk/", HelpDeskTeam.as_view(), name="help-desk"), 
+    
 ]
