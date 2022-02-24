@@ -34,9 +34,10 @@ class LoginDoctor(APIView):
         data=request.data
 
         
-        userid=data.get("userid",None) #Both USERID,phone and EMail are accepted
-        pin=data.get("pin",None)
+        userid=str(data.get("userid",None)) #Both USERID,phone and EMail are accepted
+        pin=str(data.get("pin",None))
 
+        print(data)
         if userid in [None,""] or pin in [None,""]:
             return Response({
                         "MSG":"FAILED",
@@ -50,19 +51,15 @@ class LoginDoctor(APIView):
             we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
         """
 
-        doctor=Doctor.objects.filter(doctor_id=userid,pin=pin)
+        doctor=Doctor.objects.filter(doctor_id=userid,pin=pin).first()
         if doctor is None:
-            doctor=Doctor.objects.filter(email=userid,pin=pin)
+            doctor=Doctor.objects.filter(email=userid,pin=pin).first()
             if doctor is None:
-                doctor=Doctor.objects.filter(phone = userid,pin=pin)
-
-        if doctor.exists():
-            doctor=doctor[0]
-        else:
-            
+                doctor=Doctor.objects.filter(phone = userid,pin=pin).first()
+        if doctor is None:            
             return Response({
                     "MSG":"FAILED",
-                    "ERR":"Doctor does not exist",
+                    "ERR":"Check your userid or password",
                     "BODY":None
                         },status=status.HTTP_400_BAD_REQUEST)
         

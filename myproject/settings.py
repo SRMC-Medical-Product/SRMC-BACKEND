@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-4ahwj39q+l^&=#)j1=!b)d5h2%!%*ejuvfeqqqn()@mzsp&+7n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = ['*' ,  'https://srmc.loca.lt' ]
 
 CORS_ORIGIN_WHITELIST = (
   'http://localhost:8000',
