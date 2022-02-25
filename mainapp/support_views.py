@@ -532,7 +532,7 @@ class DoctorDetails(APIView):
         json_data['analytics']['consulted'] = appointments.filter(consulted=True).count()
         json_data['analytics']['cancelled'] = appointments.filter(cancelled=True).count() 
         json_data['analytics']['patients'] = len(list(set([e.patient_id for e in appointments])))
-        
+
         '''Appointments'''
         if appointments_format == "1":
             appointments = appointments.filter(date=dtt.today().strftime(Ymd)).all()
@@ -564,49 +564,95 @@ class DoctorDetails(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-'''patient get'''
+#---Patients Get--------
 class PatientGet(APIView):
     authentication_classes = [HelpDeskAuthentication] 
     permission_classes = []     
 
     def get(self , request , format=None):
         """
-        
+            This view is responsible for both displaying all and querying patient based on their names
+            ----------------------------------------------------------------
+            GET method:
+                search : [String,optional] search query
+                primary : [bool,optional] filter query 
+
         """
-        ACTION = "Patients GET"
-        snippet = Patient.objects.all() 
-        serializer = PatientSerializer(snippet,many=True,context={'request' :request})
-        json_data = []
-        for i in serializer.data :
-            json_data.append([{
-                "id" : i['id'],
-                "name" : i['name'], 
-                "email" : i['email'], 
-                "blood" : i['blood'], 
-                "gender" : i['gender'], 
-            }]) 
+        ACTION = "Doctor GET"
+        json_data = {
+            "isempty" : True,
+            "patients" : [],
+            "primary" : False,
+        }
+        user = request.user
+        search = request.query_params.get("search",None)
+        primaryuser = request.query_params.get("primary",False)
+        
+        s_ = HelpDeskUserSerializer(user,context={'request' :request}).data
+        dept_list = list(set([e['id'] for e in s_['specialisation']]))
+
+        appointments = Appointment.objects.filter(dept_id__in=dept_list).all()
+        all_patients = list(set([e.patient_id for e in appointments]))
+        
+        snippet = Patient.objects.filter(id__in=all_patients).all()
+        
+        if primaryuser in [True , "True"]:
+            snippet = snippet.filter(primary=True)
+            json_data['primary'] = True
+
+        if search not in [None , ""]:
+            snippet = snippet.filter(Q(name__icontains=search))
+        
+        serializer = PatientSerializer(snippet,many=True,context={'request' :request}).data
+
+        json_data['patients'] = serializer
+
+        if len(json_data['patients']) > 0:
+            json_data['isempty'] = False
 
         return display_response(
             msg = ACTION,
             err= None,
             body = json_data,
             statuscode = status.HTTP_200_OK
-        )  
+        )
 
 ''' single patient details get'''
 class PatientDetails(APIView):
     authentication_classes = [HelpDeskAuthentication]
     permission_classes = []
-     
-    def get(self , request , format=None):
-        ACTION = "PatientDetails GET"
-        id = request.query_params.get('id')
 
+    def get(self , request , format=None):
+        """
+            This view displays the particular doctor details
+            ----------------------------------------------------------------
+            GET method:
+                doctorid : [String,required] doctor id
+                appointments : [String,optional] filter query
+                        1 - todays appointments
+                        2 - pending appointments
+                        3 - all completed appointments
+        """
+        ACTION = "Patient Details GET"
+        id = request.query_params.get('patientid',None)
+        appointments_format = str(request.query_params.get('appointments',1))
         json_data = {
+            "appointments" : {
+                "isempty" : True,
+                "appointments" : [],
+                "today" : True,
+                "pending" : False,
+                "all" : False,
+            },
             "details" : {},
-            "appointments" : {}
+            "analytics" :  {
+                "total" : 0,
+                "consulted" : 0,
+                "cancelled" : 0,
+                "doctors" : 0,
+                "pending" : 0,
+            }
         }
-        ''' check id for null ''' 
         if id in [None , ""]:
             return display_response(
             msg = ACTION,
@@ -614,13 +660,47 @@ class PatientDetails(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
-
         snippet = Patient.objects.filter(id=id).first()
-        serializer = PatientSerializer(snippet,context={'request' :request})
-        json_data["details"] = serializer.data
+        serializer = PatientSerializer(snippet,context={'request' :request}).data
+        
+        '''Details'''
+        json_data['details'] = serializer
+
+        '''Analytics'''
+        appointments = Appointment.objects.filter(patient_id=snippet.id).all()
+        json_data['analytics']['total'] = appointments.count()
+        json_data['analytics']['pending'] = appointments.filter(closed=False).count()
+        json_data['analytics']['consulted'] = appointments.filter(consulted=True).count()
+        json_data['analytics']['cancelled'] = appointments.filter(cancelled=True).count() 
+        json_data['analytics']['doctors'] = len(list(set([e.doctor_id for e in appointments])))
+
+        '''Appointments'''
+        if appointments_format == "1":
+            appointments = appointments.filter(date=dtt.today().strftime(Ymd)).all()
+            json_data['appointments']['today'] = True
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = False
+        elif appointments_format == "2":
+            appointments = appointments.filter(closed=False).all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = True
+            json_data['appointments']['all'] = False
+        else:
+            appointments = appointments.all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = True
+
+
+        appointment_serializer = AppointmentSerializer(appointments,many=True,context={'request' :request})
+        json_data['appointments']['appointments'] = appointment_serializer.data
+
+        if len(json_data['appointments']['appointments']) > 0:
+            json_data['appointments']['isempty'] = False
+
         return display_response(
             msg = ACTION,
-            err= None,
+            err= None, 
             body = json_data,
             statuscode = status.HTTP_200_OK
         )

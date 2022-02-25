@@ -22,17 +22,13 @@ urlpatterns = [
     path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
     path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
     
-    # --------------------------------- Departments URLS ---------------------------------
-    path('departments/' , DepartmentsView.as_view() , name='departments'),
-    path('specilization/' , SpecializationInDetail.as_view() , name='specilization'),
- 
     # --------------------------------- Patient URLS ---------------------------------
     path('patient-all-get/' , PatientGet.as_view() , name='patient-all-get'),
     path('patient-indetail/' , PatientDetails.as_view() , name='patient-indetail'),
 
-
-
-
-
+    # --------------------------------- Departments URLS ---------------------------------
+    path('departments/' , DepartmentsView.as_view() , name='departments'),
+    path('specilization/' , SpecializationInDetail.as_view() , name='specilization'),
+ 
 
 ]
