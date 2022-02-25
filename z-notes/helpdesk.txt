@@ -1,0 +1,47 @@
+==============================================
+API View Todo Screen
+----------------------------------------------
+3)History appointments
+4)History appointments searches
+5)Appointments In Details
+6)Patients List
+7)Patients Search
+8)Patients In Details
+9)Doctors List
+10)Doctors Search
+11)Doctors In Details
+12)Book appointments
+    - Check using phone number if the user already exists
+    - check if the user is a familymember or myself
+    - send that id to make appointments post
+13)Appointments (need to sort ui)
+14)Appointments Search
+15)Appointments In Details
+16)Over view and Analytics
+================================================
+
+
+==============================================
+Coded Screens
+----------------------------------------------
+1)Help Desk User Info and Password Change
+2)Activity Log
+3)History appointments
+4)History appointments searches
+5)Appointments In Details
+6)Patients List
+7)Patients Search
+8)Patients In Details
+9)Doctors List
+10)Doctors Search
+11)Doctors In Details
+12)Book appointments
+    - Check using phone number if the user already exists
+    - check if the user is a familymember or myself
+    - send that id to make appointments post
+13)Appointments (need to sort ui)
+14)Appointments Search
+15)Appointments In Details
+16)Over view and Analytics
+17)login
+----------------------------------------------

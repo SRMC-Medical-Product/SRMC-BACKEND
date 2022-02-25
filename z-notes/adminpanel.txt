@@ -8,5 +8,19 @@ API View Todo Screen
 ==============================================
 Coded Screens
 ----------------------------------------------
-
+1)Profile Page
+2)Change password
+3)Specialisation  with Doctors
+4)Departments with Create/Update 
+5)Category Specialist with Create/Update
+6)Support Team -Get,Create,Update,Block
+7)Help Desk Activity log
+8)All Patients
+9)Patients Search
+10)Patients In Details
+11)Doctors In Details
+12)Doctors Searche
+13)Doctors List
+14)Analytics
+15)Appointments(*)
 ----------------------------------------------

@@ -1,8 +1,20 @@
-from pydoc import doc
 from django.db import models
 
 
 '''----------Start : User Model----------'''
+class SuperAdmin(models.Model):
+    id = models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    name = models.CharField(max_length=256,null=True,blank=True)
+    email = models.CharField(max_length=256,null=True,blank=True)
+    password = models.CharField(max_length=256,null=True,blank=True)
+    phone = models.CharField(max_length=256,null=True,blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.name}-{self.id}"
+
 
 class User(models.Model):
     id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
@@ -45,7 +57,16 @@ class PatientNotification(models.Model):
 
 
 '''----------Start : Doctor Model----------'''
-
+"""
+    counter[json] = [
+        {
+            "id": "id",
+            "counter": "counter",
+            "floor": "floor",
+            "created_at": "created_at"
+        }
+    ]
+"""
 
 class Department(models.Model):
     """
@@ -196,6 +217,12 @@ class CategoryPromotion(models.Model):
             "completed" : bool
         }
     }
+    counter_format = [
+        {
+            "id": "c1",
+            "floor" : "1"
+        }
+    ]
 """
 
 class Appointment(models.Model):
@@ -205,6 +232,7 @@ class Appointment(models.Model):
     time = models.TimeField(null=True,blank=True)
     doctor_id = models.CharField(max_length=256,null=True,blank=True)
     patient_id = models.CharField(max_length=256,null=True,blank=True)
+    dept_id = models.CharField(max_length=256,null=True,blank=True)
     doctor = models.JSONField(default=dict,blank=True)
     patient = models.JSONField(default=dict,blank=True)
     timeline =models.JSONField(null=True,blank=True)
@@ -223,12 +251,19 @@ class Appointment(models.Model):
 '''----------End : Appointment Model----------'''
 
 '''----------Start : HelpDesk Model----------'''
+"""
+    json_format : [activity] {
+        "login" : [],
+        "logout" : [],
+        "log" : [],
+    }
+"""
 class HelpDeskUser(models.Model):
     id =models.CharField(max_length=256,primary_key=True,unique=True,editable=False) 
     name = models.CharField(max_length=256,null=True,blank=True)
     email = models.EmailField(null=True,blank=True,unique=True)
     mobile = models.CharField(max_length=256,null=True,blank=True)
-    pin = models.CharField(max_length=10,null=True,blank=True)
+    pin = models.CharField(max_length=256,null=True,blank=True)
     is_blocked = models.BooleanField(default=False)
     created_at=models.DateTimeField(auto_now_add=True)
     modified_at=models.DateTimeField(auto_now=True)

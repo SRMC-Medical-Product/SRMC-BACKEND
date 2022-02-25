@@ -9,6 +9,16 @@ import jwt
 from rest_framework.authentication import BaseAuthentication
 from rest_framework import exceptions
 
+'''encrypt'''
+import hashlib 
+
+def encrypt_doctor_pin(pin):
+    return hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
+
+def encrypt_superadmin_pass(password):
+    return hashlib.sha256(str(password).encode('utf-8')).hexdigest()
+
+    
 def generate_token(payload):
     """
         function to generate authentication token of a user
@@ -149,3 +159,43 @@ class HelpDeskAuthentication(BaseAuthentication):
         except jwt.ExpiredSignatureError:
             raise exceptions.AuthenticationFailed(_('Token expired'))
 
+class SuperAdminAuthentication(BaseAuthentication):
+    keyword="Bearer"
+    def authenticate(self,request):
+
+        auth=get_request_header(request).split()
+       
+        if not auth or auth[0].lower()!=self.keyword.lower():
+            raise exceptions.AuthenticationFailed(_('Not authorised! Token is not provided'))
+
+        
+        if(len(auth)==1):
+            msg = _('Invalid token header. No credentials provided.')
+            raise exceptions.AuthenticationFailed(msg)
+        elif len(auth) > 2:
+            msg = _('Invalid token header. Token string should not contain spaces.')
+            raise exceptions.AuthenticationFailed(msg)
+
+        token_=auth[1]
+
+        try:
+            decode_token=jwt.decode(token_,settings.SECRET_KEY,algorithms=['HS256'])
+
+            if "id" not in decode_token.keys():
+                raise exceptions.AuthenticationFailed(_('Invalid token.'))
+            id=decode_token["id"]
+
+            user=SuperAdmin.objects.filter(id=id)
+            if user.exists():
+                return (user[0],None)
+            else:
+                raise exceptions.AuthenticationFailed(_('Invalid token.'))
+        
+        except jwt.exceptions.InvalidSignatureError:
+            raise exceptions.AuthenticationFailed(_('Invalid token given'))
+        
+        except jwt.exceptions.DecodeError:
+            raise exceptions.AuthenticationFailed(_('Invalid token given'))
+        
+        except jwt.ExpiredSignatureError:
+            raise exceptions.AuthenticationFailed(_('Token expired'))

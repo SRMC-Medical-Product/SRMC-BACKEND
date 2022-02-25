@@ -25,6 +25,16 @@ def create_user_id(sender,instance,**kwargs):
         user_count.count=user_count.count+1
         user_count.save(update_fields=['count'])
 
+@receiver(pre_save,sender=SuperAdmin)
+def create_superadmin_id(sender,instance,**kwargs):
+    if instance.id in [None,""]:
+        count = SuperAdmin.objects.count()
+        id = str(uuid.uuid4())[:7] + str(count+1)[:1]
+        pat=SuperAdmin.objects.filter(id=id)
+        while pat.exists():
+            id = str(uuid.uuid4())[:7] + str(count+1)[:1]
+        instance.id=id   
+
 
 @receiver(pre_save,sender=Patient)
 def create_patient_id(sender,instance,**kwargs):

@@ -11,18 +11,15 @@ import uuid
 import math 
 from urllib.parse import urlparse , parse_qs
 
-'''Authentication Permission'''
-from .authentication import AdminAuthentication
-
-'''Model Import'''
 from .models import *
-from mainapp.models import *
+from .serializer import *
 from .authentication import  *
 
-'''Serializer Import'''
-from .serializer import *
+from mainapp.models import *
 from mainapp.serializers import *
 from mainapp.doctor_serializers import *
+from mainapp.utils import *
+from mainapp.auth import *
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -47,32 +44,65 @@ from mainapp.models import *
 #----------------------------Start : Admin Auth----------------------------
     
 '''Admin Login'''
-#TODO : by aravind S (Backend developer)
 class AdminLogin(APIView):
 
     authentication_classes=[]
     permission_classes=[]
 
     def post(self , request , format=None): 
-        ACTION = "Admin Login"
+        """
+            Admin Login View:
+            POST method:
+                userid: [String,required] username/email/phone of the admin
+                password: [String,required] password of the admin
+        """
         data = self.request.data 
-        username = data.get('username')
+        userid = data.get('userid')
         password = data.get('password') 
-        user = authenticate(username=username, password=password) 
-        print(user)
-        if user is not None:
-            token = Token.objects.get_or_create(user=user) 
-            if(user.is_superuser):
-                return Response({"RESPONSE":{"token":token[0].key,"superuser":True}},status=status.HTTP_200_OK)
-            return Response({"RESPONSE":{"token":token[0].key}},status=status.HTTP_200_OK)
-        return Response({"RESPONSE":"Invalid credentials given"},status=status.HTTP_400_BAD_REQUEST)
+
+        if userid is None or password is None:
+            return display_response(
+                msg='ERROR',
+                err="Invalid data given",
+                body = None,
+                statuscode=status.HTTP_400_BAD_REQUEST,
+            )
+        encrypted_password = encrypt_superadmin_pass(password)
+ 
+        get_user = SuperAdmin.objects.filter(Q(name=userid) | Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
+        if get_user is None:
+            return display_response(
+                msg='ERROR',
+                err="Invalid Credentials",
+                body = None,
+                statuscode=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if get_user.active == False:
+            return display_response(
+                msg='ERROR',
+                err="User does not has access to login",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST,
+            )
+
+        token=generate_token({"id":get_user.id})
+        return display_response(
+            msg='SUCCESS',
+            err=None,
+            body = {
+                "superuser": True,
+                "token": token,
+            },
+            statuscode = status.HTTP_200_OK,
+        )
         
 #----------------------------End : Admin Auth----------------------------
 
 #----------------------------Start : Promotions and Homepage----------------------------
 class CarouselView(APIView): 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission] 
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = [] 
 
     def get(self , request , format=None):
         ACTION = "Carousel GET" 
@@ -167,8 +197,8 @@ class CarouselView(APIView):
             )        
 
 class PromotionalSliderView(APIView): 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission] 
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = [] 
 
     def get(self , request , format=None):
         ACTION = "PromotionalSlider GET" 
@@ -252,8 +282,8 @@ class PromotionalSliderView(APIView):
             )        
 
 class CategoryPromotionView(APIView): 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission] 
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = [] 
 
     def get(self , request , format=None): 
         ACTION = "CategoryPromotion GET"
@@ -357,8 +387,8 @@ class CategoryPromotionView(APIView):
 '''Bearer Token Required'''
 class AdminData(APIView):
     serializer_class = AdminDataSerializer
-    authentication_classes = [AdminAuthentication] #disables authentication
-    permission_classes = [SuperAdminPermission] #disables permission
+    authentication_classes = [SuperAdminAuthentication] #disables authentication
+    permission_classes = [] #disables permission
     
     def get(self , request, format=None):
         ACTION = "AdminData GET"
@@ -391,8 +421,8 @@ class AdminData(APIView):
 '''Bearer Token Required'''
 class AdminUserGet(APIView):
     serializer_class = AdminDataSerializer 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
     
     def get(self, request,format=None):
         ACTION = "AdminModify GET"
@@ -419,8 +449,8 @@ class AdminUserGet(APIView):
 '''Bearer Token Required'''
 class AdminUserModify(APIView):
     serializer_class = AdminDataSerializer 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
 
     def put(self,request,format=None):
         ACTION = "AdminModify PUT"
@@ -488,8 +518,8 @@ class AdminUserModify(APIView):
 class AdminUserPasswordModify(APIView):
 
     serializer_class = AdminDataSerializer 
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
 
     def put(self,request,format=None):
         ACTION = "AdminPasswordModify PUT"
@@ -531,8 +561,8 @@ class AdminUserPasswordModify(APIView):
 
 class DepartmentsView(APIView):
 
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
     
     '''Get All Departments'''
     def get(self , request, format=None):
@@ -566,62 +596,76 @@ class DepartmentsView(APIView):
     
     '''Create New Departments'''
     def post(self, request, format=None):
-        ACTION = "Departments POST"
+        """
+            To create a department,first check the vaid fields and get the 
+            json_data format of counter and append it to the counter(JSonfield)
+            --------------------
+            POST method:
+                name : [String,required] name of the department
+                img : [String,required] image of the department
+                head : [String,required] head of the department
+                counter : [JSON,required] counter details
+                ------------------------------------------
+                counter : [
+                    {
+                        "counter": "counter",
+                        "floor": "floor",
+                    },
+                    {
+                        "counter": "counter",
+                        "floor": "floor",
+                    },
+                ]
+        """
         data = request.data
-        name = data.get('name') 
-        img = data.get('img')
-        head = data.get('head') 
-        catspl_id = data.get('catspl_id')
-
+        name = data.get('name',None) 
+        img = data.get('img',None)
+        head = data.get('head',None) 
+        counter = data.get('counter',None)
 
         '''Check for None Values'''
-        if name in [None,""] or img in [None , ""] or head in [None ,""] or len(catspl_id) ==0:
+        if name in [None,""] or img in [None , ""] or head in [None ,""] or counter in [None , ""]:
             return display_response(
-            msg = ACTION,
+            msg = "Error",
             err= "Data was found None",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
 
-        '''Checking if all Department Object exists'''
-        for i in range(len(catspl_id)): 
-            category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-            if category_specialist_instance is None:
-                return display_response(
-                msg = ACTION,
-                err= "Department Object was found None",
-                body = None,
-                statuscode = status.HTTP_404_NOT_FOUND
-            )
-
-        '''Getting the uid Instance of Deparments'''
+        counter_list = []
+        for i in counter:
+            id = str(uuid.uuid4().hex[0:4]) + str(len(counter_list)+1)
+            data = {
+                "id":id,
+                "counter":i["counter"],
+                "floor":i["floor"],
+                "created_at": str(dtt.now(IST_TIMEZONE)),
+            }
+            counter_list.append(data)
+        """Save not null values"""
         try:
-            new_department = Department.objects.create(
+            department = Department.objects.create(
                 name = name,
                 img = img,
                 head = head,
-                )
-            
-            for i in range(len(catspl_id)): 
-                category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-                if category_specialist_instance is None: 
-                    new_department.depts.add(new_department)
+                counter = counter_list,
+            )
             return display_response(
-                msg = ACTION,
+                msg = "Success",
                 err= None,
                 body = "Department Created Successfully",
                 statuscode = status.HTTP_201_CREATED
             )
-        except Exception as exception :
-            excep = exceptiontype(exception)
-            msg = exceptionmsg(exception)
+        except Exception as e:
+            print(e)
             return display_response(
-                msg = ACTION,
-                err= f"{excep} || {msg}",
+                msg = "Error",
+                err= "Department Creation Failed",
                 body = None,
-                statuscode = status.HTTP_409_CONFLICT
+                statuscode = status.HTTP_400_BAD_REQUEST
             )
-        
+
+
     ''' Modify Departments'''
     def put(self,request,format=None):
         ACTION = "Departments PUT"
@@ -679,8 +723,8 @@ class DepartmentsView(APIView):
         )
 
 class CategorySpecialistView(APIView):
-    # authentication_classes = [AdminAuthentication]
-    # permission_classes = [SuperAdminPermission]
+    # authentication_classes = [SuperAdminAuthentication]
+    # permission_classes = []
 
     '''Get All CategorySpecialist''' 
     def get(self , request , format =None):
@@ -820,8 +864,8 @@ class SpecializationInDetail(APIView):
 
 ''' custom json format to retrive doctor data in dashboard '''
 class DoctorGet(APIView):
-    authentication_classes = [AdminAuthentication] 
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication] 
+    permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "Doctor GET"
@@ -846,8 +890,8 @@ class DoctorGet(APIView):
 
 ''' single doctor details get'''
 class DoctorDetails(APIView): 
-    authentication_classes = [AdminAuthentication] 
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication] 
+    permission_classes = []
 
     def get(self , request , format=None):
         ACTION = "DoctorDetails GET"
@@ -891,8 +935,8 @@ class DoctorDetails(APIView):
 
 ''' Patients get'''
 class PatientGet(APIView):
-    authentication_classes = [AdminAuthentication] 
-    permission_classes = [SuperAdminPermission]     
+    authentication_classes = [SuperAdminAuthentication] 
+    permission_classes = []     
     def get(self , request , format=None):
         ACTION = "Patients GET"
         snippet = Patient.objects.all() 
@@ -916,8 +960,8 @@ class PatientGet(APIView):
 
 ''' single patient details get'''
 class PatientDetails(APIView):
-    authentication_classes = [AdminAuthentication]
-    permission_classes = [SuperAdminPermission] 
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = [] 
     def get(self , request , format=None):
         ACTION = "PatientDetails GET"
         id = request.query_params.get('id')
@@ -947,8 +991,8 @@ class PatientDetails(APIView):
 
 ''' Users get'''
 class UsersGet(APIView): 
-    authentication_classes = [AdminAuthentication] 
-    permission_classes = [SuperAdminPermission]
+    authentication_classes = [SuperAdminAuthentication] 
+    permission_classes = []
     def get(self , request , format=None):
         ACTION = "Users GET"
         snippet = User.objects.all() 

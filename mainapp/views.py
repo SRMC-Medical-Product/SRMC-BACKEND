@@ -827,6 +827,36 @@ class PatientNotificationScreen(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+    def put(self , request):
+        notificationid = request.data.get('notificationid', None)
+        if notificationid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        patient = request.user
+        
+        query = PatientNotification.objects.filter(patientid__id=patient.id,id=notificationid).first()
+        if query is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        query.seen = True
+        query.save()
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
 #--------Doctors Details Display In Detail Screen API--------------------
 class DoctorSlotDetails(APIView):
     authentication_classes=[UserAuthentication]

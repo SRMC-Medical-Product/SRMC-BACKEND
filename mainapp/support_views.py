@@ -15,8 +15,7 @@ from .models import *
 from .auth import *
 from .utils import *
 
-'''encrypt'''
-import hashlib 
+
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -26,17 +25,18 @@ from .support_serializers import *
 from mainapp.serializers import *
 from mainapp.doctor_serializers import *
 
+
+
+#-------Login User-------
 class LoginUser(APIView):
     authentication_classes = []
     permission_classes = []
 
-    #TODO : Pin code encryption 
-    
     def post(self,request,format=None):
         data = request.data
         userid = data.get("userid", None)  # Both USERID and EMail are accepted
         pin = data.get("pin", None)
-        print(userid,pin)
+
         if userid in [None,""] or pin in [None,""]:
             return display_response(
                 msg="FAILED",
@@ -49,11 +49,11 @@ class LoginUser(APIView):
             First we are checking with the userid and the pin.If the object instance is None then
             we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
         """
-
-        user=HelpDeskUser.objects.filter(id=userid,pin=pin)
+        encrptedpin = encrypt_doctor_pin(pin)
+        user=HelpDeskUser.objects.filter(id=userid,pin=encrptedpin)
         if user is None:
-            user=HelpDeskUser.objects.filter(email=userid,pin=pin)
-        print(user) 
+            user=HelpDeskUser.objects.filter(email=userid,pin=encrptedpin)
+
         if user.exists():
             user=user[0]
         else:
@@ -77,9 +77,11 @@ class LoginUser(APIView):
                 "date":now.strftime(dmY),
                 "time":now.strftime(HMS),
             }
-            if user.activity is None:
+            if user.activity == {}:
                 formatdata = {
-                    "login" :[]
+                    "login" :[],
+                    "logout":[],
+                    "log":[],
                 }
                 formatdata["login"].append(logindata)
                 user.activity = formatdata
@@ -102,6 +104,230 @@ class LoginUser(APIView):
                 body=None,
                 statuscode=status.HTTP_400_BAD_REQUEST
             ) 
+
+#---- LogOut User ----
+class LogoutUser(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def post(self , request , format=None):
+        user = request.user
+
+        """
+            Save Logout information on activity log
+        """
+        now = dtt.now(IST_TIMEZONE)
+        logoutdata = {
+            "date":now.strftime(dmY),
+            "time":now.strftime(HMS),
+        }
+        user.activity['logout'].append(logoutdata)
+        user.save()
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=None,
+            statuscode=status.HTTP_200_OK
+        )
+
+#-----Profile Info-----
+class UserProfile(APIView):  
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ACTION = "UserData GET" 
+        user = request.user
+
+        if user in [None , ""]:
+            return display_response(
+            msg = ACTION,
+            err= "Support User was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = serializer,
+            statuscode = status.HTTP_200_OK
+        )
+
+class UserPinModify(APIView): 
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = [] 
+
+    def put(self , request, format= None): 
+        """
+            Modify or Changing the Pin of the help desk user.
+            First we need both oldpin and new pin, if old pin matches the user then change new pin or 
+            else return not valid.
+            PUT method:
+                oldpin : [String,required] oldpin of the user
+                newpin : [String,required] new pin of the user 
+        """
+        data = request.data
+        user = request.user
+        oldpin = data.get('oldpin') 
+        newpin = data.get('newpin')
+        
+        if oldpin in [None , ""] or newpin in [None , ""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        """
+            Check if old pin is correct or not
+        """
+        encrypted_old_pin = encrypt_doctor_pin(oldpin)
+
+        if user.pin != encrypted_old_pin:
+            return display_response(
+                msg = "ERROR",
+                err= "Old Pin is not correct",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        """
+            Save the new pin to the database
+        """
+        encrypted_new_pin = encrypt_doctor_pin(newpin)
+
+        if encrypted_new_pin == encrypted_old_pin:
+            return display_response(
+                msg = "ERROR",
+                err= "New Pin is same as old pin",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        user.pin = encrypted_new_pin
+        user.save()
+        
+        try:
+            activity = {
+                "msg" : "Your login pin has been changed by you",
+                "time" : dtt.now(IST_TIMEZONE).strftime(IMp),
+                "date" : dtt.now(IST_TIMEZONE).strftime(dmY),
+                "datetime" :str(dtt.now(IST_TIMEZONE))
+            }
+            user.activity['log'].append(activity)
+            user.save()
+        except Exception as e:
+            pass
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = "Pin Changed Successfully",
+            statuscode = status.HTTP_200_OK
+        )
+
+#-----Activity Log-----
+class ActivityLog(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        json_data = {
+            "isempty" : True,
+            "log" : []
+        }
+        user = request.user
+
+        if len(user.activity['log']) > 0:
+            json_data["log"] = user.activity['log']
+            json_data["isempty"] = False
+        
+        return display_response(
+            msg = "Activity Log",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#----History Appointment----
+"""
+    json_data :[ 
+        {
+        "id" : "id",
+        "patient" : {
+                    "id" : "id",
+                    "name" : "name",
+                },
+        "doctor" : {
+                    "id" : "id",
+                    "name" : "name",
+                    "profile_img" : "profile_img",
+                },
+        "date" : "date",
+        "time" : "time",
+        "timeline" : {
+                "step1":{
+                    "title" : "Booking Confirmed",
+                    "time" : "IMP format",
+                    "completed" : bool
+                },
+                "step2":{
+                    "title" : "Arrived at Hospital",
+                    "time" : "IMP format",
+                    "completed" : bool
+                },
+                "step3":{
+                    "title" : "Consulted",
+                    "time" : "IMP format",
+                    "completed" : bool
+                },
+            },
+        },
+    ]
+"""
+class AppointmentsHistory(APIView):
+    authentication_classes = [HelpDeskAuthentication] 
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ACTION = "AppointmentsHistory GET"
+        snippet = Appointment.objects.all().order_by('date')
+        serializer = AppointmentSerializer(snippet,many=True,context={'request' :request})
+        json_data = [] 
+        for i in serializer.data :
+            json_data.append({
+                "id" : i['id'],
+                "patient" : patient_data,
+                "doctor" : doctor_data,
+                "date" : i['date'],
+                "time" : i['time'],
+                "timeline" : i['timeline'],
+            })
+
+
+            for j in i['patient'] :
+                patient_data = {
+                    "id" : j['id'],
+                    "name" : j['name'],
+                }
+            
+            for k in i['doctor'] : 
+                doctor_data = {
+                    "id" : k['id'],
+                    "name" : k['name'],
+                    "profile_img" : k['profile_img'],
+                }
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+ 
 
 '''department''' 
 class DepartmentsView(APIView):
@@ -193,83 +419,7 @@ class SpecializationInDetail(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' appointments history'''
-
-"""
-    json_data :[ 
-        {
-        "id" : "id",
-        "patient" : {
-                    "id" : "id",
-                    "name" : "name",
-                },
-        "doctor" : {
-                    "id" : "id",
-                    "name" : "name",
-                    "profile_img" : "profile_img",
-                },
-        "date" : "date",
-        "time" : "time",
-        "timeline" : {
-                "step1":{
-                    "title" : "Booking Confirmed",
-                    "time" : "IMP format",
-                    "completed" : bool
-                },
-                "step2":{
-                    "title" : "Arrived at Hospital",
-                    "time" : "IMP format",
-                    "completed" : bool
-                },
-                "step3":{
-                    "title" : "Consulted",
-                    "time" : "IMP format",
-                    "completed" : bool
-                },
-            },
-        },
-    ]
-"""
-
-class AppointmentsHistory(APIView):
-    authentication_classes = [HelpDeskAuthentication] 
-    permission_classes = []
-
-    def get(self , request , format=None):
-        ACTION = "AppointmentsHistory GET"
-        snippet = Appointment.objects.all().order_by('date')
-        serializer = AppointmentSerializer(snippet,many=True,context={'request' :request})
-        json_data = [] 
-        for i in serializer.data :
-            json_data.append({
-                "id" : i['id'],
-                "patient" : patient_data,
-                "doctor" : doctor_data,
-                "date" : i['date'],
-                "time" : i['time'],
-                "timeline" : i['timeline'],
-            })
-
-
-            for j in i['patient'] :
-                patient_data = {
-                    "id" : j['id'],
-                    "name" : j['name'],
-                }
-            
-            for k in i['doctor'] : 
-                doctor_data = {
-                    "id" : k['id'],
-                    "name" : k['name'],
-                    "profile_img" : k['profile_img'],
-                }
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
-        )
-                    
+                   
 ''' doctor get '''                    
 class DoctorGet(APIView):
     authentication_classes = [HelpDeskAuthentication] 
@@ -399,162 +549,6 @@ class PatientDetails(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' get activity log for each support user'''
-# todo : activity json_field
-class ActivityLog(APIView):
-    # authentication_classes = []
-    # permission_classes = []  
 
-    def get(self , request , format=None):
-        ACTION = "ActivityLog GET"
-        data = request.user 
-        
-        if data.id in [None , ""]:
-            return display_response(
-            msg = ACTION,
-            err= "Support User was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-        
-        get_user = HelpDeskUser.objects.filter(user_id=data.id).first()
-        serializer = HelpDeskUserSerializer(get_user,context={'request' :request}) 
-        
-        data = serializer.data
-        json_data = {
-            "id" : data.id, 
-            "name" : data.name,
-            "activity" : data.activity
-        }
 
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
-        )
-
-''' update user data ''' 
-
-class UserData(APIView):  
-    authentication_classes = []
-    permission_classes = []
-
-    def get(self , request , format=None):
-        ACTION = "UserData GET" 
-        data = request.user
-        if data.id in [None , ""]:
-            return display_response(
-            msg = ACTION,
-            err= "Support User was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-
-        get_user = HelpDeskUser.objects.filter(id=data.id).first()  
-        serializer = HelpDeskUserSerializer(get_user,context={'request' :request})
-        data = serializer.data
-        json_data = {
-            "id" : data.id,
-            "name" : data.name,
-            "email" : data.email,
-            "mobile" : data.mobile,
-            "counterno" : data.counterno,
-            "pin" : data.pin,
-            "is_blocked" : data.is_blocked,
-            "specialisation" : [],
-        }
-
-        for i in data.specialisation : 
-            json_data['specialisation'].append([{
-                "id" : i.id,
-                "name" : i.name
-                }]) 
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
-        )
-
-    def put(self , request , format=None):
-        ACTION = "UserData PUT"
-        data = request.data 
-        id = data.get('id') 
-        name = data.get('name') 
-        email = data.get('email')  
-
-        if id in [None , ""]:
-            return display_response(
-            msg = ACTION,
-            err= "Support User ID was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-
-        get_user = HelpDeskUser.objects.filter(id=id).first()
-        if name not in [None , ""]:
-            get_user.name = name
-            get_user.save()
-        
-        if email not in [None , ""]:
-            get_user.email = email
-            get_user.save()
-        
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = None,
-            statuscode = status.HTTP_200_OK
-        ) 
-
-class UserPinModify(APIView): 
-    authentication_classes = []
-    permission_classes = [] 
-
-    def put(self , request, format= None): 
-        ACTION = "UserPinModify PUT" 
-        data = request.data
-        id = data.get('id')
-        pin = data.get('pin') 
-
-        ''' check id for null ''' 
-        if id in [None , ""]:
-            return display_response(
-            msg = ACTION,
-            err= "Support User ID was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-
-        '''get user''' 
-        get_user = HelpDeskUser.objects.filter(id=id).first()
-        if pin not in [None , ""]:
-            '''encrypt pin and save'''
-            encryptpin = hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
-            get_user.pin = encryptpin
-            get_user.save()
-
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = "Pin Changed Successfully",
-            statuscode = status.HTTP_200_OK
-        )
-
-#TODO : json bookings
-
-class BookAppointments(APIView):
-    authentication_classes = []
-    permission_classes = []
-
-    def post(self , request , format=None):
-        ACTION = "HelpDesk BookAppointments POST"
-        data = request.data 
-        department = data.get('department')
-        date = data.get('date')
-        count = data.get('count')
-        bookings = data.get('bookings') 
-
-        
         
