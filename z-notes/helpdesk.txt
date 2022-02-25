@@ -1,8 +1,6 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-3)History appointments
-4)History appointments searches
 5)Appointments In Details
 6)Patients List
 7)Patients Search

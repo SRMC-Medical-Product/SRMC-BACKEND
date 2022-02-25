@@ -1,11 +1,8 @@
 """
     File with all the API's relating to the help desk user web
 """
-from tkinter.messagebox import NO
-from unicodedata import name
-from django.shortcuts import render
-from django.utils import timezone
 from datetime import datetime as dtt,time,date,timedelta
+from django.db.models import Q
 
 from rest_framework.views import APIView
 from rest_framework import status
@@ -294,33 +291,85 @@ class AppointmentsHistory(APIView):
     permission_classes = []
 
     def get(self , request , format=None):
+        """
+            This view is responsible for both displaying all and querying particular appointment
+            -----------
+            GET method:
+                search : [String,optional] search query
+                filter : [String,optional] filter query [1- consulted,2-cancelled]
+                sortby : [String,optional] sortby query [1-descending date,2-ascending date]
+        """
         ACTION = "AppointmentsHistory GET"
-        snippet = Appointment.objects.all().order_by('date')
+        search = request.query_params.get('search',None)
+        filter = str(request.query_params.get('filter',None))
+        sortby = str(request.query_params.get('sortby',None))
+        json_data = {
+            "isempty" : True,
+            "appointments" : [],
+            "consultedfilter" : False,
+            "cancelledfilter" : False,
+            "descendingdate" : True,
+            "ascendingdate" : False,
+        }
+
+        user = request.user
+        s_ = HelpDeskUserSerializer(user,context={'request' :request}).data
+        dept_list = list(set([e['id'] for e in s_['specialisation']]))
+
+        query = Appointment.objects.filter(dept_id__in=dept_list,closed=True)
+
+        if sortby == '2':
+            json_data["ascendingdate"] = True
+            json_data["descendingdate"] = False
+            query = query.order_by('date')
+        else:
+            json_data["ascendingdate"] = False
+            json_data["descendingdate"] = True
+            query = query.order_by('-date')
+
+        if search not in [None , ""]:
+            snippet = query.filter(Q(id__icontains=search) | Q(date__icontains=search) | Q(time__icontains=search))
+        else:
+            snippet = query
+
+        if filter not in [None , ""]:
+            if filter == "1":
+                snippet = query.filter(consulted=True)
+                json_data["consultedfilter"] = True
+                json_data["cancelledfilter"] = False
+            elif filter == "2":
+                snippet = query.filter(consulted=False)
+                json_data["consultedfilter"] = False
+                json_data["cancelledfilter"] = True
+            else:
+                snippet = query
+                json_data["consultedfilter"] = False
+                json_data["cancelledfilter"] = False
+
         serializer = AppointmentSerializer(snippet,many=True,context={'request' :request})
-        json_data = [] 
+        
+        temp = []
         for i in serializer.data :
-            json_data.append({
+            temp.append({
                 "id" : i['id'],
-                "patient" : patient_data,
-                "doctor" : doctor_data,
-                "date" : i['date'],
-                "time" : i['time'],
+                "doctor_id" : i['doctor_id'],
+                "patient_id" : i['patient_id'],
+                "dept_id" : i['dept_id'],
+                "patient" : i['patient'],
+                "doctor" : i['doctor'],
+                "date" : dtt.strptime(i['date'],Ymd).strftime(dBY),
+                "time" :dtt.strptime(i['time'],HMS).strftime(IMp),
                 "timeline" : i['timeline'],
+                "closed" : i['closed'],
+                "consulted" : i['consulted'],
+                "cancelled" : i['cancelled'],
+                "reassigned" : i['reassigned'],
+                "activity" : i['activity'],
+                "status": "Conusulted" if i['consulted'] == True else "Cancelled" 
             })
 
 
-            for j in i['patient'] :
-                patient_data = {
-                    "id" : j['id'],
-                    "name" : j['name'],
-                }
-            
-            for k in i['doctor'] : 
-                doctor_data = {
-                    "id" : k['id'],
-                    "name" : k['name'],
-                    "profile_img" : k['profile_img'],
-                }
+        json_data['appointments'] = temp
         return display_response(
             msg = ACTION,
             err= None,
