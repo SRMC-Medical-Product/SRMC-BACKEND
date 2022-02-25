@@ -1,17 +1,14 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-6)Patients List
-7)Patients Search
-8)Patients In Details
 12)Book appointments
     - Check using phone number if the user already exists
     - check if the user is a familymember or myself
     - send that id to make appointments post
 13)Appointments (need to sort ui)
 14)Appointments Search
-15)Appointments In Details
 16)Over view and Analytics
+20)Cancl All Appointments
 ================================================
 
 
@@ -38,4 +35,7 @@ Coded Screens
 15)Appointments In Details
 16)Over view and Analytics
 17)login
+18)Appointment Update as Arrived Patient
+19)Cancel Single Appointments
+20)Cancl All Appointments
 ----------------------------------------------

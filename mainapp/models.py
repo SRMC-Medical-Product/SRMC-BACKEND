@@ -198,22 +198,22 @@ class CategoryPromotion(models.Model):
     timeline format : {
         "step1":{
             "title" : "Booking Confirmed",
-            "time" : "IMP format",
+            "time" : "HMS format",
             "completed" : bool
         },
         "step2":{
             "title" : "Arrived at Hospital",
-            "time" : "IMP format",
+            "time" : "HMS format",
             "completed" : bool
         },
         "step3":{
             "title" : "Consulted",
-            "time" : "IMP format",
+            "time" : "HMS format",
             "completed" : bool
         },
         "cancel":{
             "title" : "Cancelled",
-            "time" : "IMP format",
+            "time" : "HMS format",
             "completed" : bool
         }
     }

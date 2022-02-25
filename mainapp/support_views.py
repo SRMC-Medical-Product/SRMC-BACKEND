@@ -13,8 +13,6 @@ from .models import *
 from .auth import *
 from .utils import *
 
-
-
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 
@@ -23,6 +21,7 @@ from .support_serializers import *
 from mainapp.serializers import *
 from mainapp.doctor_serializers import *
 
+from myproject.notifications import *
 
 
 #-------Login User-------
@@ -470,7 +469,7 @@ class DoctorGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' single doctor details get'''
+#----Doctor Details Get
 class DoctorDetails(APIView): 
     authentication_classes = [HelpDeskAuthentication] 
     permission_classes = []
@@ -617,7 +616,7 @@ class PatientGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' single patient details get'''
+#---Patient Details Get--------
 class PatientDetails(APIView):
     authentication_classes = [HelpDeskAuthentication]
     permission_classes = []
@@ -705,95 +704,144 @@ class PatientDetails(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-'''department''' 
-class DepartmentsView(APIView):
-
+#---Appointment In Detail --------
+class AppointmentUpdateArrived(APIView):
     authentication_classes = [HelpDeskAuthentication]
     permission_classes = []
-    
-    '''Get All Departments'''
-    def get(self , request, format=None):
-        ACTION = "Departments GET"
-        snippet = Department.objects.all()
-        print(snippet)
-        if snippet is None:
+
+    def put(self, request , format=None):
+        """
+            This view updates the appointments details of steps 2
+            Put method:
+                appointmentid : [String,required] id of the appointment
+        """    
+        aid = request.data.get('appointmentid',None)
+        if aid in [None , ""]:
             return display_response(
-            msg = ACTION,
-            err= "No data found",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-        serializer = DepartmentSerializer(snippet,many=True,context={'request' :request}) 
-        json_data = []
-        for i in serializer.data:
-            json_data.append({
-                "id":i["id"],
-                "name":i["name"],
-                "img":i["img"],
-                "head":i["head"],
-                "enable" : i['enable']
-            })
+                msg = "ERROR",
+                err= "AID Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query = Appointment.objects.filter(id=aid).first()
+        serializer = AppointmentSerializer(query,context={'request' :request}).data
+        
+        """
+            Update the step-2 appointment in timeline
+        """
+        step2 = serializer['timeline']['step2']['completed']
+        if step2 is True:
+            return display_response(
+                msg = "ERROR",
+                err= "Step 2 already completed",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query.timeline['step2']['completed'] = True
+        query.timeline['step2']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
+        query.save()
+
+        try:
+            pat_msg = f"Your presence in hospital is confirmed for the appointment {query.id}. Please wait for the doctor to arrive."
+            create_patient_notification(
+                msg=pat_msg,
+                patientid=query.patient_id,
+            )
+        except Exception as e:
+            pass
+
         return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
+            msg = "SUCCESS",
+            err= None,  
+            body = serializer,
+            statuscode = status.HTTP_200_OK  
         )
 
-'''specilization view'''
-'''
-    json_data : [
-        {
-            "id":"id",
-            "name":"name",
-            "img":"img",
-            "departments" : [
-                {
-                    "id":"id",
-                    "name":"name",
-                    "img":"img",
-                    "head":"head",
-                    "enable" : "enable"
-                }
-            ]
-        },
-    ]
-'''
-class SpecializationInDetail(APIView):
-
+#---Cancel Single Appointment
+class AppointmentCancel(APIView):
     authentication_classes = [HelpDeskAuthentication]
     permission_classes = []
 
-    def  get(self , request , format=None):
-        ACTION = "SpecializationInDetail GET"
-        snippet = CategorySpecialist.objects.all()
-        serializer = CategorySpecialistSerializer(snippet,many=True,context={'request' :request}) 
+    def put(self, request , format=None):
+        """
+            This view cancels the appointments permanently
+            PUT method:
+                appointmentid : [String,required] id of the appointment
+                reason : [String,required] reason for cancellation
 
-        json_data = []
-        for i in serializer.data :
+        """    
+        aid = request.data.get('appointmentid',None)
+        reason = request.data.get('reason', None)
+        if aid in [None , ""] or reason in [None,""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query = Appointment.objects.filter(id=aid).first()
+        serializer = AppointmentSerializer(query,context={'request' :request}).data
+        
+        """
+            Update the appointment as cancelled and closed == True and update the timeline
+        """
+        if query.closed == True:
+            return display_response(
+                msg = "ERROR",
+                err= "Appointment already closed",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        if query.cancelled == True:
+            return display_response(
+                msg = "ERROR",
+                err= "Appointment already cancelled",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query.timeline['cancel']['completed'] = True
+        query.timeline['cancel']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
+        query.cancelled = True
+        query.closed = True
+
+        user_serializer = HelpDeskUserSerializer(request.user,context={'request' :request}).data
+
+        activity = {
+            "activity" : "Cancelled",
+            "reason" : reason,
+            "datetime" : str(dtt.now(IST_TIMEZONE)),
+            "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+            "user" : user_serializer
+        }
+
+        if query.activity == {}:
             data = {
-                "id" : i['id'],
-                "name" : i['name'], 
-                "img" : i['img'],  
-                "departments" : []
+                "cancel" : activity,
             }
+            query.activity = data
+        else:
+            query.activity['cancel'] = activity
     
-            for j in i['depts'] :
-                data['departments'].append({
-                    "id" : j['id'],
-                    "name" : j['name'],
-                    "img" : j['img'],
-                    "head" : j['head'],
-                    "enable" : j['enable']
-                })
-                
-            json_data.append(data)
+        try:
+            pat_msg = f"Your appointment {query.id} has been cancelled. Please contact the counter for further details."
+            create_patient_notification(
+                msg=pat_msg,
+                patientid=query.patient_id,
+            )
+        except Exception as e:
+            pass
+
+        query.save()
+
         return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
+            msg = "SUCCESS",
+            err= None,  
+            body = serializer,
+            statuscode = status.HTTP_200_OK  
         )
 
-
-        
