@@ -1,13 +1,9 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-5)Appointments In Details
 6)Patients List
 7)Patients Search
 8)Patients In Details
-9)Doctors List
-10)Doctors Search
-11)Doctors In Details
 12)Book appointments
     - Check using phone number if the user already exists
     - check if the user is a familymember or myself
