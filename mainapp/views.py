@@ -1625,7 +1625,18 @@ class AppointmentInDetail(APIView):
                 }
             }
         """
-        #TODO: Add the counter details to the json_data
+        counter_json = {
+            "info" : SERVICE_COUNTER_INFO,
+            "availablecounter" : [],
+        }
+        for n in appointment.counter:
+            _data = {
+                "id" : n['id'],
+                "counter" : f"{n['counter']} at Floor:{n['floor']}",
+            }
+            counter_json['availablecounter'].append(_data)
+        json_data['counter'] = counter_json
+
 
         return display_response(
             msg = "SUCCESS",
@@ -1639,7 +1650,6 @@ class BookAppoinment(APIView):
     
     #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
     #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
-    #TODO: Perform count check for the appointments
 
     authentication_classes=[UserAuthentication]
     permission_classes=[]
@@ -1754,13 +1764,25 @@ class BookAppoinment(APIView):
         doctor_serialized_data=DoctorSerializer(doctor_).data
         patient_serialized_data=PatientSerializer(patient_).data
         patient_serialized_data['contact'] = request.user.mobile
+
+        deptment = Department.objects.filter(id=doctor_serialized_data['department_id']['id']).first()
+        if deptment is None:
+            return display_response(
+                msg="FAILED",
+                err="Invalid department id given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
         """ Populate appoinment model """
         a=Appointment.objects.create(
                         date=date_date,
                         time=time_time,
                         doctor_id=doctor_id,
                         patient_id=patiend_id,
+                        dept_id = deptment.id,
                         timeline=time_line,
+                        counter = deptment.counter,
                         doctor=doctor_serialized_data,
                         patient=patient_serialized_data
                                 )
@@ -1779,6 +1801,20 @@ class BookAppoinment(APIView):
         help_desk_appoinment_instance.bookings=arr
         
         help_desk_appoinment_instance.save()     #save the helpdeskappoinment instance
+
+        try:
+            """ Add doctor notification """
+            doc_msg = f"You have an appointment booked on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)}."
+            DoctorNotification.objects.create(doctor_id=doctor_,message=doc_msg)
+        except Exception as e:
+            pass
+
+        try:
+            """ Add doctor notification """
+            pat_msg = f"Your appointment booking on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
+            PatientNotification.objects.create(patientid=patient_,message=pat_msg)
+        except Exception as e:
+            pass
 
         return Response({
                     "MSG":"SUCCESS",
