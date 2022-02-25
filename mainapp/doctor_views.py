@@ -279,12 +279,11 @@ class DoctorProfile(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
 
-    def get(self, request , format=None):
-        json_data = {}
-        doctor_instance = Doctor.objects.get(id=request.user.id)
+    def get(self, request , format=None): 
+        doctor_instance = Doctor.objects.filter(id=request.user.id).first()
         doctor_serializer = DoctorSerializer(doctor_instance,context={'request' :request}).data
-        for i in doctor_serializer:
-            data = {
+        i = doctor_serializer 
+        data = {
                 "id":i["id"],
                 "phone" :i["phone"],
                 "doctor_id":i["doctor_id"],
@@ -300,8 +299,8 @@ class DoctorProfile(APIView):
                 "deptid" : i["department_id"]['id'],
                 "deptname" : i['department_id']['name'],
                 "counter" : i['department_id']["counter"],
-            }
-            json_data = data
+        }
+        json_data = data
 
         return display_response(
             msg="SUCCESS",
