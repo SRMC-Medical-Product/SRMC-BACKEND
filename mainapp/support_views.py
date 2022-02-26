@@ -330,7 +330,7 @@ class AppointmentsHistory(APIView):
             query = query.order_by('-date')
 
         if search not in [None , ""]:
-            snippet = query.filter(Q(id__icontains=search) | Q(date__icontains=search) | Q(time__icontains=search))
+            snippet = query.filter(Q(id__icontains=search) | Q(date__icontains=search) | Q(time__icontains=search) | Q(patient__name__icontains=search) | Q(doctor__name__icontains=search))
         else:
             snippet = query
 

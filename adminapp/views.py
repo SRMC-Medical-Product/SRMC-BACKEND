@@ -1392,3 +1392,297 @@ class HelpDeskUserDetails(APIView):
             body = serializer,
             statuscode = status.HTTP_200_OK
         )
+
+#---Get all Appointments --------------------------------
+class GetAllAppointments(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the appointments here.
+            ---------------------
+            GET method:
+                set : [String,required] set of the appointments
+                    1 - Live Today 
+                    2 - Previous Date pending
+                    3 - Upcoming
+                    4 - History (closed)
+                    5 - All
+                search : [String,optional] search the appointments
+        """
+        json_data ={
+            "isempty" : True,
+            "livetoday" : True,
+            "pending" : False,
+            "upcoming" : False,
+            "history" : False,
+            "all" : False,
+            "count" : 0,
+            "patientnames" : [],
+            "appointments" : []
+        }
+        aset = str(request.query_params.get("set",1))
+        search = request.query_params.get("search",None)
+        if aset in [1,'1']:
+            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False).order_by('-time')
+            json_data['livetoday'] = True
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [2,'2']:
+            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False).order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = True
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [3,'3']:
+            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False).order_by('date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = True
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [4,'4']:
+            appointments = Appointment.objects.filter(closed=True).order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = True
+            json_data['all'] = False
+        else:
+            appointments = Appointment.objects.all().order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = True
+
+        if search not in [None , ""]:
+            query = appointments.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+            #appointments.filter(Q(id__icontains = id) | Q(patient__name__icontains = search) | Q(patient__phone__icontains = search) | Q(patient__email__icontains = search) | Q(doctor__name__icontains = search) | Q(doctor__phone__icontains = search) | Q(doctor__email__icontains = search) | Q(date__icontains = search) | Q(time__icontains = search) | Q(reason__icontains = search) | Q(status__icontains = search) | Q(closed__icontains = search) | Q(created_at__icontains = search) | Q(updated_at__icontains = search))
+        else:
+            query = appointments
+
+        serializer = AppointmentSerializer(query,many=True,context={'request' :request}).data
+        
+        temp = []
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "date" : dtt.strptime(i['date'] , Ymd).strftime(dBY),
+                "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
+                "patient_id" : i['patient_id'],
+                "patient_name" : i['patient']['name'],
+                "doctor_id" : i['doctor_id'],
+                "doctor_name" : i['doctor']['name'],
+                "consulted" : i['consulted'],
+                "cancelled" : i['cancelled'],
+                "closed" : i['closed'],
+                "status" : "Consulted" if i['consulted']==True else "Cancelled" if i['cancelled']== True else "Pending",
+                "open" : True if i['closed'] == False else False,
+            }
+            json_data['patientnames'].append({
+                "id" : i['id'],
+                "name" : i['patient']['name'],
+            })
+            temp.append(data)
+
+        json_data['appointments'] = temp
+
+        if len(json_data['appointments']) > 0:
+            json_data['count'] = len(json_data['appointments'])
+            json_data['isempty'] = True
+    
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Department and its Doctors --------------------------------
+class DepartmentDoctors(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the departments and their doctors here.
+            ---------------------
+            GET method:
+                deptid : [String,required] id of the department
+                search : [String,optional] search the doctors
+        """
+        json_data ={
+            "isempty" : True,
+            "deptid" : "",
+            "doctors" : [],
+        }
+        deptid = request.query_params.get("deptid",None)
+        search = request.query_params.get("search",None)
+
+        if deptid in [None , ""]:
+            return display_response(
+                msg = "FAILED",
+                err= "Department id is required",
+                body = json_data,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        dept = Department.objects.filter(id=deptid).first()
+        if dept in [None , ""]:
+            return display_response(
+                msg = "FAILED",
+                err= "Department not found",
+                body = json_data,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        doctors = Doctor.objects.filter(department_id=dept).order_by('name')
+        
+        if search not in [None , ""]:
+            doctors = doctors.filter(Q(name__icontains=search))
+        
+        serializer = DoctorSerializer(doctors,many=True,context={'request' :request}).data
+
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "name" : i['name'],
+                "doctor_id" : i['doctor_id'],
+                "phone" : i['phone'],
+                "email" : i['email'],
+                "profile_img" : i['profile_img'],
+                "age" : i['age'],
+                "gender" : i['gender'],
+                "qualification" : i['qualification'],
+            }
+            json_data['doctors'].append(data)
+
+        json_data['deptid'] = deptid
+
+        if len(json_data['doctors']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Tickets --------------------------------
+class AllPatientTickets(models.Model):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the tickets of the patients
+            ---------------------
+            GET method:
+                closed : [bool,optional] closed or open
+                search : [String,optional] search the tickets by patient name
+        """
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+            "closed" : False,
+        }
+
+        params = request.query_params
+        search = params.get("search",None)
+        closed = params.get("closed",False)
+        
+        query = PatientTickets.objects.all().order_by('-created_at')
+
+        if closed in [True ,'True']:
+            query = query.filter(closed=True)
+            json_data['closed'] = True
+        else:
+            query = query.filter(closed=False)
+            json_data['closed'] = False
+        
+        if search not in [None , ""]:
+            query = query.filter(Q(user_id__name__icontains=search))
+
+        serializer = PatientTicketsSerializer(query,many=True,context={'request' :request}).data
+        json_data['tickets'] = serializer
+
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+class AllDoctorTickets(models.Model):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the tickets of the doctor
+            ---------------------
+            GET method:
+                closed : [bool,optional] closed or open
+                search : [String,optional] search the tickets by doctor name
+        """
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+            "closed" : False,
+        }
+
+        params = request.query_params
+        search = params.get("search",None)
+        closed = params.get("closed",False)
+        
+        query = DoctorTickets.objects.all().order_by('-created_at')
+
+        if closed in [True ,'True']:
+            query = query.filter(closed=True)
+            json_data['closed'] = True
+        else:
+            query = query.filter(closed=False)
+            json_data['closed'] = False
+        
+        if search not in [None , ""]:
+            query = query.filter(Q(doctor_id__name__icontains=search))
+
+        serializer = DoctorTicketsSerializer(query,many=True,context={'request' :request}).data
+        json_data['tickets'] = serializer
+
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

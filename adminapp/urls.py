@@ -23,7 +23,8 @@ urlpatterns = [
     # --------------------------------- Doctor URLS ---------------------------------
     path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
     path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
-    
+    path('department-doctors/',DepartmentDoctors.as_view() , name='department-doctors'),
+        
     # --------------------------------- Patient URLS ---------------------------------
     path('patient-all-get/' , PatientGet.as_view() , name='patient-all-get'),
     path('patient-indetail/' , PatientDetails.as_view() , name='patient-indetail'),
@@ -39,6 +40,11 @@ urlpatterns = [
     path('access-help-desk/',AccessHelpDeskUser.as_view(), name='access-help-desk'),
     path('access-doctor/',AccessDoctorUser.as_view(), name='access-doctor'),
 
-    
-    
+    # --------------------------------- Appointment URLS ---------------------------------
+    path('get-appointments/',GetAllAppointments.as_view() , name='get-all-appointments'),
+
+    # --------------------------------- Ticket URLS ---------------------------------
+    path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
+    path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
+
 ]

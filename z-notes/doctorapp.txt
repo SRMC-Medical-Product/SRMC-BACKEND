@@ -1,7 +1,7 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-
+20)Searching Tablets
 ================================================
 
 
@@ -27,6 +27,7 @@ Coded Screens
 17)Appointments Displaying with its medical records.
 18)Tap Consulted to Update in Appointments Screen
 19)Upload medical prescription
+20)Searching Tablets
 ================================================
 
 

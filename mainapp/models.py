@@ -412,4 +412,12 @@ class MedicalPrescriptions(models.Model):
 
 '''----------End : Medical Records Model----------'''
 
+'''----------Start : Medicines Model----------'''
+class Drugs(models.Model):
+    name = models.CharField(max_length=512,null=True,blank=True)
+    description = models.TextField(null=True,blank=True)
+    created_at=models.DateTimeField(auto_now_add=True)
+    modified_at=models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        return str(self.id)
