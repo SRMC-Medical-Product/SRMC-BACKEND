@@ -6,6 +6,8 @@ import json
 import uuid
 from webbrowser import get
 
+from html5lib import serialize
+
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 from myproject.notifications import *
 
@@ -328,14 +330,14 @@ class ChangeDoctorPin(APIView):
                 msg="FAILED",
                 err="Invalid data",
                 body=None,
-                statuscode=status.HTTP_400_BAD_REQUEST
+                statuscode=status.HTTP_404_NOT_FOUND
             )
 
         get_doctor = Doctor.objects.filter(id=user.id, pin=oldpin).first()
         if get_doctor is None:
             return display_response(
                 msg="FAILED",
-                err="Invalid pin",
+                err="Old pin is incorrect",
                 body=None,
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
@@ -1723,19 +1725,38 @@ class AppointmentAnalytics(APIView):
 
     def get(self , request , format=None):
         json_data = {
+            "isempty" : True,
             "totalappointment" : 0,
             "totalconsulted" : 0,
             "totalcancelled" : 0,
             "totalpending" : 0,
+            "appointments" : [],
         }
 
         doctor = request.user
         get_appointments = Appointment.objects.filter(doctor_id=doctor.id)
-        
+        serializer  = AppointmentSerializer(get_appointments,many=True,context={"request":request}).data
+        for i in serializer: 
+            data = {
+                "id": i['id'],
+                "patientid": i['patient_id'],
+                "patientname" : i['patient']['name'],
+                "gender" : i['patient']['gender'],
+                "blood" : i['patient']['blood'],
+                "img" : i['patient']['img'],
+                "defaultimg" : f"{i['patient']['name'][0:1]}",
+                "time" : self.convert_to_imp(i['time']),
+                "date" : self.convert_to_dBY(i['date']),
+                "status" : "Consulted" if i['consulted']==True else "Missed" if i['cancelled'] == True else "Completed",      
+            }
+            json_data['appointments'].append(data)
         json_data['totalappointment'] = get_appointments.count()
         json_data['totalconsulted'] = get_appointments.filter(consulted=True,closed=True).count()
         json_data['totalcancelled'] = get_appointments.filter(cancelled=True,closed=True).count()
         json_data['totalpending'] = get_appointments.filter(closed=False).count()
+
+        if len(json_data['appointments']) > 0:
+            json_data['isempty'] = False
 
         return display_response(
             msg="SUCCESS",
@@ -1821,7 +1842,10 @@ class HomeScreen(APIView):
                 "totalappointment" : 0,
                 "appointments" : []
             },
-            "patients" : [],
+            "latestpatients" : {
+                "isempty" : True, 
+                "patients" : []
+            },
             "lastappointments" : {
                 "isempty" : True,
                 "appointments" : []
@@ -1876,9 +1900,9 @@ class HomeScreen(APIView):
         json_data['upcomingappointments']['totalappointment'] = upcoming_appointments.count()     
 
         """
-            Patients List
+            Last 7 Patients List
         """
-        related_patients = query.filter(closed=True).order_by("-created_at")
+        related_patients = query.filter(closed=True).order_by("-created_at")[:7]
         patient_serializer = AppointmentSerializer(related_patients,many=True,context={"request":request}).data
         
         all_patients = list(set([x['patient_id'] for x in patient_serializer]))
@@ -1891,7 +1915,9 @@ class HomeScreen(APIView):
                 "img" : k['img'],
                 "appuser" : k['appuser'],
             }
-            json_data['patients'].append(data)
+            json_data['latestpatients']['patients'].append(data)
+        if len(json_data['latestpatients']['patients']) > 0: 
+            json_data['latestpatients']['isempty'] = False
         
         """
             Last 7 Appointments
@@ -1902,6 +1928,7 @@ class HomeScreen(APIView):
             data = {
                 "id": l['id'],
                 "patientid": l['patient_id'],
+                "img" : m['patient']['img'],
                 "patientname" : l['patient']['name'],
                 "date" : dtt.strptime(l['date'],Ymd).strftime(dBY),
                 "time" : dtt.strptime(l['time'],HMS).strftime(IMp),
@@ -1922,6 +1949,7 @@ class HomeScreen(APIView):
                 "id": m['id'],  
                 "patientid": m['patient_id'],
                 "patientname" : m['patient']['name'],
+                "img" : m['patient']['img'],
                 "date" : dtt.strptime(m['date'],Ymd).strftime(dBY),
                 "time" : dtt.strptime(m['time'],HMS).strftime(IMp),
             }   
