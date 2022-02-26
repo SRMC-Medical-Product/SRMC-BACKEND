@@ -1,7 +1,6 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-14)Analytics
 24)Doctor Create/Update
 25)Medicines Single Create/Bulk Create
 ----------------------------------------------
