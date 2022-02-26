@@ -8,7 +8,8 @@ API View Todo Screen
 13)Appointments (need to sort ui)
 14)Appointments Search
 16)Over view and Analytics
-20)Cancl All Appointments
+20)Cancel All Appointments
+21)Patient and Doctor Tickets
 ================================================
 
 
@@ -38,4 +39,5 @@ Coded Screens
 18)Appointment Update as Arrived Patient
 19)Cancel Single Appointments
 20)Cancl All Appointments
+21)Patient and Doctor Tickets
 ----------------------------------------------

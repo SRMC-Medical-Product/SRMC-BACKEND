@@ -18,6 +18,9 @@ def encrypt_doctor_pin(pin):
 def encrypt_superadmin_pass(password):
     return hashlib.sha256(str(password).encode('utf-8')).hexdigest()
 
+def encrypt_helpdesk_pin(pin):
+    return hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
+
     
 def generate_token(payload):
     """

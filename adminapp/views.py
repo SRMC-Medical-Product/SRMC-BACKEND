@@ -8,7 +8,6 @@ from datetime import datetime as dtt , time , timedelta
 
 '''imports'''
 import uuid 
-import math 
 from urllib.parse import urlparse , parse_qs
 
 from .models import *
@@ -28,7 +27,6 @@ from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from rest_framework.authtoken.models import Token
 
 '''encrypt'''
 import hashlib 
@@ -42,8 +40,6 @@ from mainapp.doctor_serializers import *
 from mainapp.models import *
 
 #----------------------------Start : Admin Auth----------------------------
-    
-'''Admin Login'''
 class AdminLogin(APIView):
 
     authentication_classes=[]
@@ -53,7 +49,7 @@ class AdminLogin(APIView):
         """
             Admin Login View:
             POST method:
-                userid: [String,required] username/email/phone of the admin
+                userid: [String,required] email/phone of the admin
                 password: [String,required] password of the admin
         """
         data = self.request.data 
@@ -69,7 +65,7 @@ class AdminLogin(APIView):
             )
         encrypted_password = encrypt_superadmin_pass(password)
  
-        get_user = SuperAdmin.objects.filter(Q(name=userid) | Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
+        get_user = SuperAdmin.objects.filter(Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
         if get_user is None:
             return display_response(
                 msg='ERROR',
@@ -198,7 +194,7 @@ class CarouselView(APIView):
 
 class PromotionalSliderView(APIView): 
     authentication_classes = [SuperAdminAuthentication]
-    permission_classes = [] 
+    permission_classes = []  
 
     def get(self , request , format=None):
         ACTION = "PromotionalSlider GET" 
@@ -239,7 +235,6 @@ class PromotionalSliderView(APIView):
                 body = None,
                 statuscode = status.HTTP_409_CONFLICT
             )
-
 
     def delete(self , request , format=None):
         ACTION = "PromotionalSlider DELETE" 
@@ -295,8 +290,7 @@ class CategoryPromotionView(APIView):
             body = serializer.data,
             statuscode = status.HTTP_200_OK
         )
-
-    
+ 
     def post(self , request , format=None):
         ACTION = "CategoryPromotion POST"
         data = self.request.data
@@ -311,7 +305,7 @@ class CategoryPromotionView(APIView):
             statuscode = status.HTTP_404_NOT_FOUND
         ) 
 
-        get_category = CategorySpecialist.objects.filter(category=category).first() 
+        get_category = CategorySpecialist.objects.filter(id=category).first() 
         if get_category is None: 
             return display_response(
             msg = ACTION,
@@ -341,7 +335,6 @@ class CategoryPromotionView(APIView):
                 body = None,
                 statuscode = status.HTTP_409_CONFLICT
             )
-
 
     def delete(self , request , format=None):
         ACTION = "CategoryPromotion DELETE"
@@ -383,17 +376,15 @@ class CategoryPromotionView(APIView):
             )
 #----------------------------End : Promotions and Homepage----------------------------
 
-'''Admin Data Get'''
-'''Bearer Token Required'''
+#---Get all Admin Available----
 class AdminData(APIView):
-    serializer_class = AdminDataSerializer
-    authentication_classes = [SuperAdminAuthentication] #disables authentication
-    permission_classes = [] #disables permission
+    authentication_classes = [SuperAdminAuthentication] 
+    permission_classes = [] 
     
     def get(self , request, format=None):
         ACTION = "AdminData GET"
-        snippet = User.objects.all()
-        print(snippet)
+        snippet = SuperAdmin.objects.all()
+
         if snippet is None:
             return display_response(
             msg = ACTION,
@@ -401,15 +392,9 @@ class AdminData(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
-        serializer = AdminDataSerializer(snippet,many=True,context={'request' :request}) 
-        json_data = []
-        for i in serializer.data:
-            json_data.append({
-                "id":i["id"],
-                "username":i["username"],
-                "email":i["email"],
-                "is_superuser":i["is_superuser"],
-            })
+        serializer = SuperAdminSerializer(snippet,many=True,context={'request' :request}) .data
+        json_data = serializer
+        
         return display_response(
             msg = ACTION,
             err= None,
@@ -417,94 +402,67 @@ class AdminData(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-'''Admin Each User Data Get'''
-'''Bearer Token Required'''
-class AdminUserGet(APIView):
-    serializer_class = AdminDataSerializer 
+#---Get particular Admin User----
+class AdminUserGet(APIView): 
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
     
     def get(self, request,format=None):
         ACTION = "AdminModify GET"
-        data = request.user
-        print(data)
-        snippet = User.objects.filter(username=data)
-        print(snippet) 
-        if snippet is None:
-            return display_response(
-            msg = ACTION,
-            err= "AdminData objects are None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )
-        serializer = AdminDataSerializer(snippet,many=True,context={'request' :request})
+        user = request.user
+        serializer = SuperAdminSerializer(user,context={'request' :request}).data
         return display_response(
             msg = ACTION,
             err= None,
-            body = serializer.data,
+            body = serializer,
             statuscode = status.HTTP_200_OK
         )
 
-'''Admin Modify Data'''
-'''Bearer Token Required'''
+#---Admin Data Modify----
 class AdminUserModify(APIView):
-    serializer_class = AdminDataSerializer 
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
 
     def put(self,request,format=None):
         ACTION = "AdminModify PUT"
+        user = request.user
         data = request.data
-        id = data.get('id')
-        username = data.get('username')
+        username = data.get('name')
         email = data.get('email')    
+        phone = data.get('phone') 
 
-        '''Check for None Values'''
-        if id in [None,""]:
-            return display_response(
-            msg = ACTION,
-            err= "ID was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )  
 
-        """Get particular User"""
-        get_user = User.objects.filter(id=id).first() 
-        if get_user is None:
-            return display_response(
-            msg = ACTION,
-            err= "User was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )  
-
-        checkUsername = User.objects.filter(username=username)
-        for i in checkUsername :
-            if i.username == username:
-                return display_response(
-            msg = ACTION,
-            err= "User with username already exists.Give a different username",
-            body = None,
-            statuscode = status.HTTP_400_BAD_REQUEST
-        )   
-        checkEmail = User.objects.filter(email=email)
-        for i in checkEmail:
-            if i.email == email:
-                return display_response(
-            msg = ACTION,
-            err= "User with email already exists.Give a different username",
-            body = None,
-            statuscode = status.HTTP_400_BAD_REQUEST
-        )    
-        """Save not null values"""
-        
-        if username not in [None , ""]:
-            get_user.username = username
-            get_user.save()
-       
         if email not in [None , ""]:
-            get_user.email = email
-            get_user.save()
+            email_check = SuperAdmin.objects.filter(email=email).first()
+            if email_check is not None:
+                return display_response(
+                    msg = ACTION,
+                    err= "Email already exists",
+                    body = None,
+                    statuscode = status.HTTP_409_CONFLICT
+                )
+
+        if phone not in [None , ""]:
+            phone_check = SuperAdmin.objects.filter(phone=phone).first()
+            if phone_check is not None:
+                return display_response(
+                    msg = ACTION,
+                    err= "Phone number already exists",
+                    body = None,
+                    statuscode = status.HTTP_409_CONFLICT
+                )
+
+        if email not in [None , ""]:
+            user.email = email
+
+        if phone not in [None , ""]:
+            user.phone = phone
+
+        if username not in [None , ""]:
+            user.name = username
+            
+        user.save()    
+        
         return display_response(
             msg = ACTION,
             err= None,
@@ -512,43 +470,41 @@ class AdminUserModify(APIView):
             statuscode = status.HTTP_200_OK
         ) 
 
-'''Admin User Password'''
-'''Bearer Token Required'''
-# TODO : Add Password Encryption
+#----Change Super Admin Password--------------------------------
 class AdminUserPasswordModify(APIView):
 
-    serializer_class = AdminDataSerializer 
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
 
     def put(self,request,format=None):
         ACTION = "AdminPasswordModify PUT"
+        user = request.user
         data = request.data
-        id = data.get('id')
-        password = data.get('password')  
+        oldpassword = data.get('oldpassword',None)
+        newpassword = data.get('newpassword',None)
 
         '''Check for None Values'''
-        if id in [None,""]:
+        if oldpassword in [None,""] or newpassword in [None , ""]:
             return display_response(
             msg = ACTION,
-            err= "ID was found None",
+            err= "Password data was found None",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )    
-        """Get particular User"""
-        get_user = User.objects.filter(id=id).first() 
-        if get_user is None:
-            return display_response(
-            msg = ACTION,
-            err= "User was found None",
-            body = None,
-            statuscode = status.HTTP_404_NOT_FOUND
-        )    
-        """Save not null values"""
 
-        if password not in [None , ""]:
-            get_user.set_password(password)
-            get_user.save()
+        encrypted_oldpass = encrypt_superadmin_pass(oldpassword)
+        if encrypted_oldpass != user.password:
+            return display_response(
+                msg = ACTION,
+                err= "Old Password is incorrect",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        encrypted_newpass = encrypt_superadmin_pass(newpassword)
+        user.password = encrypted_newpass
+        user.save()
+
         return display_response(
             msg = ACTION,
             err= None,
@@ -556,9 +512,7 @@ class AdminUserPasswordModify(APIView):
             statuscode = status.HTTP_200_OK
         )    
  
-'''Department Get'''
-'''Bearer Token Required'''
-
+#----Departments -----------
 class DepartmentsView(APIView):
 
     authentication_classes = [SuperAdminAuthentication]
@@ -568,7 +522,6 @@ class DepartmentsView(APIView):
     def get(self , request, format=None):
         ACTION = "Departments GET"
         snippet = Department.objects.all()
-        print(snippet)
         if snippet is None:
             return display_response(
             msg = ACTION,
@@ -592,8 +545,7 @@ class DepartmentsView(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
-    # TODO : Check many to many fields once
-    
+
     '''Create New Departments'''
     def post(self, request, format=None):
         """
@@ -665,7 +617,6 @@ class DepartmentsView(APIView):
                 statuscode = status.HTTP_400_BAD_REQUEST
             )
 
-
     ''' Modify Departments'''
     def put(self,request,format=None):
         ACTION = "Departments PUT"
@@ -722,9 +673,10 @@ class DepartmentsView(APIView):
             statuscode = status.HTTP_200_OK 
         )
 
+#-----Category Specialization-----
 class CategorySpecialistView(APIView):
-    # authentication_classes = [SuperAdminAuthentication]
-    # permission_classes = []
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
 
     '''Get All CategorySpecialist''' 
     def get(self , request , format =None):
@@ -828,52 +780,40 @@ class CategorySpecialistView(APIView):
             statuscode = status.HTTP_200_OK 
         )
 
-''' custom json format to retrive in dashboard '''
-class SpecializationInDetail(APIView):
-
-    def  get(self , request , format=None):
-        ACTION = "SpecializationInDetail GET"
-        snippet = CategorySpecialist.objects.all()
-        serializer = CategorySpecialistSerializer(snippet,many=True,context={'request' :request}) 
-
-        json_data = []
-        for i in serializer.data :
-            data = {
-                "id" : i['id'],
-                "name" : i['name'], 
-                "img" : i['img'],  
-                "departments" : []
-            }
-    
-            for j in i['depts'] :
-                data['departments'].append({
-                    "id" : j['id'],
-                    "name" : j['name'],
-                    "img" : j['img'],
-                    "head" : j['head'],
-                    "enable" : j['enable']
-                })
-                
-            json_data.append(data)
-        return display_response(
-            msg = ACTION,
-            err= None,
-            body = json_data,
-            statuscode = status.HTTP_200_OK
-        )
-
-''' custom json format to retrive doctor data in dashboard '''
+#---Doctors Available---------                  
 class DoctorGet(APIView):
     authentication_classes = [SuperAdminAuthentication] 
     permission_classes = []
 
     def get(self , request , format=None):
+        """
+            This view is responsible for both displaying all and querying doctors based on their names
+            ----------------------------------------------------------------
+            GET method:
+                search : [String,optional] search query
+                isblocked : [bool,optional] filter query 
+
+        """
         ACTION = "Doctor GET"
+        json_data = {
+            "isempty" : True,
+            "doctors" : [],
+        }
+        search = request.query_params.get("search",None)
+        isblocked = request.query_params.get("isblocked",False)
+
         snippet = Doctor.objects.all() 
+
+        if search not in [None , ""]:
+            snippet = snippet.filter(Q(name__icontains=search))
+
+        if isblocked in [True,'True']:
+            snippet = snippet.filter(is_blocked=True)
+        
+
         serializer = DoctorSerializer(snippet,many=True,context={'request' :request})
-        json_data = []
         for i in serializer.data :
-            json_data.append([{
+            json_data['doctors'].append([{
                 "id" : i['id'],
                 "doctor_id" : i['doctor_id'], 
                 "name" : i['name'],
@@ -881,6 +821,10 @@ class DoctorGet(APIView):
                 "specialisation" : i['specialisation'],
                 "is_blocked" : i['is_blocked'],
             }]) 
+
+        if len(json_data['doctors']) > 0:
+            json_data['isempty'] = False
+
         return display_response(
             msg = ACTION,
             err= None,
@@ -888,20 +832,42 @@ class DoctorGet(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' single doctor details get'''
+#----Doctor Details Get
 class DoctorDetails(APIView): 
     authentication_classes = [SuperAdminAuthentication] 
     permission_classes = []
 
     def get(self , request , format=None):
+        """
+            This view displays the particular doctor details
+            ----------------------------------------------------------------
+            GET method:
+                doctorid : [String,required] doctor id
+                appointments : [String,optional] filter query
+                        1 - todays appointments
+                        2 - pending appointments
+                        3 - all completed appointments
+        """
         ACTION = "DoctorDetails GET"
-        id = request.query_params.get('id')
-
+        id = request.query_params.get('doctorid',None)
+        appointments_format = str(request.query_params.get('appointments',1))
         json_data = {
+            "appointments" : {
+                "isempty" : True,
+                "appointments" : [],
+                "today" : True,
+                "pending" : False,
+                "all" : False,
+            },
             "details" : {},
             "timings" : {},
-            "schedule" : {},
-            "appointments" : {}
+            "analytics" :  {
+                "total" : 0,
+                "consulted" : 0,
+                "cancelled" : 0,
+                "patients" : 0,
+                "pending" : 0,
+            }
         }
         if id in [None , ""]:
             return display_response(
@@ -915,16 +881,43 @@ class DoctorDetails(APIView):
         
         '''Details'''
         json_data['details'] = serializer.data
-        timings = DoctorTimings.objects.filter(doctor_id__id=id).first()
         
         '''Timings'''
+        timings = DoctorTimings.objects.filter(doctor_id=snippet).first()
         timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request})
         json_data['timings'] = timings_serializer.data 
         
-        '''Schedule'''
-        schedule = DoctorSchedule.objects.filter(doctor_id__id=id).first()
-        schedule_serializer = DoctorScheduleSerializer(schedule,context={'request' :request})
-        json_data['schedule'] = schedule_serializer.data
+        '''Analytics'''
+        appointments = Appointment.objects.filter(doctor_id=snippet.id).all()
+        json_data['analytics']['total'] = appointments.count()
+        json_data['analytics']['pending'] = appointments.filter(closed=False).count()
+        json_data['analytics']['consulted'] = appointments.filter(consulted=True).count()
+        json_data['analytics']['cancelled'] = appointments.filter(cancelled=True).count() 
+        json_data['analytics']['patients'] = len(list(set([e.patient_id for e in appointments])))
+
+        '''Appointments'''
+        if appointments_format == "1":
+            appointments = appointments.filter(date=dtt.today().strftime(Ymd)).all()
+            json_data['appointments']['today'] = True
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = False
+        elif appointments_format == "2":
+            appointments = appointments.filter(closed=False).all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = True
+            json_data['appointments']['all'] = False
+        else:
+            appointments = appointments.all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = True
+
+
+        appointment_serializer = AppointmentSerializer(appointments,many=True,context={'request' :request})
+        json_data['appointments']['appointments'] = appointment_serializer.data
+
+        if len(json_data['appointments']['appointments']) > 0:
+            json_data['appointments']['isempty'] = False
 
         return display_response(
             msg = ACTION,
@@ -933,44 +926,89 @@ class DoctorDetails(APIView):
             statuscode = status.HTTP_200_OK
         )
 
-''' Patients get'''
+#---Patients Get--------
 class PatientGet(APIView):
     authentication_classes = [SuperAdminAuthentication] 
     permission_classes = []     
+
     def get(self , request , format=None):
-        ACTION = "Patients GET"
-        snippet = Patient.objects.all() 
-        serializer = PatientSerializer(snippet,many=True,context={'request' :request})
-        json_data = []
-        for i in serializer.data :
-            json_data.append([{
-                "id" : i['id'],
-                "name" : i['name'], 
-                "email" : i['email'], 
-                "blood" : i['blood'], 
-                "gender" : i['gender'], 
-            }]) 
+        """
+            This view is responsible for both displaying all and querying patient based on their names
+            ----------------------------------------------------------------
+            GET method:
+                search : [String,optional] search query
+                primary : [bool,optional] filter query 
+
+        """
+        ACTION = "Doctor GET"
+        json_data = {
+            "isempty" : True,
+            "patients" : [],
+            "primary" : False,
+        }
+        search = request.query_params.get("search",None)
+        primaryuser = request.query_params.get("primary",False)
+        
+        
+        snippet = Patient.objects.all()
+        
+        if primaryuser in [True , "True"]:
+            snippet = snippet.filter(primary=True)
+            json_data['primary'] = True
+
+        if search not in [None , ""]:
+            snippet = snippet.filter(Q(name__icontains=search))
+        
+        serializer = PatientSerializer(snippet,many=True,context={'request' :request}).data
+
+        json_data['patients'] = serializer
+
+        if len(json_data['patients']) > 0:
+            json_data['isempty'] = False
 
         return display_response(
             msg = ACTION,
             err= None,
             body = json_data,
             statuscode = status.HTTP_200_OK
-        )  
+        )
 
-''' single patient details get'''
+#---Patient Details Get--------
 class PatientDetails(APIView):
     authentication_classes = [SuperAdminAuthentication]
-    permission_classes = [] 
-    def get(self , request , format=None):
-        ACTION = "PatientDetails GET"
-        id = request.query_params.get('id')
+    permission_classes = []
 
+    def get(self , request , format=None):
+        """
+            This view displays the particular doctor details
+            ----------------------------------------------------------------
+            GET method:
+                patentid : [String,required] patient id
+                appointments : [String,optional] filter query
+                        1 - todays appointments
+                        2 - pending appointments
+                        3 - all completed appointments
+        """
+        ACTION = "Patient Details GET"
+        id = request.query_params.get('patientid',None)
+        appointments_format = str(request.query_params.get('appointments',1))
         json_data = {
+            "appointments" : {
+                "isempty" : True,
+                "appointments" : [],
+                "today" : True,
+                "pending" : False,
+                "all" : False,
+            },
             "details" : {},
-            "appointments" : {}
+            "analytics" :  {
+                "total" : 0,
+                "consulted" : 0,
+                "cancelled" : 0,
+                "doctors" : 0,
+                "pending" : 0,
+            }
         }
-        ''' check id for null ''' 
         if id in [None , ""]:
             return display_response(
             msg = ACTION,
@@ -978,77 +1016,94 @@ class PatientDetails(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
-
         snippet = Patient.objects.filter(id=id).first()
-        serializer = PatientSerializer(snippet,context={'request' :request})
-        json_data["details"] = serializer.data
+        serializer = PatientSerializer(snippet,context={'request' :request}).data
+        
+        '''Details'''
+        json_data['details'] = serializer
+
+        '''Analytics'''
+        appointments = Appointment.objects.filter(patient_id=snippet.id).all()
+        json_data['analytics']['total'] = appointments.count()
+        json_data['analytics']['pending'] = appointments.filter(closed=False).count()
+        json_data['analytics']['consulted'] = appointments.filter(consulted=True).count()
+        json_data['analytics']['cancelled'] = appointments.filter(cancelled=True).count() 
+        json_data['analytics']['doctors'] = len(list(set([e.doctor_id for e in appointments])))
+
+        '''Appointments'''
+        if appointments_format == "1":
+            appointments = appointments.filter(date=dtt.today().strftime(Ymd)).all()
+            json_data['appointments']['today'] = True
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = False
+        elif appointments_format == "2":
+            appointments = appointments.filter(closed=False).all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = True
+            json_data['appointments']['all'] = False
+        else:
+            appointments = appointments.all()
+            json_data['appointments']['today'] = False
+            json_data['appointments']['pending'] = False
+            json_data['appointments']['all'] = True
+
+
+        appointment_serializer = AppointmentSerializer(appointments,many=True,context={'request' :request})
+        json_data['appointments']['appointments'] = appointment_serializer.data
+
+        if len(json_data['appointments']['appointments']) > 0:
+            json_data['appointments']['isempty'] = False
+
         return display_response(
             msg = ACTION,
-            err= None,
+            err= None, 
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
 
-''' Users get'''
-class UsersGet(APIView): 
+
+'''Patient Users get'''
+class PatientAppUsers(APIView): 
     authentication_classes = [SuperAdminAuthentication] 
     permission_classes = []
+
     def get(self , request , format=None):
         ACTION = "Users GET"
         snippet = User.objects.all() 
-        serializer = UserSerializer(snippet,many=True,context={'request' :request})
+        serializer = UserSerializer(snippet,many=True,context={'request' :request}).data
         return display_response(
             msg = ACTION,
             err= None, 
-            body = serializer.data,
+            body = serializer,
             statuscode = status.HTTP_200_OK
         )
 
-''' Help Desk Get'''
-''''
-json_data = [
-    {
-        "id" : 1,
-        "name" : "Dr. A",
-        "email" : "email",
-        "mobile" : "mobile", 
-        "counterno" : "counterno", 
-        "specialization" : [
-            {   
-                "id" : 1,
-                "name" : "Specialization 1"
-            }
-        ],
-        "is_blocked" : True,
-    }
-]
-'''
+#---All HelpDeskTeam----
 class HelpDeskTeam(APIView):
-    authentication_classes = [] 
+    authentication_classes = [SuperAdminAuthentication] 
     permission_classes = []
+
     def get(self , request , format=None):
         ACTION = "HelpDeskTeam GET"
+        json_data = {
+            "isempty" : True,
+            "team" : [],
+        }
         snippet = HelpDeskUser.objects.all() 
-        serializer = HelpDeskUserSerializer(snippet,many=True,context={'request' :request})
-        json_data = []
-        
-        for i in serializer.data : 
+        serializer = HelpDeskUserSerializer(snippet,many=True,context={'request' :request}).data
+        for i in serializer:
             data = {
                 "id" : i['id'],
-                "name" : i['name'], 
-                "email" : i['email'], 
-                "mobile" : i['mobile'], 
-                "counterno" : i['counterno'], 
-                "specialisation" : [], 
+                "name" : i['name'],
+                "email" : i['email'],
+                "mobile" : i['mobile'],
                 "is_blocked" : i['is_blocked'],
             }
-            for j in i['specialisation']:
-                data["specialisation"].append({
-                    "id" : j['id'],
-                    "name" : j['name'],
-                })
-            json_data.append(data) 
+            json_data['team'].append(data)
         
+        if len(json_data['team']) > 0:
+            json_data['isempty'] = False
+
         return display_response(
             msg = ACTION,
             err= None, 
@@ -1056,23 +1111,27 @@ class HelpDeskTeam(APIView):
             statuscode = status.HTTP_200_OK
         ) 
 
-
-    #TODO : Pin code encryption
-
     def post (self , request , format = None): 
+        """
+            This view creates a new HelpDeskUser
+            ----------------------------------------------------------------
+            POST method:
+                name : [String,required] name of the user
+                email : [String,required] email of the user
+                mobile : [String,required] mobile of the user
+                pin : [String,required] pin of the user
+                specialisation : [List,required] specialisation of the user.List of ids
+                    
+        """
         ACTION = "HelpDeskTeam POST"
         data = request.data
-        counterno = data.get('counterno') 
-        name = data.get('name')
-        email = data.get('email') 
-        mobile = data.get('mobile')
-        pin = data.get('pin')
-        #Many-Many fields
-        specialisation = data.get('specialisation')
+        name = data.get('name',None)
+        email = data.get('email',None) 
+        mobile = data.get('mobile',None)
+        pin = data.get('pin',None)
+        specialisation = data.get('specialisation',[])
 
-        print(data)
-        ''' check null values'''
-        if counterno in [None , ""] or name in [None , ""] or email in [None , ""] or mobile in [None , ""] or pin in [None , ""] or len(specialisation) == 0 :
+        if name in [None , ""] or email in [None , ""] or mobile in [None , ""] or pin in [None , ""] or len(specialisation) == 0 :
             return display_response(
                 msg = ACTION,
                 err= "Data was found None",
@@ -1080,31 +1139,24 @@ class HelpDeskTeam(APIView):
                 statuscode = status.HTTP_404_NOT_FOUND
             ) 
 
-        ''' check if counterno , email  and mobile is unique'''
-        if HelpDeskUser.objects.filter(counterno=counterno).first():
+        check_email = HelpDeskUser.objects.filter(email=email).first()
+        if check_email is not None:
             return display_response(
                 msg = ACTION,
-                err= "Counterno already exist",
+                err= "Email already exists",
                 body = None,
-                statuscode = status.HTTP_406_NOT_ACCEPTABLE
-            ) 
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
 
-        if HelpDeskUser.objects.filter(email=email).first():
+        check_mobile = HelpDeskUser.objects.filter(mobile=mobile).first()
+        if check_mobile is not None:
             return display_response(
                 msg = ACTION,
-                err= "Email already exist",
+                err= "Mobile number already exists",
                 body = None,
-                statuscode = status.HTTP_406_NOT_ACCEPTABLE
-            ) 
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
 
-        if HelpDeskUser.objects.filter(mobile=mobile).first():
-            return display_response(
-                msg = ACTION,
-                err= "Mobile number already exist",
-                body = None,
-                statuscode = status.HTTP_406_NOT_ACCEPTABLE
-            )    
-        
         ''' checking if specialisation id exists'''
         for i in range(len(specialisation)):
             specialisation_instance = Department.objects.filter(id=specialisation[i]).first() 
@@ -1115,29 +1167,19 @@ class HelpDeskTeam(APIView):
                     body = None,
                     statuscode = status.HTTP_404_NOT_FOUND
                 )
-
-        ''' pin length should be mmore than 6'''
-        if len(str(pin)) < 6:
-                return display_response(
-                    msg = ACTION,
-                    err= "Pin length should be greater than 6",
-                    body = None,
-                    statuscode = status.HTTP_406_NOT_ACCEPTABLE
-                )
+    
 
         '''create support user object '''
         try: 
             
             '''encrypt pin and save'''
-            encryptpin = hashlib.sha256(str(pin).encode('utf-8')).hexdigest()
+            encrypted_pin = encrypt_helpdesk_pin(pin)
 
             support_user = HelpDeskUser.objects.create(  
-                counterno = counterno,
                 name = name,
                 email = email,
                 mobile = mobile,
-                is_blocked = False,
-                pin = encryptpin,
+                pin = encrypted_pin,
             )
 
             '''create many to many relation''' 
@@ -1162,6 +1204,191 @@ class HelpDeskTeam(APIView):
                 statuscode = status.HTTP_409_CONFLICT
             )
      
+#---UnBlock/Block help Desk User----
+class AccessHelpDeskUser(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
 
+    def put(self , request , format=None):
+        """
+            Block the help desk user here.
+            PUT method:
+                id = [String,required] id of the help desk user
+                block = [Boolean,required] True or False of the help desk user 
+        """
+        data = request.data
+        id = data.get('id',None)
+        block = data.get('block',None)
+        if id in [None , ""] or block in [None , ""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
 
-        
+        helpdesk_user = HelpDeskUser.objects.filter(id=id).first()
+        if helpdesk_user is None:
+            return display_response(
+                msg = "ERROR",
+                err= "HelpDeskUser not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        if block in [True,'True']:
+            if helpdesk_user.is_blocked == True:
+                return display_response(
+                    msg = "ERROR",
+                    err= "HelpDeskUser is already blocked",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+            else:
+                helpdesk_user.is_blocked = True
+                helpdesk_user.save()
+                return display_response(
+                    msg = "SUCCESS",
+                    err= None,
+                    body = "Successfully blocked",
+                    statuscode = status.HTTP_200_OK
+                )
+
+        if block in [False,'False']:
+            if helpdesk_user.is_blocked == False:
+                return display_response(
+                    msg = "ERROR",
+                    err= "HelpDeskUser is already unblocked",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+            else:
+                helpdesk_user.is_blocked = False
+                helpdesk_user.save()
+                return display_response(
+                    msg = "SUCCESS",
+                    err= None,
+                    body = "Successfully unblocked",
+                    statuscode = status.HTTP_200_OK
+                )
+
+        return display_response(
+            msg = "ERROR",
+            err= "Block field found some else value instead of True/False",
+            body = None,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---UnBlock/Block Doctor User----
+class AccessDoctorUser(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def put(self , request , format=None):
+        """
+            Block the help desk user here.
+            PUT method:
+                id = [String,required] id of the doctor user
+                block = [Boolean,required] True or False of the doctor user 
+        """
+        data = request.data
+        id = data.get('id',None)
+        block = data.get('block',None)
+        if id in [None , ""] or block in [None , ""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        doctor_user = Doctor.objects.filter(id=id).first()
+        if doctor_user is None:
+            return display_response(
+                msg = "ERROR",
+                err= "HelpDeskUser not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        if block in [True,'True']:
+            if doctor_user.is_blocked == True:
+                return display_response(
+                    msg = "ERROR",
+                    err= "Doctor is already blocked",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+            else:
+                doctor_user.is_blocked = True
+                doctor_user.save()
+                return display_response(
+                    msg = "SUCCESS",
+                    err= None,
+                    body = "Successfully blocked",
+                    statuscode = status.HTTP_200_OK
+                )
+
+        if block in [False,'False']:
+            if doctor_user.is_blocked == False:
+                return display_response(
+                    msg = "ERROR",
+                    err= "HelpDeskUser is already unblocked",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+            else:
+                doctor_user.is_blocked = False
+                doctor_user.save()
+                return display_response(
+                    msg = "SUCCESS",
+                    err= None,
+                    body = "Successfully unblocked",
+                    statuscode = status.HTTP_200_OK
+                )
+
+        return display_response(
+            msg = "ERROR",
+            err= "Block field found some else value instead of True/False",
+            body = None,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Help Desk USer Details --------------------------------
+class HelpDeskUserDetails(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get the help desk user details here.
+            GET method:
+                id = [String,required] id of the help desk user
+        """
+        data = request.query_params
+        id = data.get('id',None)
+        if id in [None , ""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        helpdesk_user = HelpDeskUser.objects.filter(id=id).first()
+        if helpdesk_user is None:
+            return display_response(
+                msg = "ERROR",
+                err= "HelpDeskUser not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = HelpDeskUserSerializer(helpdesk_user,context={'request' :request}).data
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = serializer,
+            statuscode = status.HTTP_200_OK
+        )

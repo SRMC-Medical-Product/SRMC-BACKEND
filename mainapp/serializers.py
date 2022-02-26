@@ -33,6 +33,16 @@ class CategoryPromotionSerializer(ModelSerializer):
 		model = CategoryPromotion
 		fields='__all__'
 
+	def __init__(self, *args, **kwargs):
+		super(CategoryPromotionSerializer, self).__init__(*args, **kwargs) 
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0 
+		else:
+			self.Meta.depth = 4	
+
 class AppointmentSerializer(ModelSerializer):
 	class Meta:
 		model = Appointment

@@ -46,10 +46,12 @@ class LoginUser(APIView):
             First we are checking with the userid and the pin.If the object instance is None then
             we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
         """
-        encrptedpin = encrypt_doctor_pin(pin)
+        encrptedpin = encrypt_helpdesk_pin(pin)
         user=HelpDeskUser.objects.filter(id=userid,pin=encrptedpin)
         if user is None:
             user=HelpDeskUser.objects.filter(email=userid,pin=encrptedpin)
+            if user is None:
+                user=HelpDeskUser.objects.filter(mobile=userid,pin=pin)
 
         if user.exists():
             user=user[0]
@@ -182,7 +184,7 @@ class UserPinModify(APIView):
         """
             Check if old pin is correct or not
         """
-        encrypted_old_pin = encrypt_doctor_pin(oldpin)
+        encrypted_old_pin = encrypt_helpdesk_pin(oldpin)
 
         if user.pin != encrypted_old_pin:
             return display_response(
@@ -195,7 +197,7 @@ class UserPinModify(APIView):
         """
             Save the new pin to the database
         """
-        encrypted_new_pin = encrypt_doctor_pin(newpin)
+        encrypted_new_pin = encrypt_helpdesk_pin(newpin)
 
         if encrypted_new_pin == encrypted_old_pin:
             return display_response(
@@ -626,7 +628,7 @@ class PatientDetails(APIView):
             This view displays the particular doctor details
             ----------------------------------------------------------------
             GET method:
-                doctorid : [String,required] doctor id
+                patientid : [String,required] patient id
                 appointments : [String,optional] filter query
                         1 - todays appointments
                         2 - pending appointments

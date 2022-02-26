@@ -19,20 +19,26 @@ urlpatterns = [
     # --------------------------------- Department URLS ---------------------------------
     path("departments/", DepartmentsView.as_view(), name="department"),
     path("categoryspecialist/", CategorySpecialistView.as_view(), name="admin-categoryspecialist"),
-    path("specialization-details/", SpecializationInDetail.as_view(), name="specialization-details"),
 
     # --------------------------------- Doctor URLS ---------------------------------
-    path("doctor-get/", DoctorGet.as_view(), name="doctor-get"),
-    path("doctor-details/", DoctorDetails.as_view(), name="doctor-details"),
-
-    # --------------------------------- Doctor URLS ---------------------------------
-    path("patient-get/", PatientGet.as_view(), name="patient-get"),
-    path("patient-details/", PatientDetails.as_view(), name="patient-details"),
+    path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
+    path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
+    
+    # --------------------------------- Patient URLS ---------------------------------
+    path('patient-all-get/' , PatientGet.as_view() , name='patient-all-get'),
+    path('patient-indetail/' , PatientDetails.as_view() , name='patient-indetail'),
 
     # --------------------------------- Users data URLS ---------------------------------
-    path("users-get/", UsersGet.as_view(), name="users-get"),
+    path("patient-app-users/", PatientAppUsers.as_view(), name="patient-app-users"),
 
     # --------------------------------- Support Team URLS ---------------------------------
     path("help-desk/", HelpDeskTeam.as_view(), name="help-desk"), 
+    path('help-desk-details/',HelpDeskUserDetails.as_view(), name='help-desk-details'),
+
+    # ------------------------------Block / Access User URLS ------------------------------
+    path('access-help-desk/',AccessHelpDeskUser.as_view(), name='access-help-desk'),
+    path('access-doctor/',AccessDoctorUser.as_view(), name='access-doctor'),
+
+    
     
 ]

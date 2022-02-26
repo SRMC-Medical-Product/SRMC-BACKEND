@@ -1,7 +1,10 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-
+3)Specialisation  with Doctors
+7)Help Desk Activity log
+14)Analytics
+15)Appointments(*)
 ----------------------------------------------
 
 
@@ -23,4 +26,10 @@ Coded Screens
 13)Doctors List
 14)Analytics
 15)Appointments(*)
+16)Login
+17)All Admin Users
+18)Carousel
+19)Promotions Slider
+20)Category Promotions
+21)doctor Block
 ----------------------------------------------
