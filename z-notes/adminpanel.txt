@@ -1,8 +1,7 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-24)Doctor Create/Update
-25)Medicines Single Create/Bulk Create
+24)Doctor Update
 ----------------------------------------------
 
 

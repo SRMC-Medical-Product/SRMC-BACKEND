@@ -1,15 +1,15 @@
 '''Django imports'''
 from calendar import c
-import json
 from django.contrib.auth.models import User
-from django.contrib.auth import authenticate 
 from django.db.models import Q
 from django.conf import settings
 from datetime import datetime as dtt , time , timedelta
 
+
 '''imports'''
 import uuid 
-from urllib.parse import urlparse , parse_qs
+import pandas as pd
+import numpy as npy
 
 from .models import *
 from .serializer import *
@@ -1733,3 +1733,444 @@ class Analytics(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
+#-----Medicines --------------
+class AllMedicinesDrugs(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            All medicines avaialble display
+            --------------------
+            GET method:
+                search : [String,optional] search query
+        """
+
+        json_data = {
+            "isempty" : True,
+            "medicines" : [],
+        }
+
+        search = request.query_params.get("search",None)
+
+        query = Medicines.objects.all()
+
+        if search not in [None , ""]:
+            query = query.filter(Q(name__icontains=search))
+        
+        serializer = MedicinesSerializer(query,many=True,context={'request' :request}).data
+        json_data['medicines'] = serializer
+
+        if len(json_data['medicines']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def post(self , request , format=None):
+        """
+            This is the medicines drugs adding in a single item
+            --------------------------------
+            POST method:
+                name : [String,required] name of the drugs
+                description : [String,required] description of the drug
+        """
+        data = request.data
+        name = data.get('name',None)
+        description = data.get('description',None)
+
+        if name in [None , ""] or description in [None,""]:
+            return display_response(
+                msg = "FAILED",
+                err= "name and description are required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            medicines = Medicines.objects.create(
+                name = name,
+                description = description
+            )
+
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = None,
+                statuscode = status.HTTP_201_CREATED
+            )
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err= str(e),
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+#---Bulk Upload Medicines --------------
+class BulkUploadMedicines(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def post(self , request , format=None):
+        """
+            This views is responsible for uploading the drugs in bulk quantity
+            --------------------------------------------------
+            POST method:
+                csvfile : [CSVFile,required] CSV File of the drug to upload
+        """
+
+        csvfile = request.data.get('csvfile',None)
+
+        if csvfile in [None,""]:
+            return display_response(
+                msg = "FAILED",
+                err= "file is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+
+        """
+            Step-1: Check if the drug fields has null values in it
+        """
+        df = pd.read_csv(csvfile)
+
+        """Dropping all the NA values rows. Ex:Last Row"""
+        for i in range(len(df)):
+            name = df.iloc[i][0]
+            description = df.iloc[i][1]
+
+            if (pd.isna(name) and pd.isna(description)):
+                df.drop(index=i,inplace=True)
+
+        """Checking if any of the NA values are available"""
+        for j in range(len(df)):
+            name = df.iloc[j][0]
+            description = df.iloc[j][1]
+
+            if (pd.isna(name) or pd.isna(description)):
+                return display_response(
+                    msg = "FAILED",
+                    err= "name and description are required. Null Values found inside CSV File",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+
+        """Adding the values to the model instance;"""
+        for n in range(len(df)):
+            name = df.iloc[n][0]
+            description = df.iloc[n][1]
+
+            try:
+                medicines = Medicines.objects.create(
+                    name = name,
+                    description = description
+                )
+            except Exception as e:
+                return display_response(
+                    msg = "FAILED",
+                    err= f"Error : {str(e)} \n Failed at {n+1} row",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = None,
+            statuscode = status.HTTP_201_CREATED
+        )
+
+#-----Doctor Create and Update--------------
+class DoctorCreate(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def post(self , request , format=None):
+        """
+            Api views to Create the Doctor Account
+            ------------------------------
+            POST method:
+                phone : [String,required] phone of the doctor
+                doctor_id : [String,required] doctor_id of the doctor
+                email : [String,required] email of the doctor
+                name : [String,required] name of the doctor
+                #profile_img : [String,required] image of the doctor
+                pin : [String,required] pin of the doctor
+                age : [String,required] age of the doctor -> toInt()
+                gender : [String,required] gender of the doctor in M,F,O format
+                dob : [String,required] dob of the worker in "dd-mm-yyyy"
+                experience : [String,required] experience of the worker -> toInt()
+                qualification : [String,required] qualification of the doctor
+                specialisation : [String,required] specialization of the doctor
+                departmentid : [String,required] department id of the doctor
+                days:       [boolean array,required] array of boolean data with each index maping to a specific day of the week with True reperesenting avaialble and False reperesenting not available
+                start_time: [string time in isoformat(HH:MM:SS),required] start_time representing the time from which appoinments can begin
+                end_time :  [string time in isoformat(HH:MM:SS),requires]   end_time representing the time after which no appoinments should be scheduled
+                duration :  [Int,required] value representing the averation time duration of how long an appoinment can go
+        """
+        data = request.data
+        phone = data.get('phone',None) #unique phone number
+        doctor_id = data.get('doctor_id',None) #unique doctor id
+        email = data.get('email',None) #unique email address
+        name = data.get('name',None)
+        #profile_img = data.get('profile_img',None)
+        pin = data.get('pin',None)
+        age = data.get('age',None)
+        gender = data.get('gender',None)
+        dob = data.get('dob',None)
+        experience = data.get('experience',None)
+        qualification = data.get('qualification',None)
+        specialisation = data.get('specialisation',None)
+        departmentid = data.get('departmentid',None)
+
+        days=data.get("days",None)
+        start_time=data.get("start_time",None)
+        end_time=data.get("end_time",None)
+        duration=data.get("duration",None)
+
+        if days in [None,""]:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Invalid day data",
+                    "BODY":None
+                        },status=status.HTTP_400_BAD_REQUEST)
+        
+        if start_time in [None,""] or end_time in [None,""]:
+            return Response({
+                        "MSG":"FAILED",
+                        "ERROR":"Invalid time data",
+                        "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+            
+        if duration in [None,""]:
+            return Response({
+                        "MSG":"FAILED",
+                        "ERROR":"Invalid duration",
+                        "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+
+        if (phone in [None , ""] or doctor_id in [None,""] or email in [None,""] or name in [None,""]  or pin in [None,""] or age in [None,""] or
+        gender in [None,""] or dob in [None,""] or experience in [None,""] or qualification in [None,""] or specialisation in [None,""] or departmentid in [None,""]):
+            return display_response(
+                msg = "FAILED",
+                err="Null values found inside the request body",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+
+        """
+            Check if the phone number,doctor id and email address already exists
+        """
+        check_doctor_phone = Doctor.objects.filter(phone=phone).first()
+        if check_doctor_phone is not None:
+            return display_response(
+                msg = "FAILED",
+                err="Phone number already exists",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        check_doctor_id = Doctor.objects.filter(doctor_id=doctor_id).first()
+        if check_doctor_id is not None:
+            return display_response(
+                msg = "FAILED",
+                err="Doctor id already exists",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        check_doctor_email = Doctor.objects.filter(email=email).first()
+        if check_doctor_email is not None:
+            return display_response(
+                msg = "FAILED",
+                err="Email address already exists",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Format DOB and Gender and age,experience
+        """
+        try:
+            date_format = dtt.strptime(str(dob),dmY).strftime(Ymd)
+            print(date_format)
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err=f"Invalid date format error during conversion. \n Exception : {e}",
+                body=None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            age = int(age)
+            experience = int(experience)
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err=f"Invalid age or experience format.Cant convert to Int(). \n Exception : {e}",
+                body=None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        if gender not in ['M','F','O']:
+            return display_response(
+                msg = "FAILED",
+                err=f"Invalid gender format.Allowed is ['M','F','O']",
+                body=None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Get Departments ID from Departments model
+        """
+        dept = Department.objects.filter(id=departmentid).first()
+        if dept is None:
+            return display_response(
+                msg = "FAILED",
+                err="Department ID does not exist",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            updating the timings of the doctors 
+        """
+        days_int=[]
+
+        for i in range(7):
+            if days[i]:
+                days_int.append(i)
+
+        current_date=generate_current_date()  #imported from utils.py
+        start_time=return_time_type(start_time)
+        end_time=return_time_type(end_time)
+
+        if start_time>=end_time:
+            return Response({
+                        "MSG":"FAILED",
+                        "ERR":"Invalid time's given",
+                        "BODY":None
+                            },status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            encrypted_pin = encrypt_doctor_pin(pin)
+            doctor = Doctor.objects.create(
+                phone =phone,
+                doctor_id = doctor_id,
+                email = email,
+                name = name,
+                pin = encrypted_pin,
+                age = age,
+                gender = gender,
+                dob = date_format,
+                experience = experience,
+                qualification = qualification,
+                specialisation = specialisation,
+                department_id = dept
+            )
+
+            doctor_timings_instance=DoctorTimings.objects.filter(doctor_id=doctor)
+            id=None
+            availability={"days":[
+                    {
+                        
+                            "day":"monday",
+                            "date":"",
+                            "available":False,
+
+                        
+                    },
+                    {
+                        
+                            "day":"tuesay",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                    {
+                    
+                        "day":"wednesday",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                    {
+                        
+                            "day":"thursday",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                    {
+                        
+                            "day":"friday",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                    {
+                        
+                            "day":"saturday",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                    {
+                        
+                            "day":"sunday",
+                            "date":"",
+                            "available":False
+                        
+                    },
+                ]}
+            time_slots=None
+            if doctor_timings_instance.exists():
+                doctor_timings_instance=doctor_timings_instance[0]
+                id=doctor_timings_instance.id
+                if doctor_timings_instance.availability:
+                    availability=doctor_timings_instance.availability
+                if doctor_timings_instance.timeslots!={}:
+                    time_slots=doctor_timings_instance.timeslots
+                #doctor_timings_instance.delete()
+            
+            #availabilty : json representing the availablity of the doctor for the week
+                
+            availability=update_availabilty(availability,current_date,days_int)
+            time_slots=calculate_time_slots(start_time,end_time,duration,availability,time_slots=time_slots)
+            if id==None:
+                doctor_timings_instance=DoctorTimings.objects.create(doctor_id=doctor,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
+            else:
+                doctor_timings_instance.availability=availability
+                doctor_timings_instance.start_time=start_time
+                doctor_timings_instance.end_time=end_time
+                doctor_timings_instance.average_appoinment_duration=duration
+                doctor_timings_instance.timeslots=time_slots
+                doctor_timings_instance.save()
+
+            return display_response(
+                msg = "SUCCESS",
+                err=None,
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err=f"Error : {str(e)} \n Failed at creating doctor",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+
+
+

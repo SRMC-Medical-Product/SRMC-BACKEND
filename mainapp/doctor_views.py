@@ -229,10 +229,7 @@ class ModifyDoctorTimings(APIView):
             #doctor_timings_instance.delete()
         
         #availabilty : json representing the availablity of the doctor for the week
-             
-
-        
-
+            
         availability=update_availabilty(availability,current_date,days_int)
         time_slots=calculate_time_slots(start_time,end_time,duration,availability,time_slots=time_slots)
         if id==None:

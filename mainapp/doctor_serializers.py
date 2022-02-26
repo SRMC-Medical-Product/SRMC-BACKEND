@@ -7,11 +7,6 @@ class DoctorTimingsSerializer(ModelSerializer):
         model=DoctorTimings
         fields="__all__"
 
-class DoctorScheduleSerializer(ModelSerializer):
-
-    class Meta:
-        model=DoctorSchedule
-        fields="__all__"
 
 class CategorySpecialistSerializer(ModelSerializer):
 	class Meta:

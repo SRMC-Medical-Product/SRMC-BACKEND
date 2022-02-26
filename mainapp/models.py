@@ -132,16 +132,6 @@ class DoctorTimings(models.Model):
         
         return str(self.id)
 
-class DoctorSchedule(models.Model):
-        id=models.CharField(max_length=256,unique=True,primary_key=True,editable=False)
-        doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
-        schedule=models.JSONField(default=dict,blank=True)
-        modified_at=models.DateTimeField(auto_now=True)
-        created_at=models.DateTimeField(auto_now_add=True)
-
-        def __str__(self):
-            return str(self.id)
-
 class DoctorActivity(models.Model):
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE,blank=True,null=True)
     login = models.JSONField(default=list,blank=True)

@@ -21,6 +21,7 @@ urlpatterns = [
     path("categoryspecialist/", CategorySpecialistView.as_view(), name="admin-categoryspecialist"),
 
     # --------------------------------- Doctor URLS ---------------------------------
+    path('doctor-create/',DoctorCreate.as_view(),name='admin-doctor-create'),
     path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
     path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
     path('department-doctors/',DepartmentDoctors.as_view() , name='department-doctors'),
@@ -49,4 +50,9 @@ urlpatterns = [
 
     #-------------------------Analytics --------------------------------
     path('analytics/',Analytics.as_view() , name='analytics'),
+
+    # --------------------------------- Drugs URLS ---------------------------------
+    path('all-medicine-drugs/',AllMedicinesDrugs.as_view() , name='all-medicine-drugs'),
+    path('bulk-upload-drugs/',BulkUploadMedicines.as_view() , name='bulk-upload-drugs'),
+
 ]
