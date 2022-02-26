@@ -1853,7 +1853,6 @@ class WeeklyAppointmentAnalytics(APIView):
             statuscode=status.HTTP_200_OK
         )
 
-
 #--------Home Screen API --------------------
 class HomeScreen(APIView):
     authentication_classes = [DoctorAuthentication]
@@ -1991,3 +1990,44 @@ class HomeScreen(APIView):
             body=json_data,
             statuscode=status.HTTP_200_OK
         )
+
+#------Drugs Search  API -----
+class SearchDrugs(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Search the tablets already available here
+            --------------------------------
+            GET method:
+                search : [String,required] search query
+        """
+        json_data = {
+            "isempty" : True,
+            "search" : [],
+        }
+
+        search = request.query_params.get("search",None)
+        if search is not None:
+            query = Medicines.objects.filter(name__icontains=search)
+            serializer = MedicinesSerializer(query,many=True,context={"request":request}).data
+            for i in serializer:
+                data = {
+                    "id": i['id'],
+                    "name" : i['name'],
+                }
+                json_data['search'].append(data)
+            
+            if len(json_data['search']) > 0:
+                json_data['isempty'] = False
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=serializer,
+            statuscode=status.HTTP_200_OK
+        )
+
+
+

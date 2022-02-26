@@ -137,3 +137,18 @@ class MedicalPrescriptionsSerializer(ModelSerializer):
 		else:
 			self.Meta.depth = 3
 
+
+class MedicinesSerializer(ModelSerializer):
+	class Meta:
+		model = Medicines
+		fields='__all__'
+
+	def __init__(self, *args, **kwargs):
+		super(MedicinesSerializer, self).__init__(*args, **kwargs)
+		request = self.context.get('request')
+		if request and request.method == 'POST':
+			self.Meta.depth = 0
+		elif request and request.method == 'PUT':
+			self.Meta.depth = 0
+		else:
+			self.Meta.depth = 3

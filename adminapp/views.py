@@ -1,4 +1,5 @@
 '''Django imports'''
+from calendar import c
 import json
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate 
@@ -1575,7 +1576,7 @@ class DepartmentDoctors(APIView):
         )
 
 #---Tickets --------------------------------
-class AllPatientTickets(models.Model):
+class AllPatientTickets(APIView):
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
 
@@ -1622,7 +1623,7 @@ class AllPatientTickets(models.Model):
             statuscode = status.HTTP_200_OK
         )
 
-class AllDoctorTickets(models.Model):
+class AllDoctorTickets(APIView):
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
 
@@ -1669,20 +1670,66 @@ class AllDoctorTickets(models.Model):
             statuscode = status.HTTP_200_OK
         )
 
+#-----Analytics --------------------------------
+class Analytics(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
 
+    def get(self , request , format=None):
+        json_data = {
+            "totalappointment" : 0,
+            "cancelled" : 0,
+            "consulted" : 0,
+            "pendings" : 0,
+            "totalpatients" : 0,
+            "totaldoctors" : 0,
+            "totalappusers" : 0,
+            "totalsupportusers" : 0,
+            "totaldoctortickets" : 0,
+            "totaldoctorticketsopen" : 0,
+            "totalpatienttickets" : 0,
+            "totalpatientticketsopen" : 0,
+            "totaldepartments" : 0,
+            "disabledepartments" : 0,
+            "totalcategories" : 0
+        }
 
+        appointments = Appointment.objects.all()
+        json_data['totalappointment'] = appointments.count()
+        json_data['cancelled'] = appointments.filter(cancelled=True).count()
+        json_data['consulted'] = appointments.filter(consulted=True).count()
+        json_data['pendings'] = appointments.filter(closed=False).count()
 
+        patients = Patient.objects.all()
+        json_data['totalpatients'] = patients.count()
 
+        doctors = Doctor.objects.all()
+        json_data['totaldoctors'] = doctors.count()
 
+        appusers = User.objects.all()
+        json_data['totalappusers'] = appusers.count()
 
+        supportuser = HelpDeskUser.objects.all()
+        json_data['totalsupportusers'] = supportuser.count()    
 
+        doctortickets = DoctorTickets.objects.all()
+        json_data['totaldoctortickets'] = doctortickets.count()
+        json_data['totaldoctorticketsopen'] = doctortickets.filter(closed=False).count()
 
+        patienttickets = PatientTickets.objects.all()
+        json_data['totalpatienttickets'] = patienttickets.count()
+        json_data['totalpatientticketsopen'] = patienttickets.filter(closed=False).count()
 
+        departments = Department.objects.all()
+        json_data['totaldepartments'] = departments.count()
+        json_data['disabledepartments'] = departments.filter(enable=False).count()
 
+        categories =  CategorySpecialist.objects.all()
+        json_data['totalcategories'] = categories.count()
 
-
-
-
-
-
-
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )

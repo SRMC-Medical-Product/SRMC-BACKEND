@@ -47,4 +47,6 @@ urlpatterns = [
     # path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
     # path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
 
+    #-------------------------Analytics --------------------------------
+    path('analytics/',Analytics.as_view() , name='analytics'),
 ]
