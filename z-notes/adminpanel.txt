@@ -1,10 +1,9 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-3)Specialisation  with Doctors
-7)Help Desk Activity log
 14)Analytics
-15)Appointments(*)
+24)Doctor Create/Update
+25)Medicines Single Create/Bulk Create
 ----------------------------------------------
 
 
@@ -25,11 +24,16 @@ Coded Screens
 12)Doctors Searche
 13)Doctors List
 14)Analytics
-15)Appointments(*)
+15)Departments with Doctor with Appointments Wise
 16)Login
 17)All Admin Users
 18)Carousel
 19)Promotions Slider
 20)Category Promotions
 21)doctor Block
+22)Display all appointments - Today,Upcoming,Past
+23)Search and Filter of appointments
+24)Doctor Create/Update
+25)Medicines Single Create/Bulk Create
+26)View all Tickets of Patient and Doctor
 ----------------------------------------------
