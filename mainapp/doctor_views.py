@@ -454,6 +454,32 @@ class DoctorTicketsScreen(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
 
+    def convertdateformat(self, req_date):
+        a = dtt.now(IST_TIMEZONE)
+        currentdate = dtt(a.year,a.month,a.day,a.hour,a.minute,a.second)
+        # datetime(year, month, day, hour, minute, second)
+        x = dtt.strptime(req_date, YmdTHMSfz)
+        notifcation_date = dtt(x.year, x.month, x.day, x.hour, x.minute, x.second)
+        
+        diff = currentdate - notifcation_date
+        if diff.days <= 0:
+            """return in 'x' hours ago format"""
+            hrs = divmod(diff.seconds, 60) 
+            if hrs[0] < 60 :
+                return f"{hrs[0]} mins ago"
+            else:
+                x = divmod(hrs[0],60)
+                return f"{x[0]} hrs ago"
+
+        elif diff.days < 7:
+            """return in 'x' days ago format"""
+            return f"{diff.days} day ago"
+
+        else:
+            """return in 'x' created ago format"""
+            return f"{diff.days} day ago , pending"
+
+
     def get(self , request , format=None):
         json_data = {
             "isempty" : True,
@@ -465,10 +491,12 @@ class DoctorTicketsScreen(APIView):
         tickets = DoctorTickets.objects.filter(doctor_id=user).order_by("-created_at")
         serializer = DoctorTicketsSerializer(tickets,many=True,context={"request":request}).data
         for i in serializer:
+            created_at = self.convertdateformat(i['created_at'])
             data = {
                 "id": i['id'],
                 "closed" : i['closed'],
                 "issues" : i['issues'],
+                "timestamp" : created_at
             }
             json_data['tickets'].append(data)
         
