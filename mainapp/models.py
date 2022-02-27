@@ -27,7 +27,7 @@ class User(models.Model):
     selected = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"{self.id}-{self.patientid}"
+        return f"{self.id}-{self.patientid}-{self.mobile}"
 
 class UserStatistics(models.Model):
 
@@ -165,6 +165,9 @@ class Patient(models.Model):
     blood = models.CharField(max_length=255,null=True,blank=True)
     dob = models.CharField(max_length=255,null=True,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.id} - {self.appuser} - {self.name}"
 
 '''----------end: Patient Model----------'''
 

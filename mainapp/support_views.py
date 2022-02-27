@@ -2,9 +2,6 @@
     File with all the API's relating to the help desk user web
 """
 from datetime import datetime as dtt,time,date,timedelta
-import json
-import re
-from tkinter.tix import Tree
 from django.db.models import Q
 
 from rest_framework.views import APIView
@@ -14,6 +11,7 @@ from rest_framework import status
 from .models import *
 from .auth import *
 from .utils import *
+from .views import make_appointment_booking
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -1276,6 +1274,148 @@ class OverviewAndAnalytics(APIView):
             statuscode = status.HTTP_200_OK
         )
         
+
+#------Booking Offline Appointment---------
+class CheckingAppuser(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            Check if the available phone number is already available registered user or new user.
+            If the phone number is not available:
+                then return new user and create new user
+            else:
+                then display the user and family member information.
+            --------------------------------
+            GET method:
+                phonenumber : [String,required] phonenumber of the user
+        """
+
+        json_data = {
+            "isnewuser" : False,
+            "members" : [],
+        }
+
+        params = request.query_params
+        phonenumber = params.get('phonenumber',None)
+
+        if phonenumber in [None,""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "phonenumber is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        check_user = User.objects.filter(mobile=phonenumber).first()
+        if check_user is None:
+            json_data['isnewuser'] = True
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+
+        patient_serializer = UserSerializer(check_user,context={'request' :request}).data
+
+        """
+            Get all the family members of the requesting user.
+            Appending the current user data details also
+        """
+        members = []
+        user_mem = {
+            "id" : patient_serializer['patientid'],
+            "name" : patient_serializer['name'],
+            "relation" : "User"
+        }
+        members.append(user_mem)
+
+        if check_user.family_members is not None:
+            for i in patient_serializer['family_members']:
+                mem = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "relation" : i['relation']
+                }
+                members.append(mem)    
+
+        json_data['members'] = members  
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#------Appointment Booking----------
+class OfflineAppointmentBooking(APIView):
+
+    authentication_classes=[HelpDeskAuthentication]
+    permission_classes=[]
+    """
+        API to book appoinment
+        Allowed methods:
+            -POST
+        
+        Authentication: Required HelpDeskAuthentication
+
+        POST:
+            data:
+                patient_id: [string,required] id of the patient
+                date:       [string,required,format: mm/dd/yyyy] date of appoinment
+                time:       [string,required,format: hh:mm:ss] time for the appoinment
+                doctor_id:  [ string,required] id of the doctor
+
+    """
+    
+    def post(self,request,format=None):
+        
+        data=self.request.data
+
+        patiend_id=data.get("patient_id")
+        date=data.get("date")
+        time=data.get("time")
+        doctor_id=data.get("doctor_id")
+
+        validation_arr=["",None]
+        
+        """validate data"""
+        if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
+            return display_response(
+                    msg="FAILED",
+                    err="Invalid data given",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            dataout = make_appointment_booking(
+                patient_id_= patiend_id,
+                date_= date,
+                time_= time,
+                doctor_id_= doctor_id
+            )
+            return display_response(
+                msg = dataout['MSG'],
+                err= dataout['ERR'],
+                body = dataout['BODY'],
+                statuscode = dataout['STATUS'],
+            )
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err= str(e),
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+
+
+
+
+
 
 
 

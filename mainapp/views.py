@@ -27,6 +27,199 @@ REALTION = ["Father","Mother","Brother","Sister","Husband","Wife","Son","Daughte
 GENDER = ["Male","Female","Other"]
 BLOOD = ["A+","A-","B+","B-","O+","O-","AB+","AB-"]
 
+
+#---------Appointment Booking Function-----
+def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
+    #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
+    #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
+    """
+        API to book appoinment
+        Allowed methods:
+            -POST
+        
+        Authentication: Required UserAuthentication
+
+        POST:
+            data:
+                patient_id: [string,required] id of the patient
+                date:       [string,required,format: mm/dd/yyyy] date of appoinment
+                time:       [string,required,format: hh:mm:ss] time for the appoinment
+                doctor_id:  [ string,required] id of the doctor
+
+    """
+    patiend_id=patient_id_
+    date=date_
+    time=time_
+    doctor_id=doctor_id_
+
+    validation_arr=["",None]
+        
+    """validate data"""
+    if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
+
+        dataout = {
+            "MSG":"FAILED",
+            "ERR":"Invalid data given",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+            }
+        return dataout
+        
+    doctor_=Doctor.objects.filter(id=doctor_id) #get doctor instance
+
+    if doctor_.exists():
+        doctor_=doctor_[0]
+    else:
+        dataout = {
+            "MSG":"FAILED",
+            "ERR":"Invalid doctor id given",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    patient_=Patient.objects.filter(id=patiend_id)  #get patient instance
+
+    if patient_.exists():
+        patient_=patient_[0]
+        
+    else:
+        dataout = {
+            "MSG":"FAILED",
+            "ERR":"Invalid patient id given",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    print(patient_)
+    appuser = User.objects.filter(id=patient_.appuser).first() #Get the app user instance
+    if appuser is None:
+        dataout = {
+            "MSG":"FAILED",
+            "ERR":"User does not exists for the patient",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    doctor_timings_=DoctorTimings.objects.filter(doctor_id=doctor_)   #get doctor timings instance
+
+    if doctor_timings_.exists():
+        doctor_timings_=doctor_timings_[0]
+    else:
+        dataout = {
+            "MSG":"FAILED",
+            "ERR":"Invalid doctor id given",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout    
+    timeslots_json=doctor_timings_.timeslots
+
+    #update doctor timeslot  by increasing the count
+    try:
+        timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
+    except Exception as e:
+        dataout = {
+            "MSG" :"FAILED",
+            "ERR" : "Date or Time slot for the particular doctor is invalid",
+            "BODY" : None,
+            "STATUS" : status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    timeline_data = {
+        "step1":{
+            "title" : "Booking Confirmed",
+            "time" :dtt.now().time().strftime("%H:%M:%S"),
+            "completed" : True
+                },
+        "step2":{
+            "title" : "Arrived at Hospital",
+            "time" : "",
+            "completed" : False,
+                },
+        "step3":{
+            "title" : "Booking Confirmed",
+            "time" :"",
+            "completed" : False
+                },
+        "cancel":{
+            "title" : "Cancelled",
+            "time" : "",
+            "completed" : False
+        }
+    }
+    time_line=timeline_data
+        
+    date_date=return_date_type(date)   #convert string date to date object
+    time_time=return_time_type(time)    #convert string time to time object
+
+    doctor_serialized_data=DoctorSerializer(doctor_).data
+    patient_serialized_data=PatientSerializer(patient_).data
+    patient_serialized_data['contact'] = appuser.mobile
+
+    deptment = Department.objects.filter(id=doctor_serialized_data['department_id']['id']).first()
+    if deptment is None:
+        dataout = {
+            "MSG" : "FAILED",
+            "ERR" : "Invalid department id given",
+            "BODY":None,
+            "STATUS" : status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    """ Populate appoinment model """
+    a=Appointment.objects.create(
+                    date=date_date,
+                    time=time_time,
+                    doctor_id=doctor_id,
+                    patient_id=patiend_id,
+                    dept_id = deptment.id,
+                    timeline=time_line,
+                    counter = deptment.counter,
+                    doctor=doctor_serialized_data,
+                    patient=patient_serialized_data
+                            )
+    appoinment_serializer=AppointmentSerializer(a).data
+
+    doctor_timings_.timeslots=timeslots_json               #update doctor timings
+    doctor_timings_.save(update_fields=["timeslots"])
+
+    """ Populate HelpDeskAppoinment model for a particular date"""
+    help_desk_appoinment_instance=HelpDeskAppointment.objects.get_or_create(date=date_date,department=doctor_.department_id)[0]
+        
+    help_desk_appoinment_instance.count=help_desk_appoinment_instance.count+1  #increment the count of appoinment for th date
+        
+    arr=help_desk_appoinment_instance.bookings   #add appoinments to json
+    arr.append(appoinment_serializer)
+    help_desk_appoinment_instance.bookings=arr
+        
+    help_desk_appoinment_instance.save()     #save the helpdeskappoinment instance
+
+    try:
+        """ Add doctor notification """
+        doc_msg = f"You have an appointment booked on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)}."
+        DoctorNotification.objects.create(doctor_id=doctor_,message=doc_msg)
+    except Exception as e:
+        pass
+
+    try:
+        """ Add doctor notification """
+        pat_msg = f"Your appointment booking on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
+        PatientNotification.objects.create(patientid=patient_,message=pat_msg)
+    except Exception as e:
+        pass
+
+    dataout = {
+        "MSG":"SUCCESS",
+        "ERR":None,
+        "BODY":"Appoinment Booked successfully",
+        "STATUS": status.HTTP_200_OK
+    }
+    return dataout
+
 #--------LoginUser API--------
 class LoginUser(APIView):
 
@@ -150,6 +343,7 @@ class RegisterUser(APIView):
         )
         user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
         patient_instance.appuser = user_instance.id
+        patient_instance.save()
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
         if user_otp_instance.expiry_time<=timezone.now():
@@ -1669,9 +1863,6 @@ class AppointmentInDetail(APIView):
 
 #------Appointment Booking----------
 class BookAppoinment(APIView):
-    
-    #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
-    #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
 
     authentication_classes=[UserAuthentication]
     permission_classes=[]
@@ -1690,7 +1881,9 @@ class BookAppoinment(APIView):
                 doctor_id:  [ string,required] id of the doctor
 
     """
+    
     def post(self,request,format=None):
+        
         data=self.request.data
 
         patiend_id=data.get("patient_id")
@@ -1702,147 +1895,31 @@ class BookAppoinment(APIView):
         
         """validate data"""
         if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
-
             return Response({
                     "MSG":"FAILED",
                     "ERR":"Invalid data given",
                     "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
         
-        doctor_=Doctor.objects.filter(id=doctor_id) #get doctor instance
-
-        if doctor_.exists():
-            doctor_=doctor_[0]
-        else:
-            return Response({
-                    "MSG":"FAILED",
-                    "ERR":"Invalid doctor id given",
-                    "BODY":None
-                            },status=status.HTTP_400_BAD_REQUEST)
-
-        patient_=Patient.objects.filter(id=patiend_id)  #get patient instance
-
-        if patient_.exists():
-            patient_=patient_[0]
-        
-        else:
-            return Response({
-                    "MSG":"FAILED",
-                    "ERR":"Invalid patient id given",
-                    "BODY":None
-                            },status=status.HTTP_400_BAD_REQUEST)
-
-        doctor_timings_=DoctorTimings.objects.filter(doctor_id=doctor_)   #get doctor timings instance
-
-        if doctor_timings_.exists():
-            doctor_timings_=doctor_timings_[0]
-        else:
-            return Response({
-                    "MSG":"FAILED",
-                    "ERR":"Invalid doctor id given",
-                    "BODY":None
-                            },status=status.HTTP_400_BAD_REQUEST)
-        
-        timeslots_json=doctor_timings_.timeslots
-
-        #update doctor timeslot  by increasing the count
         try:
-            timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
-        except Exception as e:
-            return display_response(
-                msg="FAILED",
-                err="Date or Time slot for the particular doctor is invalid",
-                body=None,
-                statuscode=status.HTTP_400_BAD_REQUEST
+            dataout = make_appointment_booking(
+                patient_id_= patiend_id,
+                date_= date,
+                time_= time,
+                doctor_id_= doctor_id
             )
-
-        timeline_data = {
-            "step1":{
-                "title" : "Booking Confirmed",
-                "time" :dtt.now().time().strftime("%H:%M:%S"),
-                "completed" : True
-                    },
-            "step2":{
-                "title" : "Arrived at Hospital",
-                "time" : "",
-                "completed" : False,
-                    },
-            "step3":{
-                "title" : "Booking Confirmed",
-                "time" :"",
-                "completed" : False
-                    },
-            "cancel":{
-                "title" : "Cancelled",
-                "time" : "",
-                "completed" : False
-            }
-        }
-        time_line=timeline_data
-        
-        date_date=return_date_type(date)   #convert string date to date object
-        time_time=return_time_type(time)    #convert string time to time object
-
-        doctor_serialized_data=DoctorSerializer(doctor_).data
-        patient_serialized_data=PatientSerializer(patient_).data
-        patient_serialized_data['contact'] = request.user.mobile
-
-        deptment = Department.objects.filter(id=doctor_serialized_data['department_id']['id']).first()
-        if deptment is None:
             return display_response(
-                msg="FAILED",
-                err="Invalid department id given",
-                body=None,
-                statuscode=status.HTTP_400_BAD_REQUEST
+                msg = dataout['MSG'],
+                err= dataout['ERR'],
+                body = dataout['BODY'],
+                statuscode = dataout['STATUS'],
             )
-
-        """ Populate appoinment model """
-        a=Appointment.objects.create(
-                        date=date_date,
-                        time=time_time,
-                        doctor_id=doctor_id,
-                        patient_id=patiend_id,
-                        dept_id = deptment.id,
-                        timeline=time_line,
-                        counter = deptment.counter,
-                        doctor=doctor_serialized_data,
-                        patient=patient_serialized_data
-                                )
-        appoinment_serializer=AppointmentSerializer(a).data
-
-        doctor_timings_.timeslots=timeslots_json               #update doctor timings
-        doctor_timings_.save(update_fields=["timeslots"])
-
-        """ Populate HelpDeskAppoinment model for a particular date"""
-        help_desk_appoinment_instance=HelpDeskAppointment.objects.get_or_create(date=date_date,department=doctor_.department_id)[0]
-        
-        help_desk_appoinment_instance.count=help_desk_appoinment_instance.count+1  #increment the count of appoinment for th date
-        
-        arr=help_desk_appoinment_instance.bookings   #add appoinments to json
-        arr.append(appoinment_serializer)
-        help_desk_appoinment_instance.bookings=arr
-        
-        help_desk_appoinment_instance.save()     #save the helpdeskappoinment instance
-
-        try:
-            """ Add doctor notification """
-            doc_msg = f"You have an appointment booked on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)}."
-            DoctorNotification.objects.create(doctor_id=doctor_,message=doc_msg)
         except Exception as e:
-            pass
-
-        try:
-            """ Add doctor notification """
-            pat_msg = f"Your appointment booking on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
-            PatientNotification.objects.create(patientid=patient_,message=pat_msg)
-        except Exception as e:
-            pass
-
-        return Response({
-                    "MSG":"SUCCESS",
-                    "ERR":None,
-                    "BODY":"Appoinment Booked successfully"
-                            },status=status.HTTP_200_OK)
+            return Response({
+                        "MSG":"ERROR",
+                        "ERR":str(e),
+                        "BODY":"Failed outside of exception in booking"
+                                },status=status.HTTP_200_OK)
 
 #-----Confirmation Screen API-----
 class ConfirmationScreen(APIView):
