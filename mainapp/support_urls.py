@@ -34,5 +34,10 @@ urlpatterns = [
 
     # --------------------------------- Cancel all appointments URLS ---------------------------------
     path('cancel-all-appointments/',CancelAllAppointments.as_view() , name='cancel-all-appointments'),
+    path('all-appointments/',GetAllAppointments.as_view() , name='all-appointments'),
+
+    #---------------------------------Overview and Analytics--------------------
+    path('overview-analytics/',OverviewAndAnalytics.as_view() , name='overview-analytics'),
+
 
 ]

@@ -2,6 +2,7 @@
     File with all the API's relating to the help desk user web
 """
 from datetime import datetime as dtt,time,date,timedelta
+import json
 import re
 from tkinter.tix import Tree
 from django.db.models import Q
@@ -1081,4 +1082,205 @@ class CancelAllAppointments(APIView):
             body = None,
             statuscode = status.HTTP_200_OK
         )
+
+#---Get all Appointments --------------------------------
+class GetAllAppointments(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the appointments here.
+            ---------------------
+            GET method:
+                set : [String,required] set of the appointments
+                    1 - Live Today 
+                    2 - Previous Date pending
+                    3 - Upcoming
+                    4 - History (closed)
+                    5 - All
+                search : [String,optional] search the appointments
+        """
+        json_data ={
+            "isempty" : True,
+            "livetoday" : True,
+            "pending" : False,
+            "upcoming" : False,
+            "history" : False,
+            "all" : False,
+            "count" : 0,
+            "patientnames" : [],
+            "appointments" : []
+        }
+        aset = str(request.query_params.get("set",1))
+        search = request.query_params.get("search",None)
+
+        user = request.user
+        user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+        depts_list = [x['id'] for x in user_serializer['specialisation']]
+
+        if aset in [1,'1']:
+            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-time')
+            json_data['livetoday'] = True
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [2,'2']:
+            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = True
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [3,'3']:
+            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = True
+            json_data['history'] = False
+            json_data['all'] = False
+        elif aset in [4,'4']:
+            appointments = Appointment.objects.filter(closed=True,dept__id__in = depts_list).order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = True
+            json_data['all'] = False
+        else:
+            appointments = Appointment.objects.filter(dept__id__in = depts_list).order_by('-date')
+            json_data['livetoday'] = False
+            json_data['pending'] = False
+            json_data['upcoming'] = False
+            json_data['history'] = False
+            json_data['all'] = True
+
+        if search not in [None , ""]:
+            query = appointments.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+            #appointments.filter(Q(id__icontains = id) | Q(patient__name__icontains = search) | Q(patient__phone__icontains = search) | Q(patient__email__icontains = search) | Q(doctor__name__icontains = search) | Q(doctor__phone__icontains = search) | Q(doctor__email__icontains = search) | Q(date__icontains = search) | Q(time__icontains = search) | Q(reason__icontains = search) | Q(status__icontains = search) | Q(closed__icontains = search) | Q(created_at__icontains = search) | Q(updated_at__icontains = search))
+        else:
+            query = appointments
+
+        serializer = AppointmentSerializer(query,many=True,context={'request' :request}).data
+        
+        temp = []
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "date" : dtt.strptime(i['date'] , Ymd).strftime(dBY),
+                "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
+                "patient_id" : i['patient_id'],
+                "patient_name" : i['patient']['name'],
+                "doctor_id" : i['doctor_id'],
+                "doctor_name" : i['doctor']['name'],
+                "consulted" : i['consulted'],
+                "cancelled" : i['cancelled'],
+                "closed" : i['closed'],
+                "status" : "Consulted" if i['consulted']==True else "Cancelled" if i['cancelled']== True else "Pending",
+                "open" : True if i['closed'] == False else False,
+            }
+            json_data['patientnames'].append({
+                "id" : i['id'],
+                "name" : i['patient']['name'],
+            })
+            temp.append(data)
+
+        json_data['appointments'] = temp
+
+        if len(json_data['appointments']) > 0:
+            json_data['count'] = len(json_data['appointments'])
+            json_data['isempty'] = True
+    
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Overview and Analytics --------------------
+class OverviewAndAnalytics(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        json_data ={
+            "isempty" : True,
+            "upcomingcount" : 0,
+            "livetodaycount" : 0,
+            "pendingcount" : 0,
+            "historycount" : 0,
+            "allcount" : 0,
+            "upcomingappointments" : [],
+            "liveappointments" : [],
+        }
+
+        user = request.user
+        user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+        depts_list = [x['id'] for x in user_serializer['specialisation']]
+
+        query = Appointment.objects.filter(dept__id__in = depts_list).order_by('date')
+
+        upcomingappointments = query.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
+        liveappointments = query.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
+
+        json_data['upcomingcount'] = upcomingappointments.count()
+        json_data['livetodaycount'] = liveappointments.count()
+        json_data['pendingcount'] = query.filter(closed=False).count()
+        json_data['historycount'] = query.filter(closed=True).count()
+        json_data['allcount'] = query.count()
+
+        upcoming_serializer = AppointmentSerializer(upcomingappointments,many=True,context={'request' :request}).data
+
+        for i in upcoming_serializer:
+            data = {
+                "id" : i['id'],
+                "date" : dtt.strptime(i['date'] , Ymd).strftime(dBY),
+                "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
+                "patient_id" : i['patient_id'],
+                "patient_name" : i['patient']['name'],
+                "doctor_id" : i['doctor_id'],
+                "doctor_name" : i['doctor']['name'],
+                "consulted" : i['consulted'],
+                "cancelled" : i['cancelled'],
+                "closed" : i['closed'],
+                "status" : "Consulted" if i['consulted']==True else "Cancelled" if i['cancelled']== True else "Pending",
+                "open" : True if i['closed'] == False else False,
+            }
+            json_data['upcomingappointments'].append(data)
+
+        live_serializer = AppointmentSerializer(liveappointments,many=True,context={'request' :request}).data
+
+        for x in live_serializer:
+            data = {
+                "id" : x['id'],
+                "date" : dtt.strptime(x['date'] , Ymd).strftime(dBY),
+                "time" :  dtt.strptime(x['time'] , HMS).strftime(IMp),
+                "patient_id" : x['patient_id'],
+                "patient_name" : x['patient']['name'],
+                "doctor_id" : x['doctor_id'],
+                "doctor_name" : x['doctor']['name'],
+                "consulted" : x['consulted'],
+                "cancelled" : x['cancelled'],
+                "closed" : x['closed'],
+                "status" : "Consulted" if x['consulted']==True else "Cancelled" if x['cancelled']== True else "Pending",
+                "open" : True if x['closed'] == False else False,
+            }
+            json_data['liveappointments'].append(data)
+
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+        
+
+
+
+
+
+
+
 
