@@ -2172,5 +2172,19 @@ class DoctorCreate(APIView):
             )
 
 
+#----doctor Profile update --------------------
+class DoctorProfileUpdate(APIView):
 
+    def put(self,request):
+        """
+            Update doctor profile
+        """
+        # try:
+        #     doctor_id = request.data['doctor_id']
+        #     name = request.data['name']
+        #     email = request.data['email']
+        #     phone = request.data['phone']
+        #     pin = request.data['pin']
+        #     age = request.data['age']
+        ...
 
