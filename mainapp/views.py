@@ -572,7 +572,8 @@ class HomeScreenAPI(APIView):
             "categoryspecialist" : {
                 "title" : "Our Doctors",
                 "isempty" : True,
-                "categories" : [],
+                "categories_1" : [],
+                "categories_2" : [],
             }, 
             "promotiondeparts" : {
                 "isempty" : True,
@@ -654,8 +655,13 @@ class HomeScreenAPI(APIView):
                     "name" : i['name'],
                     "img" : i['img']
                 }
-                json_data['categoryspecialist']['categories'].append(data)
-
+                if len(categoryspecialist) < 8:
+                    json_data['categoryspecialist']['categories_1'].append(data)
+                else:
+                    if i % 2 == 0:
+                        json_data['categoryspecialist']['categories_2'].append(data)
+                    else:
+                        json_data['categoryspecialist']['categories_1'].append(data)
         """
             promotiondeparts consists of the departments of a particular categoryspecialist
         """
