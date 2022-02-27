@@ -589,6 +589,10 @@ class HomeScreenAPI(APIView):
             }
         }
 
+        """
+            User Serializer to get the user details
+        """
+        user_serializer = UserSerializer(user,context={'request' :request})
 
         """
             Getting all the Carousel models objects.
@@ -679,8 +683,9 @@ class HomeScreenAPI(APIView):
         """
         patients_id = []
         patients_id.append(user.patientid)
-        for mem in user.family_members:
-            patients_id.append(mem['id'])
+        if len(user.family_members) > 0:
+            for mem in user.family_members:
+                patients_id.append(mem['id'])
 
         current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
         query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
