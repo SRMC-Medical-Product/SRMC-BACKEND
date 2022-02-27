@@ -2,6 +2,7 @@
     File with all the API's relating to the help desk user web
 """
 from datetime import datetime as dtt,time,date,timedelta
+import re
 from tkinter.tix import Tree
 from django.db.models import Q
 
@@ -845,5 +846,239 @@ class AppointmentCancel(APIView):
             err= None,  
             body = serializer,
             statuscode = status.HTTP_200_OK  
+        )
+
+#---Tickets --------------------------------
+class AllPatientTickets(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the tickets of the patients
+            ---------------------
+            GET method:
+                closed : [bool,optional] closed or open
+                search : [String,optional] search the tickets by patient name
+        """
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+            "selected_closed" : False,
+        }
+
+        params = request.query_params
+        search = params.get("search",None)
+        closed = params.get("closed",False)
+        
+        user = request.user
+        user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+        depts_list = [x['id'] for x in user_serializer['specialisation']]
+        
+        get_depts = Department.objects.filter(id__in=depts_list)
+        query = PatientTickets.objects.filter(dept__in = get_depts).order_by('-created_at')
+ 
+        if closed in [True ,'True']:
+            query = query.filter(closed=True)
+            json_data['selected_closed'] = True
+        else:
+            query = query.filter(closed=False)
+            json_data['selected_closed'] = False
+        
+        if search not in [None , ""]:
+            query = query.filter(Q(user_id__name__icontains=search))
+
+        serializer = PatientTicketsSerializer(query,many=True,context={'request' :request}).data
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "closed" : i['closed'],
+                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
+                "name" : i['user_id']['name'],
+                "userid" : i['user_id']['id'],
+                "mobile" : i['user_id']['mobile']
+            }
+            json_data['tickets'] = data
+
+
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+class AllDoctorTickets(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get all the tickets of the doctor
+            ---------------------
+            GET method:
+                closed : [bool,optional] closed or open
+                search : [String,optional] search the tickets by doctor name
+        """
+        json_data = {
+            "isempty" : True,
+            "tickets" : [],
+            "selected_closed" : False,
+        }
+
+        params = request.query_params
+        search = params.get("search",None)
+        closed = params.get("closed",False)
+        
+        user = request.user
+        user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+        depts_list = [x['id'] for x in user_serializer['specialisation']]
+        
+        get_depts = Department.objects.filter(id__in=depts_list)
+        query = DoctorTickets.objects.filter(dept__in = get_depts).order_by('-created_at')
+ 
+        if closed in [True ,'True']:
+            query = query.filter(closed=True)
+            json_data['selected_closed'] = True
+        else:
+            query = query.filter(closed=False)
+            json_data['selected_closed'] = False
+        
+        if search not in [None , ""]:
+            query = query.filter(Q(user_id__name__icontains=search))
+
+        serializer = DoctorTicketsSerializer(query,many=True,context={'request' :request}).data
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "closed" : i['closed'],
+                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
+                "name" : i['doctor_id']['name'],
+                "userid" : i['doctor_id']['id'],
+                "mobile" : i['doctor_id']['phone']
+            }
+            json_data['tickets'] = data
+
+
+        if len(json_data['tickets']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+#----Cancel All Appointments of a doctor --------------------------------
+class CancelAllAppointments(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def post(self , request , format=None):
+        """
+            Cancel all the appointments of the doctor
+            ---------------------
+            POST method:
+                doctor_id : [int,required] doctor id
+                reason : [String,required] reason for cancelling
+                date : [String,required] date of the appointment in YYYY-MM-DD format
+        """
+
+        params = request.data
+        doctor_id = params.get("doctor_id",None)
+        reason = params.get("reason",None)
+        date = params.get("date",None)
+        user = request.user
+
+        if doctor_id in [None , ""] or date in [None,""]or reason in [None , ""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "doctor_id or reason is missing",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+
+        """
+            Check if the doctor exists
+        """
+        get_doctor = Doctor.objects.filter(id=doctor_id).first()
+        if get_doctor is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctor does not exist",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        dateformat = dtt.strptime(date,Ymd)
+        query = Appointment.objects.filter(doctor_id = get_doctor.id,date=dateformat).order_by('-created_at')
+        serializer = AppointmentSerializer(query,many=True,context={'request' :request}).data
+
+        if query.count() > 0:
+            for i in query:
+                """
+                    Check if the appointments is already closed,if closed then skip
+                    or else mark it as cancelled
+                """
+                if i.closed == True:
+                    pass
+                else:
+                    """
+                        1.Cancel the appointment
+                        2.Set Activity Log
+                        3.Create Notifications
+                    """
+                    i.timeline['cancel']['completed'] = True
+                    i.timeline['cancel']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
+                    i.cancelled = True
+                    i.closed = True
+
+                    user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+
+                    activity = {
+                        "activity" : "Cancelled",
+                        "reason" : reason,
+                        "datetime" : str(dtt.now(IST_TIMEZONE)),
+                        "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+                        "user" : user_serializer
+                    }
+
+                    if i.activity == {}:
+                        data = {
+                            "cancel" : activity,
+                        }
+                        i.activity = data
+                    else:
+                        i.activity['cancel'] = activity
+                
+                    try:
+                        pat_msg = f"Your appointment {i.id} has been cancelled. Please contact the counter for further details."
+                        create_patient_notification(
+                            msg=pat_msg,
+                            patientid=i.patient_id,
+                        )
+                    except Exception as e:
+                        pass
+
+                    i.save()
+
+        try:
+            doc_msg = f"Your upcoming appointment for the day has been cancelled. Please contact the counter for further details."
+            create_doctor_notification(
+                msg=doc_msg,
+                doctorid=str(get_doctor.id)
+            )
+        except Exception as e:
+            pass
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = None,
+            statuscode = status.HTTP_200_OK
         )
 
