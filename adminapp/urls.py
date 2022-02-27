@@ -22,6 +22,7 @@ urlpatterns = [
 
     # --------------------------------- Doctor URLS ---------------------------------
     path('doctor-create/',DoctorCreate.as_view(),name='admin-doctor-create'),
+    path('doctor-update/',DoctorProfileUpdate.as_view(),name='admin-doctor-update'),
     path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
     path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
     path('department-doctors/',DepartmentDoctors.as_view() , name='department-doctors'),
