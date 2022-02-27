@@ -1,11 +1,6 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-12)Appointments Details Screen
-    -  Calculate the estimated arrival time for the patient and append it to the json_data['details']
-18)Doctor Details and Slot Bookings Screen
-    - Perform count check for the appointments
-    - Change ID format in signals.py
 ================================================
 
 

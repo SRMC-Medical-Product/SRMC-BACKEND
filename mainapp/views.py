@@ -1480,6 +1480,7 @@ class AppointmentInDetail(APIView):
         return f"{imp}"
 
     def get(self, request,format=None):
+
         json_data = {
             "appointmentid" : "",
             "status" : "Pending",
@@ -1555,10 +1556,18 @@ class AppointmentInDetail(APIView):
             }
         ]
         json_data['details'] = details_data
-        if serializer['closed'] == True:
-            #TODO: @Aravind : Calculate the estimated arrival time for the patient and append it to the json_data['details']
-            ...
 
+        if serializer['closed'] == False:
+            est_data = {
+                "title" : "Estimated Arrival",
+                "subtitle" : "",
+            }
+            diff_1 = dtt.strptime(serializer['time'],HMS) - timedelta(minutes=20)
+            time_format_1 = diff_1.strftime(IMp)
+            diff_2 = dtt.strptime(serializer['time'],HMS) - timedelta(minutes=15)
+            time_format_2 = diff_2.strftime(IMp)
+            est_data['subtitle'] = f"{time_format_1} - {time_format_2}"
+            json_data['details'].append(est_data)
         """
             Updating the timeline data.Converting HMS into IMP format.
         """    

@@ -6,6 +6,8 @@ from django.utils import timezone
 from datetime import timedelta
 import random
 import uuid
+from .utils import *
+from datetime import datetime as dtt
 
 @receiver(pre_save,sender=User)
 def create_user_id(sender,instance,**kwargs):
@@ -178,13 +180,14 @@ def create_category_specialist_id(sender,instance,**kwargs):
 
 @receiver(pre_save,sender=Appointment)
 def create_appointment_id(sender,instance,**kwargs):
-    #TODO : change appointment id format
     if instance.id in [None,""]:
+        x_ = dtt.now(IST_TIMEZONE).strftime(Ymd).replace("-","")
+        r_ = str(uuid.uuid4().int)[:5]
         count = Appointment.objects.count()
-        id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+        id = str(x_) + str(r_) + str(count+1)[:1]
         pat=Appointment.objects.filter(id=id)
         while pat.exists():
-            id = str(uuid.uuid4())[:5] + str(count+1)[:1]
+            id =str(x_) + str(r_) + str(count+1)[:1]
             pat=Appointment.objects.filter(id=id)
         instance.id=id 
 
