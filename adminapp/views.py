@@ -2178,13 +2178,147 @@ class DoctorProfileUpdate(APIView):
     def put(self,request):
         """
             Update doctor profile
+            ----------------------------------------------------------------
+            PUT method:  
+                doctor_id : [String,required]
+                email : [String,optional]
+                name : [String,optional]
+                profile_img : [String,optional]
+                age : [String,optional] => int
+                gender : [String,optional] 
+                dob : [Date,optional]
+                experience : [String,optional]
+                qualification : [String,optional] qualification
+                specialisation : [String,optional]
+                deptertment_id : [String,optional] id of department
+                
+                
         """
-        # try:
-        #     doctor_id = request.data['doctor_id']
-        #     name = request.data['name']
-        #     email = request.data['email']
-        #     phone = request.data['phone']
-        #     pin = request.data['pin']
-        #     age = request.data['age']
-        ...
+        data = request.data
+        doctor_id = data.get('doctor_id', None)
+        email = data.get('email',None) #unique email address
+        name = data.get('name',None)
+        profile_img = data.get('profile_img',None)
+        age = data.get('age',None)
+        gender = data.get('gender',None)
+        dob = data.get('dob',None)
+        experience = data.get('experience',None)
+        qualification = data.get('qualification',None)
+        specialisation = data.get('specialisation',None)
+        departmentid = data.get('departmentid',None)
+        
+        if doctor_id in [None,""]:
+            return display_response(
+                msg = "FAILED",
+                err="Doctor ID is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        get_doctor = Doctor.objects.filter(id=doctor_id).first()
+        if get_doctor is None:
+            return display_response(
+                msg = "FAILED",
+                err="Doctor ID does not exist",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        if email not in [None , ""]:
+            check_email = Doctor.objects.filter(email=email).first()
+            if check_email is not None:
+                get_doctor.email = email
+                get_doctor.save()
+            else:
+                return display_response(
+                    msg = "FAILED",
+                    err="Email already exists",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+            
+        if name not in [None , ""]:
+            get_doctor.name = name
+            get_doctor.save()
+        
+        if profile_img not in [None , ""]:
+            try:
+                get_doctor.profile_img = profile_img
+                get_doctor.save()
+            except Exception as e:
+                return display_response(
+                    msg = "FAILED",
+                    err=f"Error : {str(e)} \n Failed at updating profile image",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+        if age not in [None , ""]:
+            try:
+                get_doctor.age = int(age)
+                get_doctor.save()
+            except Exception as e:
+                return display_response(
+                    msg = "FAILED",
+                    err=f"Error : {str(e)} \n Failed at updating age",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+        if gender not in [None , ""]:
+            get_doctor.gender = gender
+            get_doctor.save()
+        
+        if dob not in [None , ""]:
+            try:
+                date_format = dtt.strptime(str(dob),dmY).strftime(Ymd)
+                get_doctor.dob = date_format
+                get_doctor.save()
+            except Exception as e:
+                return display_response(
+                    msg = "FAILED",
+                    err=f"Error : {str(e)} \n Failed at updating date of birth",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+        if experience not in [None , ""]:
+            try:
+                get_doctor.experience = int(experience)
+                get_doctor.save()
+            except Exception as e:
+                return display_response(
+                    msg = "FAILED",
+                    err=f"Error : {str(e)} \n Failed at updating experience",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+        if qualification not in [None , ""]:
+            get_doctor.qualification = qualification
+            get_doctor.save()
+        
+        if specialisation not in [None , ""]:
+            get_doctor.specialisation = specialisation
+            get_doctor.save()
+
+        if departmentid not in [None , ""]:
+            get_dept = Department.objects.filter(id=departmentid).first()
+            if get_dept is None:
+                return display_response(
+                    msg = "FAILED",
+                    err="Department ID does not exist",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+
+            get_doctor.department_id = get_dept
+            get_doctor.save()
+
+        return display_response(
+            msg = "SUCCESS",
+            err=None,
+            body = None,
+            statuscode = status.HTTP_200_OK
+        )
 

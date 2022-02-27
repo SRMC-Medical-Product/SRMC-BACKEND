@@ -28,6 +28,16 @@ urlpatterns = [
     path('patient-all-get/' , PatientGet.as_view() , name='patient-all-get'),
     path('patient-indetail/' , PatientDetails.as_view() , name='patient-indetail'),
 
-    
+    # --------------------------------- Ticket URLS ---------------------------------
+    path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
+    path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
+
+    # --------------------------------- Cancel all appointments URLS ---------------------------------
+    path('cancel-all-appointments/',CancelAllAppointments.as_view() , name='cancel-all-appointments'),
+    path('all-appointments/',GetAllAppointments.as_view() , name='all-appointments'),
+
+    #---------------------------------Overview and Analytics--------------------
+    path('overview-analytics/',OverviewAndAnalytics.as_view() , name='overview-analytics'),
+
 
 ]

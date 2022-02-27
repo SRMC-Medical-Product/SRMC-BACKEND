@@ -22,6 +22,7 @@ urlpatterns = [
 
     # --------------------------------- Doctor URLS ---------------------------------
     path('doctor-create/',DoctorCreate.as_view(),name='admin-doctor-create'),
+    path('doctor-update/',DoctorProfileUpdate.as_view(),name='admin-doctor-update'),
     path('doctor-all-get/' , DoctorGet.as_view() , name='doctor-all-get'),
     path('doctor-indetail/' , DoctorDetails.as_view() , name='doctor-indetail'),
     path('department-doctors/',DepartmentDoctors.as_view() , name='department-doctors'),
@@ -45,8 +46,8 @@ urlpatterns = [
     path('get-appointments/',GetAllAppointments.as_view() , name='get-all-appointments'),
 
     # --------------------------------- Ticket URLS ---------------------------------
-    # path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
-    # path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
+    path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
+    path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
 
     #-------------------------Analytics --------------------------------
     path('analytics/',Analytics.as_view() , name='analytics'),
