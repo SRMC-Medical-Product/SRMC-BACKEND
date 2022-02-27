@@ -429,13 +429,17 @@ class UserProfile(APIView):
             "relation" : REALTION,
             "gender" : GENDER,
             "blood" : BLOOD,
+            "user" : {}
         }
         query = Patient.objects.filter(id=request.user.patientid).first()
         serializer=PatientSerializer(query,context={"request":request}).data
         json_data['profile']=serializer
         print(json_data['profile'])
         json_data['profile'].__setitem__('defaultimg' , serializer['name'][0:1])
-        test_func.delay()
+
+        json_data['user']=UserSerializer(request.user,context={"request":request}).data
+
+        # test_func.delay()
         return Response({
                     "MSG":"SUCCESS",
                     "ERR":None,
@@ -516,11 +520,12 @@ class FamilyMembers(APIView):
         serializer=UserSerializer(request.user)
         json_data['user']=serializer.data
         
-        for i in json_data['user']['family_members']:
-            i.__setitem__('defaultimg' , i['name'][0:1])
+        if json_data['user']['family_members'] is not None:
+            for i in json_data['user']['family_members']:
+                i.__setitem__('defaultimg' , i['name'][0:1])
  
-        if len(json_data['user']['family_members']) > 0:
-            json_data['isempty'] = False
+            if len(json_data['user']['family_members']) > 0:
+                json_data['isempty'] = False
 
         return display_response(
             msg = "SUCCESS",
@@ -588,9 +593,9 @@ class FamilyMembers(APIView):
         if email not in [None,""]:
             patient_instance.email = email
             patient_instance.save()
-        if img not in [None,""]:
-            patient_instance.img = img
-            patient_instance.save()
+        # if img not in [None,""]:
+        #     patient_instance.img = img
+        #     patient_instance.save()
 
         patient_serializer = PatientSerializer(patient_instance).data
         patient_serializer['selected'] = False
@@ -969,8 +974,8 @@ class CategoriesScreen(APIView):
 
 #---------Notifications Screen API --------------------
 class PatientNotificationScreen(APIView):
-    permission_classes = [UserAuthentication]
-    authentication_classes=[]
+    permission_classes = []
+    authentication_classes=[UserAuthentication]
 
     def convertdateformat(self, req_date):
         a = dtt.now(IST_TIMEZONE)
