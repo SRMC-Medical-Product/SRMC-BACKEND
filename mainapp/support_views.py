@@ -1411,6 +1411,249 @@ class OfflineAppointmentBooking(APIView):
                 statuscode = status.HTTP_400_BAD_REQUEST
             )
 
+#----Displaying the Departments Available----
+class AllDepartments(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            This view displays all the Departments available.
+            Used for dropdown menus in offline appointment booking
+        """
+        json_data = {
+            "isempty" : True,
+            "departments" : []
+        }
+        depts = Department.objects.filter(enable=True)
+        dept_serializer = DepartmentSerializer(depts,many=True,context={'request' :request}).data
+
+        for i in dept_serializer:
+            data = {
+                "id" : i['id'],
+                "name" : i['name'],
+            }
+            json_data['departments'].append(data)
+        
+        if len(json_data['departments']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#----Displaying the Doctors Available----
+class DeptDoctors(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            Send Dept_id and get all the doctors available in that department
+            --------------
+            GET method:
+                deptid : [String,required] id of the department
+        """
+        json_data = {
+            "isempty" : True,
+            "doctors" : []
+        }
+        deptid = request.query_params.get('deptid',None)
+
+        if deptid in [None,""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "deptid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        get_dept = Department.objects.filter(id=deptid,enable=True).first()
+        if get_dept is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Invalid deptid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        doctors = Doctor.objects.filter(department_id=get_dept,is_blocked=False)
+        serializer = DoctorSerializer(doctors,many=True,context={'request' :request}).data
+
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "name" : i['name'],
+                "doctor_id" : i['doctor_id'],
+            }
+            json_data['doctors'].append(data)
+        
+        if len(json_data['doctors']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Displaying the doctor available slots and days----
+class DoctorDateSlotDetails(APIView):
+    authentication_classes=[HelpDeskAuthentication]
+    permission_classes=[]
+
+    def get(self,request,format=None):
+        """
+            Doctor Id is the 'id' field of the doctor model whose details are to be displayed.
+            ---------------------
+            GET method:
+                doctorid : [String,required] Id of the doctor
+        """
+
+        json_data = {
+            "test" :{},
+            "dates" : [],
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "afternoon" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "evening" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+        }
+        
+
+        doctorid = request.query_params.get('doctorid', None)
+        if doctorid is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctorid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        
+
+        doctor = Doctor.objects.filter(id=doctorid).first()
+        if doctor is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctor was not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        
+        timings = DoctorTimings.objects.filter(doctor_id=doctor).first()
+        dates_arr = []
+        for j in timings.availability['dates_arr']:
+            dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+            dates_arr.append(dt)
+        json_data['dates'] = dates_arr
+
+        """
+            Get the slots for morning.
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        mrngarr = timings.timeslots[timings.availability['dates_arr'][0]]['morning'] 
+        morning_slots = mrngarr.keys()
+
+        for x in morning_slots:
+            if mrngarr[x]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(x, HMS).strftime(IMp),
+                    "count" : mrngarr[x]['count']
+                }
+                json_data['morning']['slots'].append(data)
+        if len(json_data['morning']['slots']) > 0:
+            json_data['morning']['isempty'] = False
+        
+
+        """
+            Get the slots for afternoon.
+            "afternoon" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        noonarr = timings.timeslots[timings.availability['dates_arr'][0]]['afternoon'] 
+        noon_slots = noonarr.keys()
+        
+        for y in noon_slots:
+            if noonarr[y]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(y,HMS).strftime(IMp),
+                    "count" : noonarr[y]['count']
+                }
+                json_data['afternoon']['slots'].append(data)
+                
+        if len(json_data['afternoon']['slots']) > 0:
+            json_data['afternoon']['isempty'] = False
+ 
+        """
+            Get the slots for afternoon.
+            "evening" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """       
+        eveningarr = timings.timeslots[timings.availability['dates_arr'][0]]['evening'] 
+        evening_slots = eveningarr.keys()
+        for z in evening_slots:
+            if eveningarr[z]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(z,HMS).strftime(IMp),
+                    "count" : eveningarr[z]['count']
+                }
+                json_data['evening']['slots'].append(data)
+                
+        if len(json_data['evening']['slots']) > 0:
+            json_data['evening']['isempty'] = False
+
+
+        d_ = DoctorTimings.objects.filter(doctor_id=doctor).first()
+        seri_ = DoctorTimingsSerializer(d_,context={'request' :request}).data
+        json_data['test'] = seri_
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+
+
+
 
 
 

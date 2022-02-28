@@ -1078,12 +1078,15 @@ class DoctorSlotDetails(APIView):
         """
             User is the current registered user.
             Doctor Id is the 'id' field of the doctor model whose details are to be displayed.
+            ---------------------
+            GET method:
+                doctorid : [String,required] Id of the doctor
+                querydate : [String,required] Date in the format 'dd-mm-yyyy'
         """
 
         json_data = {
-            "doctor" : {},
-            "familymembers" : [],
             "dates" : [],
+            "selecteddate": "",
             "morning" : {
                 "isempty" : True,
                 "slots" : [],
@@ -1096,11 +1099,14 @@ class DoctorSlotDetails(APIView):
                 "isempty" : True,
                 "slots" : [],
             },
+            "doctor" : {},
+            "familymembers" : [],
         }
         
         user = request.user
 
         doctorid = request.query_params.get('doctorid', None)
+        querydate = request.query_params.get('querydate', None)
         if doctorid is None:
             return display_response(
                 msg = "FAILURE",
@@ -1156,12 +1162,31 @@ class DoctorSlotDetails(APIView):
 
         json_data['familymembers'] = members
         
-        timings = DoctorTimings.objects.filter(doctor_id=doctor).first()
+        timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
+        timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
         dates_arr = []
         for j in timings.availability['dates_arr']:
-            dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
-            dates_arr.append(dt)
+            if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
+                dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+                dates_arr.append(dt)
         json_data['dates'] = dates_arr
+
+        if querydate is None:
+            querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
+            json_data['selecteddate'] = dates_arr[0]
+        else:
+            if querydate not in dates_arr:
+                return display_response(
+                    msg = "FAILURE",
+                    err= "Date is not available",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                json_data['selecteddate'] = querydate
+                querydate = dtt.strptime(querydate,dmY).strftime("%m/%d/%Y")
+
+
 
         """
             Get the slots for morning.
@@ -1176,7 +1201,7 @@ class DoctorSlotDetails(APIView):
             }
         """
 
-        mrngarr = timings.timeslots[timings.availability['dates_arr'][0]]['morning'] 
+        mrngarr = timings.timeslots[querydate]['morning'] 
         morning_slots = mrngarr.keys()
 
         for x in morning_slots:
@@ -1188,7 +1213,6 @@ class DoctorSlotDetails(APIView):
                 json_data['morning']['slots'].append(data)
         if len(json_data['morning']['slots']) > 0:
             json_data['morning']['isempty'] = False
-        
 
         """
             Get the slots for afternoon.
@@ -1203,7 +1227,7 @@ class DoctorSlotDetails(APIView):
             }
         """
 
-        noonarr = timings.timeslots[timings.availability['dates_arr'][0]]['afternoon'] 
+        noonarr = timings.timeslots[querydate]['afternoon'] 
         noon_slots = noonarr.keys()
         
         for y in noon_slots:
@@ -1229,7 +1253,7 @@ class DoctorSlotDetails(APIView):
                 "count" : "count"
             }
         """       
-        eveningarr = timings.timeslots[timings.availability['dates_arr'][0]]['evening'] 
+        eveningarr = timings.timeslots[querydate]['evening'] 
         evening_slots = eveningarr.keys()
         for z in evening_slots:
             if eveningarr[z]['available'] == True:
@@ -1242,13 +1266,13 @@ class DoctorSlotDetails(APIView):
         if len(json_data['evening']['slots']) > 0:
             json_data['evening']['isempty'] = False
 
-
         return display_response(
             msg = "SUCCESS",
             err= None,
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
+
 
 #--------Updating the selected member for the user appointment booking--------
 class BookingChangeMember(APIView):
