@@ -57,6 +57,8 @@ class AdminLogin(APIView):
         userid = data.get('userid')
         password = data.get('password') 
 
+        print(data)
+
         if userid is None or password is None:
             return display_response(
                 msg='ERROR',
@@ -65,6 +67,7 @@ class AdminLogin(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST,
             )
         encrypted_password = encrypt_superadmin_pass(password)
+        # encrypted_password = password
  
         get_user = SuperAdmin.objects.filter(Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
         if get_user is None:
