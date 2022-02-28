@@ -10,11 +10,10 @@ urlpatterns = [
     path('user-modify/' , AdminUserModify.as_view() , name='admin-user-modify'),
     path('user-password-modify/' , AdminUserPasswordModify.as_view() , name='admin-user-password-modify'),
 
-ew.as_view() , name='promotional-slider'),
-    path('category-promotion/' , CategoryPromotionV
     # --------------------------------- Promotions URLS ---------------------------------
     path('carousel/' , CarouselView.as_view() , name='carousel'),
-    path('promotional-slider/' , PromotionalSliderViiew.as_view() , name='category-promotion'),
+    path('promotional-slider/' , PromotionalSliderView.as_view() , name='promotional-slider'),
+    path('category-promotion/' , CategoryPromotionView.as_view() , name='category-promotion'),
 
     # --------------------------------- Department URLS ---------------------------------
     path("departments/", DepartmentsView.as_view(), name="department"),

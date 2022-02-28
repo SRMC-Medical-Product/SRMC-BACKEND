@@ -1427,7 +1427,10 @@ class OfflineAppointmentBooking(APIView):
                     statuscode=status.HTTP_400_BAD_REQUEST
                 )
             else:
-                res = register_new_user(new_user_name,new_user_mobile)
+                res = register_new_user(
+                    name_=new_user_name,
+                    number_=new_user_mobile
+                )
                 if res['ERR'] != None:
                     return display_response(
                         msg="FAILED",
@@ -1448,7 +1451,7 @@ class OfflineAppointmentBooking(APIView):
                     statuscode=status.HTTP_400_BAD_REQUEST
                 )
             else:
-                get_patient_user = Patient.objects.filter(patientid=final_patient_id).first()
+                get_patient_user = Patient.objects.filter(id=final_patient_id).first()
                 if get_patient_user is None:
                     return display_response(
                         msg="FAILED",
@@ -1651,7 +1654,6 @@ class DoctorDateSlotDetails(APIView):
                 "slots" : [],
             },
             "doctor" : {},
-            "familymembers" : [],
         }
         
         user = request.user
@@ -1691,27 +1693,6 @@ class DoctorDateSlotDetails(APIView):
             "defaultimg" : doc_serialize.data['name'][0:1]
         }
 
-        """
-            Get all the family members of the requesting user.
-            Appending the current user data details also
-        """
-        members = []
-        user_mem = {
-            "id" : user.id,
-            "name" : user.name,
-            "selected" : user.selected,
-        }
-        members.append(user_mem)
-
-        for i in user.family_members:
-            mem = {
-                "id" : i['id'],
-                "name" : i['name'],
-                "selected" : i['selected'],
-            }
-            members.append(mem)    
-
-        json_data['familymembers'] = members
         
         timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
         timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
