@@ -11,7 +11,7 @@ from rest_framework import status
 from .models import *
 from .auth import *
 from .utils import *
-from .views import make_appointment_booking
+from .views import make_appointment_booking,register_new_user
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -1273,7 +1273,9 @@ class OverviewAndAnalytics(APIView):
             body = json_data,
             statuscode = status.HTTP_200_OK
         )
-        
+
+"""---------------------------Offline Appointment Bookings Views------------------------"""
+
 #------Booking Offline Appointment---------
 class CheckingAppuser(APIView):
     authentication_classes = [HelpDeskAuthentication]
@@ -1363,7 +1365,15 @@ class OfflineAppointmentBooking(APIView):
 
         POST:
             data:
-                patient_id: [string,required] id of the patient
+                new_user : [String,required] True if the user is new user else False
+                new_user_name : [String,incase] Name of the user 
+                new_user_mobile : [String,incase] Mobile number of the user
+
+                new_family_member : [Boolean,required] True if the family member is new user else False
+                new_member_name : [String,incase] Name of the family member
+                new_member_relation : [String,incase] Relation of the family member
+
+                patient_id: [string,incase] id of the patient [If already patient is selected or else no need]
                 date:       [string,required,format: mm/dd/yyyy] date of appoinment
                 time:       [string,required,format: hh:mm:ss] time for the appoinment
                 doctor_id:  [ string,required] id of the doctor
@@ -1374,24 +1384,134 @@ class OfflineAppointmentBooking(APIView):
         
         data=self.request.data
 
-        patiend_id=data.get("patient_id")
-        date=data.get("date")
-        time=data.get("time")
-        doctor_id=data.get("doctor_id")
+        new_user = data.get('new_user',False) #Required
+        new_user_name = data.get('new_user_name',None) #Required if new user is True
+        new_user_mobile = data.get('new_user_mobile',None) #Required if new user is True
+
+        new_family_member = data.get('new_family_member',False) #Required
+        new_member_name = data.get('new_member_name',None) #Required if new family member is True
+        new_member_relation = data.get('new_member_relation',None) #Required if new family member is True
+
+        patiend_id=data.get("patient_id",None)
+        date=data.get("date") #Required
+        time=data.get("time") #Required
+        doctor_id=data.get("doctor_id") #Required
 
         validation_arr=["",None]
         
         """validate data"""
-        if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
+        if date in validation_arr or time in validation_arr or doctor_id in validation_arr or new_user in validation_arr or new_family_member in validation_arr:
             return display_response(
                     msg="FAILED",
                     err="Invalid data given",
                     body=None,
                     statuscode=status.HTTP_400_BAD_REQUEST)
         
+        if new_user in ["True",True] and new_family_member in ["True",True]:
+            return display_response(
+                msg="FAILED",
+                err="New User and New Family Member both are true",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        final_patient_id = patiend_id
+
+        """Check if the its new user,if new user then create the user instance and patient instance"""
+        if new_user in [True,'True']:
+            if new_user_name in validation_arr or new_user_mobile in validation_arr:
+                return display_response(
+                    msg="FAILED",
+                    err="Invalid data given",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                res = register_new_user(new_user_name,new_user_mobile)
+                if res['ERR'] != None:
+                    return display_response(
+                        msg="FAILED",
+                        err=res['ERR'],
+                        body=res['BODY'],
+                        statuscode=res['STATUS']
+                    )
+                else:
+                    final_patient_id = res['BODY']['patientid']
+
+        """Checking if the family member is new user,if new user then create the user instance and patient instance"""
+        if new_family_member in [True ,'True']:
+            if new_member_name in validation_arr or new_member_relation in validation_arr or final_patient_id in validation_arr:
+                return display_response(
+                    msg="FAILED",
+                    err="Invalid data given of family member",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                get_patient_user = Patient.objects.filter(patientid=final_patient_id).first()
+                if get_patient_user is None:
+                    return display_response(
+                        msg="FAILED",
+                        err="Invalid patient id",
+                        body=None,
+                        statuscode=status.HTTP_400_BAD_REQUEST
+                    )
+                get_app_user = User.objects.filter(id=get_patient_user.appuser).first()
+                if get_app_user is None:
+                    return display_response(
+                        msg="FAILED",
+                        err="Invalid patient id",
+                        body=None,
+                        statuscode=status.HTTP_400_BAD_REQUEST
+                    )
+
+                try:
+                    patient_instance = Patient.objects.create(
+                        relation=new_member_relation,
+                        name=new_member_name,
+                        primary=False,
+                        appuser = get_app_user.id
+                    )
+                    final_patient_id = patient_instance.id
+                    
+                    patient_serializer = PatientSerializer(patient_instance).data
+                    patient_serializer['selected'] = False
+
+                    if get_app_user.family_members==None:
+                        get_app_user.family_members=[patient_serializer]
+                    else:
+                        get_app_user.family_members.append(patient_serializer)
+                    get_app_user.save()
+
+                except Exception as e:
+                    return display_response(
+                        msg="FAILED",
+                        err="Failed to create new family member \n {}".format(str(e)),
+                        body=None,
+                        statuscode=status.HTTP_400_BAD_REQUEST
+                    )
+
+        """Checking if the patient is selected"""
+        if final_patient_id in validation_arr:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        else:
+            check_patient = Patient.objects.filter(id=final_patient_id).first()
+            if check_patient is None:
+                return display_response(
+                    msg="FAILED",
+                    err="Invalid patient id",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST
+                )
+
         try:
             dataout = make_appointment_booking(
-                patient_id_= patiend_id,
+                patient_id_= check_patient.id,
                 date_= date,
                 time_= time,
                 doctor_id_= doctor_id
