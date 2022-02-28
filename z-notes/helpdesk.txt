@@ -2,9 +2,9 @@
 API View Todo Screen
 ----------------------------------------------
 12)Book appointments
-    - Check using phone number if the user already exists
-    - check if the user is a familymember or myself
-    - send that id to make appointments post
+    -New patient -> Create new user options
+    -New family member -> Create new family member
+    - Display the doctor details and available time slots 
 ================================================
 
 

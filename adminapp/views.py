@@ -71,12 +71,18 @@ class AdminLogin(APIView):
  
         get_user = SuperAdmin.objects.filter(Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
         if get_user is None:
-            return display_response(
-                msg='ERROR',
-                err="Invalid Credentials",
-                body = None,
-                statuscode=status.HTTP_400_BAD_REQUEST,
-            )
+            get_user = SuperAdmin.objects.filter(Q(email=userid) | Q(phone= userid)).filter(password=password).first()
+            if get_user is None:
+                return display_response(
+                    msg='ERROR',
+                    err="Invalid Credentials",
+                    body = None,
+                    statuscode=status.HTTP_400_BAD_REQUEST,
+                )
+            else:
+                save_encrypted_password = encrypt_superadmin_pass(password)
+                get_user.password = save_encrypted_password
+                get_user.save()
 
         if get_user.active == False:
             return display_response(

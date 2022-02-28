@@ -2,9 +2,6 @@
     File with all the API's relating to the help desk user web
 """
 from datetime import datetime as dtt,time,date,timedelta
-import json
-import re
-from tkinter.tix import Tree
 from django.db.models import Q
 
 from rest_framework.views import APIView
@@ -14,6 +11,7 @@ from rest_framework import status
 from .models import *
 from .auth import *
 from .utils import *
+from .views import make_appointment_booking
 
 '''Response Import'''
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -1276,6 +1274,445 @@ class OverviewAndAnalytics(APIView):
             statuscode = status.HTTP_200_OK
         )
         
+#------Booking Offline Appointment---------
+class CheckingAppuser(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            Check if the available phone number is already available registered user or new user.
+            If the phone number is not available:
+                then return new user and create new user
+            else:
+                then display the user and family member information.
+            --------------------------------
+            GET method:
+                phonenumber : [String,required] phonenumber of the user
+        """
+
+        json_data = {
+            "isnewuser" : False,
+            "members" : [],
+        }
+
+        params = request.query_params
+        phonenumber = params.get('phonenumber',None)
+
+        if phonenumber in [None,""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "phonenumber is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        check_user = User.objects.filter(mobile=phonenumber).first()
+        if check_user is None:
+            json_data['isnewuser'] = True
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+
+        patient_serializer = UserSerializer(check_user,context={'request' :request}).data
+
+        """
+            Get all the family members of the requesting user.
+            Appending the current user data details also
+        """
+        members = []
+        user_mem = {
+            "id" : patient_serializer['patientid'],
+            "name" : patient_serializer['name'],
+            "relation" : "User"
+        }
+        members.append(user_mem)
+
+        if check_user.family_members is not None:
+            for i in patient_serializer['family_members']:
+                mem = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "relation" : i['relation']
+                }
+                members.append(mem)    
+
+        json_data['members'] = members  
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#------Appointment Booking----------
+class OfflineAppointmentBooking(APIView):
+
+    authentication_classes=[HelpDeskAuthentication]
+    permission_classes=[]
+    """
+        API to book appoinment
+        Allowed methods:
+            -POST
+        
+        Authentication: Required HelpDeskAuthentication
+
+        POST:
+            data:
+                patient_id: [string,required] id of the patient
+                date:       [string,required,format: mm/dd/yyyy] date of appoinment
+                time:       [string,required,format: hh:mm:ss] time for the appoinment
+                doctor_id:  [ string,required] id of the doctor
+
+    """
+    
+    def post(self,request,format=None):
+        
+        data=self.request.data
+
+        patiend_id=data.get("patient_id")
+        date=data.get("date")
+        time=data.get("time")
+        doctor_id=data.get("doctor_id")
+
+        validation_arr=["",None]
+        
+        """validate data"""
+        if patiend_id in validation_arr or date in validation_arr or time in validation_arr or doctor_id in validation_arr:
+            return display_response(
+                    msg="FAILED",
+                    err="Invalid data given",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            dataout = make_appointment_booking(
+                patient_id_= patiend_id,
+                date_= date,
+                time_= time,
+                doctor_id_= doctor_id
+            )
+            return display_response(
+                msg = dataout['MSG'],
+                err= dataout['ERR'],
+                body = dataout['BODY'],
+                statuscode = dataout['STATUS'],
+            )
+        except Exception as e:
+            return display_response(
+                msg = "FAILED",
+                err= str(e),
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+#----Displaying the Departments Available----
+class AllDepartments(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            This view displays all the Departments available.
+            Used for dropdown menus in offline appointment booking
+        """
+        json_data = {
+            "isempty" : True,
+            "departments" : []
+        }
+        depts = Department.objects.filter(enable=True)
+        dept_serializer = DepartmentSerializer(depts,many=True,context={'request' :request}).data
+
+        for i in dept_serializer:
+            data = {
+                "id" : i['id'],
+                "name" : i['name'],
+            }
+            json_data['departments'].append(data)
+        
+        if len(json_data['departments']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#----Displaying the Doctors Available----
+class DeptDoctors(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            Send Dept_id and get all the doctors available in that department
+            --------------
+            GET method:
+                deptid : [String,required] id of the department
+        """
+        json_data = {
+            "isempty" : True,
+            "doctors" : []
+        }
+        deptid = request.query_params.get('deptid',None)
+
+        if deptid in [None,""]:
+            return display_response(
+                msg = "FAILURE",
+                err= "deptid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        get_dept = Department.objects.filter(id=deptid,enable=True).first()
+        if get_dept is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Invalid deptid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        doctors = Doctor.objects.filter(department_id=get_dept,is_blocked=False)
+        serializer = DoctorSerializer(doctors,many=True,context={'request' :request}).data
+
+        for i in serializer:
+            data = {
+                "id" : i['id'],
+                "name" : i['name'],
+                "doctor_id" : i['doctor_id'],
+            }
+            json_data['doctors'].append(data)
+        
+        if len(json_data['doctors']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+#---Displaying the doctor available slots and days----
+class DoctorDateSlotDetails(APIView):
+    authentication_classes=[HelpDeskAuthentication]
+    permission_classes=[]
+
+    def get(self,request,format=None):
+        """
+            User is the current registered user.
+            Doctor Id is the 'id' field of the doctor model whose details are to be displayed.
+            ---------------------
+            GET method:
+                doctorid : [String,required] Id of the doctor
+                querydate : [String,required] Date in the format 'dd-mm-yyyy'
+        """
+
+        json_data = {
+            "dates" : [],
+            "selecteddate": "",
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "afternoon" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "evening" :  {
+                "isempty" : True,
+                "slots" : [],
+            },
+            "doctor" : {},
+            "familymembers" : [],
+        }
+        
+        user = request.user
+
+        doctorid = request.query_params.get('doctorid', None)
+        querydate = request.query_params.get('querydate', None)
+        if doctorid is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctorid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        
+
+        doctor = Doctor.objects.filter(id=doctorid).first()
+        if doctor is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Doctor was not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Adding the doctor details to te json_data['doctor'] field
+        """
+        doc_serialize = DoctorSerializer(doctor,context={"request":request})  
+        json_data['doctor'] = {
+            "id" : doc_serialize.data['id'],
+            "doctor_id" : doc_serialize.data['doctor_id'],
+            "name" : doc_serialize.data['name'],
+            "experience" : doc_serialize.data['experience'],
+            "gender" : doc_serialize.data['gender'],
+            "qualification" : doc_serialize.data['qualification'],
+            "specialisation" : doc_serialize.data['specialisation'],
+            "defaultimg" : doc_serialize.data['name'][0:1]
+        }
+
+        """
+            Get all the family members of the requesting user.
+            Appending the current user data details also
+        """
+        members = []
+        user_mem = {
+            "id" : user.id,
+            "name" : user.name,
+            "selected" : user.selected,
+        }
+        members.append(user_mem)
+
+        for i in user.family_members:
+            mem = {
+                "id" : i['id'],
+                "name" : i['name'],
+                "selected" : i['selected'],
+            }
+            members.append(mem)    
+
+        json_data['familymembers'] = members
+        
+        timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
+        timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
+        dates_arr = []
+        for j in timings.availability['dates_arr']:
+            if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
+                dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+                dates_arr.append(dt)
+        json_data['dates'] = dates_arr
+
+        if querydate is None:
+            querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
+            json_data['selecteddate'] = dates_arr[0]
+        else:
+            if querydate not in dates_arr:
+                return display_response(
+                    msg = "FAILURE",
+                    err= "Date is not available",
+                    body = None,
+                    statuscode = status.HTTP_400_BAD_REQUEST
+                )
+            else:
+                json_data['selecteddate'] = querydate
+                querydate = dtt.strptime(querydate,dmY).strftime("%m/%d/%Y")
+
+
+
+        """
+            Get the slots for morning.
+            "morning" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        mrngarr = timings.timeslots[querydate]['morning'] 
+        morning_slots = mrngarr.keys()
+
+        for x in morning_slots:
+            if mrngarr[x]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(x, HMS).strftime(IMp),
+                    "count" : mrngarr[x]['count']
+                }
+                json_data['morning']['slots'].append(data)
+        if len(json_data['morning']['slots']) > 0:
+            json_data['morning']['isempty'] = False
+
+        """
+            Get the slots for afternoon.
+            "afternoon" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """
+
+        noonarr = timings.timeslots[querydate]['afternoon'] 
+        noon_slots = noonarr.keys()
+        
+        for y in noon_slots:
+            if noonarr[y]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(y,HMS).strftime(IMp),
+                    "count" : noonarr[y]['count']
+                }
+                json_data['afternoon']['slots'].append(data)
+                
+        if len(json_data['afternoon']['slots']) > 0:
+            json_data['afternoon']['isempty'] = False
+ 
+        """
+            Get the slots for afternoon.
+            "evening" : {
+                "isempty" : True,
+                "slots" : [],
+            },
+            Inside slots ,the format is 
+            if(available == true) data = {
+                "date" : "d-m-y",
+                "count" : "count"
+            }
+        """       
+        eveningarr = timings.timeslots[querydate]['evening'] 
+        evening_slots = eveningarr.keys()
+        for z in evening_slots:
+            if eveningarr[z]['available'] == True:
+                data = {
+                    "date" : dtt.strptime(z,HMS).strftime(IMp),
+                    "count" : eveningarr[z]['count']
+                }
+                json_data['evening']['slots'].append(data)
+                
+        if len(json_data['evening']['slots']) > 0:
+            json_data['evening']['isempty'] = False
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -39,5 +39,11 @@ urlpatterns = [
     #---------------------------------Overview and Analytics--------------------
     path('overview-analytics/',OverviewAndAnalytics.as_view() , name='overview-analytics'),
 
+    #---------------------------------Offline Appointment Bookingn--------------------
+    path('checking-app-user/',CheckingAppuser.as_view() , name='checking-app-user'),
+    path('offline-app-booking/',OfflineAppointmentBooking.as_view() , name='offline-app-booking'),
+    path('all-depts/',AllDepartments.as_view() , name='all-depts'),
+    path('dept-doctors/',DeptDoctors.as_view() , name='dept-doctors'),
+    path('doctor-date-slot-details/',DoctorDateSlotDetails.as_view() , name='doctor-date-slot-details'),
 
 ]
