@@ -76,6 +76,10 @@ class AdminLogin(APIView):
                     body = None,
                     statuscode=status.HTTP_400_BAD_REQUEST,
                 )
+            else:
+                save_encrypted_password = encrypt_superadmin_pass(password)
+                get_user.password = save_encrypted_password
+                get_user.save()
 
         if get_user.active == False:
             return display_response(
