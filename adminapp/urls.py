@@ -9,7 +9,7 @@ urlpatterns = [
     path('user-get/' , AdminUserGet.as_view() , name='admin-user-get'),
     path('user-modify/' , AdminUserModify.as_view() , name='admin-user-modify'),
     path('user-password-modify/' , AdminUserPasswordModify.as_view() , name='admin-user-password-modify'),
-
+    
 
     # --------------------------------- Promotions URLS ---------------------------------
     path('carousel/' , CarouselView.as_view() , name='carousel'),

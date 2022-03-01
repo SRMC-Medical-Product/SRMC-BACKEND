@@ -68,6 +68,7 @@ class AdminLogin(APIView):
             )
         encrypted_password = encrypt_superadmin_pass(password)
         # encrypted_password = password
+        print(encrypted_password)
  
         get_user = SuperAdmin.objects.filter(Q(email=userid) | Q(phone= userid)).filter(password=encrypted_password).first()
         if get_user is None:
@@ -93,6 +94,7 @@ class AdminLogin(APIView):
             )
 
         token=generate_token({"id":get_user.id})
+        print(token)
         return display_response(
             msg='SUCCESS',
             err=None,
@@ -130,7 +132,7 @@ class CarouselView(APIView):
             msg = ACTION,
             err= "Image not found",
             body = None,
-            statuscode = status.HTTP_200_OK
+            statuscode = status.HTTP_404_NOT_FOUND
         ) 
         count = Carousel.objects.count()
         if count < 2:
@@ -159,7 +161,7 @@ class CarouselView(APIView):
                 msg = ACTION,
                 err= "Carousel limit (2) reached",
                 body = None,
-                statuscode = status.HTTP_200_OK
+                statuscode = status.HTTP_406_NOT_ACCEPTABLE
             )
 
     def delete(self , request , format=None):
@@ -226,7 +228,7 @@ class PromotionalSliderView(APIView):
             msg = ACTION,
             err= "Image not found",
             body = None,
-            statuscode = status.HTTP_200_OK
+            statuscode = status.HTTP_404_NOT_FOUND
         ) 
         try :
             PromotionalSlider.objects.create(img=img)
@@ -300,7 +302,7 @@ class CategoryPromotionView(APIView):
             body = serializer.data,
             statuscode = status.HTTP_200_OK
         )
- 
+     
     def post(self , request , format=None):
         ACTION = "CategoryPromotion POST"
         data = self.request.data
@@ -436,11 +438,10 @@ class AdminUserModify(APIView):
     def put(self,request,format=None):
         ACTION = "AdminModify PUT"
         user = request.user
-        data = request.data
-        username = data.get('name')
+        data = request.data 
+        username = data.get('username')
         email = data.get('email')    
-        phone = data.get('phone') 
-
+        phone = data.get('phone')  
 
         if email not in [None , ""]:
             email_check = SuperAdmin.objects.filter(email=email).first()
@@ -490,6 +491,8 @@ class AdminUserPasswordModify(APIView):
         ACTION = "AdminPasswordModify PUT"
         user = request.user
         data = request.data
+
+        print(data)
         oldpassword = data.get('oldpassword',None)
         newpassword = data.get('newpassword',None)
 
@@ -823,14 +826,14 @@ class DoctorGet(APIView):
 
         serializer = DoctorSerializer(snippet,many=True,context={'request' :request})
         for i in serializer.data :
-            json_data['doctors'].append([{
+            json_data['doctors'].append({
                 "id" : i['id'],
                 "doctor_id" : i['doctor_id'], 
                 "name" : i['name'],
                 "profile_img" : i['profile_img'],
                 "specialisation" : i['specialisation'],
                 "is_blocked" : i['is_blocked'],
-            }]) 
+            }) 
 
         if len(json_data['doctors']) > 0:
             json_data['isempty'] = False
@@ -1108,7 +1111,14 @@ class HelpDeskTeam(APIView):
                 "email" : i['email'],
                 "mobile" : i['mobile'],
                 "is_blocked" : i['is_blocked'],
+                "specialisation" : [],
             }
+            for j in i['specialisation']:
+
+                data['specialisation'].append({
+                    "id" : j['id'],
+                    "name" : j['name'],
+                }) 
             json_data['team'].append(data)
         
         if len(json_data['team']) > 0:
