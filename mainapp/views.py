@@ -92,7 +92,6 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
         }
         return dataout
 
-    print(patient_)
     appuser = User.objects.filter(id=patient_.appuser).first() #Get the app user instance
     if appuser is None:
         dataout = {
@@ -220,6 +219,68 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
     }
     return dataout
 
+#---------Register View for Patient-----------------
+def register_new_user(number_,name_):
+    number=number_
+    name = name_
+
+    #validating the mobile number
+    if number in ["",None] or len(number)!=10:
+        dataout = {
+            "MSG":"FAIL",
+            "ERR":"Please provided user data(mobile number)",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+    #validating the user name
+    if name in ["",None]:
+        dataout = {
+            "MSG":"FAIL",
+            "ERR":"Please provide user data(name)",
+            "BODY":None,
+            "STATUS":status.HTTP_400_BAD_REQUEST
+        }
+        return dataout
+
+    #gets the userinstance in case of old user or creates a new user instance        
+    user_instance=User.objects.filter(mobile=number).first()
+    if user_instance is not None:
+        return display_response(
+            msg="FAIL",
+            err="User already exist.Try signin",
+            body=None,
+            statuscode=status.HTTP_406_NOT_ACCEPTABLE
+        )
+    
+    patient_instance=Patient.objects.create(
+        name=name,
+        primary=True,
+        relation="User",
+        #img: "PATIENT_TODO_IMG"
+    )
+    user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
+    patient_instance.appuser = user_instance.id
+    patient_instance.save()
+    user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
+        
+    if user_otp_instance.expiry_time<=timezone.now():
+        user_otp_instance.delete()
+        
+    user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
+
+    return {
+                "MSG":"SUCCESS",
+                "ERR":None,
+                "BODY":{
+                    "otp":user_otp_instance.otp,
+                    "code":user_otp_instance.code,
+                    "patientid": patient_instance.id
+                        },
+                "STATUS":status.HTTP_200_OK
+                }
+
+
 #--------LoginUser API--------
 class LoginUser(APIView):
 
@@ -323,42 +384,21 @@ class RegisterUser(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
 
-
-
-        #gets the userinstance in case of old user or creates a new user instance        
-        user_instance=User.objects.filter(mobile=number).first()
-        if user_instance is not None:
+        try:
+            res = register_new_user(number,name)
+            return display_response(
+                msg=res["MSG"],
+                err=res["ERR"],
+                body=res["BODY"],
+                statuscode=res["STATUS"]
+            )
+        except Exception as e:
             return display_response(
                 msg="FAIL",
-                err="User already exist.Try signin",
+                err=str(e),
                 body=None,
-                statuscode=status.HTTP_406_NOT_ACCEPTABLE
+                statuscode=status.HTTP_400_BAD_REQUEST
             )
-        
-        patient_instance=Patient.objects.create(
-            name=name,
-            primary=True,
-            relation="User",
-            #img: "PATIENT_TODO_IMG"
-        )
-        user_instance=User.objects.get_or_create(mobile=number,name=name,patientid=patient_instance.id)[0]
-        patient_instance.appuser = user_instance.id
-        patient_instance.save()
-        user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
-        
-        if user_otp_instance.expiry_time<=timezone.now():
-            user_otp_instance.delete()
-        
-        user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
-
-        return Response({
-                    "MSG":"SUCCESS",
-                    "ERR":None,
-                    "BODY":{
-                        "otp":user_otp_instance.otp,
-                        "code":user_otp_instance.code
-                            }
-                        },status=status.HTTP_200_OK)
 
 #-------Validate User API --------
 class ValidateUser(APIView):

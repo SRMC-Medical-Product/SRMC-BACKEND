@@ -1,10 +1,6 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
-12)Book appointments
-    -New patient -> Create new user options
-    -New family member -> Create new family member
-    - Display the doctor details and available time slots 
 ================================================
 
 
