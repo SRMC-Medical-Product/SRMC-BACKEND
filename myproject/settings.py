@@ -25,7 +25,26 @@ SECRET_KEY = 'django-insecure-4ahwj39q+l^&=#)j1=!b)d5h2%!%*ejuvfeqqqn()@mzsp&+7n
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['*' ,  'https://srmc.loca.lt' ]
+ALLOWED_HOSTS = [
+    '*',  
+    "192.168.1.1:8000",
+    "192.168.1.2:8000",
+    "192.168.1.3:8000",
+    "192.168.1.4:8000",
+    "192.168.1.5:8000",
+    "192.168.1.6:8000",
+    "192.168.1.7:8000",
+    "192.168.1.8:8000",
+    "192.168.1.9:8000",
+    "192.168.1.10:8000",
+    "192.168.1.11:8000",
+    "192.168.1.12:8000",
+    "192.168.1.13:8000",
+    "192.168.1.14:8000",
+    "192.168.1.15:8000",
+    'https://srmc.loca.lt',
+    'https://srmcapi.loca.lt', 
+    ]
 
 CORS_ORIGIN_WHITELIST = (
   'http://localhost:8000',

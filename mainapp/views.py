@@ -4,6 +4,7 @@
 """
 from logging.config import valid_ident
 from pydoc import doc
+from re import S
 from django.utils import timezone
 
 from datetime import datetime as dtt,time,date,timedelta
@@ -264,11 +265,13 @@ def register_new_user(number_,name_):
     patient_instance.save()
     user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
-    if user_otp_instance.expiry_time<=timezone.now():
+    if user_otp_instance is not None :
         user_otp_instance.delete()
+
         
     user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
-
+    print(user_otp_instance.otp)
+    print(user_otp_instance.code)
     return {
                 "MSG":"SUCCESS",
                 "ERR":None,
@@ -327,11 +330,12 @@ class LoginUser(APIView):
         
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
         
-        if user_otp_instance.expiry_time<=timezone.now():
+        if user_otp_instance is not None:
             user_otp_instance.delete()
         
         user_otp_instance=UserOtp.objects.get_or_create(user=user_instance)[0]
-
+        print(user_otp_instance.otp)
+        print(user_otp_instance.code)
         return Response({
                     "MSG":"SUCCESS",
                     "ERR":None,
@@ -464,6 +468,11 @@ class UserProfile(APIView):
     permission_classes=[]
 
     def get(self,request,format=None):
+        """
+            This view is responsible for getting the user profile and other patients details too when id is passed
+            GET method: 
+                patientid : [String,optional] The id of the patient
+        """
         json_data = {
             "profile" : {},
             "relation" : REALTION,
@@ -471,12 +480,28 @@ class UserProfile(APIView):
             "blood" : BLOOD,
             "user" : {}
         }
-        query = Patient.objects.filter(id=request.user.patientid).first()
+        patientid = request.query_params.get("patientid",None)
+        
+        if patientid in [None,""]:
+            query = Patient.objects.filter(id=request.user.patientid).first()
+        else:
+            query = Patient.objects.filter(id=patientid).first()
+            if query is None:
+                return display_response(
+                    msg="FAIL",
+                    err="Patient does not exist",
+                    body=None,
+                    statuscode=status.HTTP_406_NOT_ACCEPTABLE
+                )
+            
         serializer=PatientSerializer(query,context={"request":request}).data
+        print(serializer)
         json_data['profile']=serializer
         print(json_data['profile'])
+        if serializer['dob'] not in [None , ""]:
+          json_data['profile']['dob'] = dtt.strptime(serializer['dob'],Ymd).strftime(dmY)
         json_data['profile'].__setitem__('defaultimg' , serializer['name'][0:1])
-
+        json_data['profile'].__setitem__('phone',request.user.mobile)
         json_data['user']=UserSerializer(request.user,context={"request":request}).data
 
         # test_func.delay()
@@ -487,8 +512,15 @@ class UserProfile(APIView):
                         },status=status.HTTP_200_OK)
     
     def put(self,request):
+        """
+            This view is responsible for getting the user profile and other patients details too when id is passed
+            GET method: 
+                patientid : [String,optional] The id of the patient. If patientid s present then it reporesent oher patient or else app user as patient
+        """
+
         user=request.user
         data=request.data
+        patientid = data.get("patientid",None)
         name=data.get("name",None)     
         relation =data.get("relation",None) 
         gender =data.get("gender",None)
@@ -498,7 +530,19 @@ class UserProfile(APIView):
         img =data.get("img",None)
         aadhar=data.get("aadhar",None) #optional              
         
-        patient = Patient.objects.filter(id=user.patientid).first()
+        validation_arr = ["",None,"null"]
+        print(request.data)
+        if patientid in validation_arr:
+            patient = Patient.objects.filter(id=user.patientid).first()
+        else:
+            patient = Patient.objects.filter(id=patientid).first()
+            if patient is None:
+                return display_response(
+                    msg="FAIL",
+                    err="Patient does not exist",
+                    body=None,
+                    statuscode=status.HTTP_406_NOT_ACCEPTABLE
+                )
         if patient is None:
             return display_response(
                 msg="FAIL",
@@ -506,39 +550,42 @@ class UserProfile(APIView):
                 body=None,
                 statuscode=status.HTTP_406_NOT_ACCEPTABLE
             )
-        if name not in [None,""]:
+        if name not in validation_arr:
             patient.name=name
             user.name=name
             patient.save()
             user.save()
  
-        if img not in [None,""]:
+        if img not in validation_arr:
             patient.img = img
             user.img = img
             patient.save()
             user.save()
  
-        if email not in [None,""]:
+        if email not in validation_arr:
             patient.email = email
             patient.save()
         
-        if relation not in [None,""]:
+        if relation not in validation_arr:
             patient.relation = relation
             patient.save()
 
-        if gender not in [None,""]:
+        if gender not in validation_arr:
             patient.gender = gender
             patient.save()
 
-        if blood not in [None,""]:
+        if blood not in validation_arr:
             patient.blood = blood
             patient.save()
 
-        if dob not in [None,""]:
-            patient.dob= dob
+        if dob not in validation_arr:
+            dob_format = dtt.strptime(dob,dmY).strftime(Ymd)
+            patient.dob= dob_format
             patient.save()
         
-
+        print(img)
+        print(patient.img)
+        print(type(img))
         return display_response(
             msg="SUCCESS",
             err=None,
@@ -801,6 +848,7 @@ class HomeScreenAPI(APIView):
         """
         user = request.user
         json_data =  {
+            "user" : {},
             "firstcarousel" : {},
             "lastcarousel":{},
             "slider" : {
@@ -825,7 +873,8 @@ class HomeScreenAPI(APIView):
             "endcontent":{
                 "building":"1",
                 "doctors" : "50+",
-                "patients" : "150+"
+                "patients" : "150+",
+                "content" : "Our community of doctors and patients drive us to create technologies for better and afforable healthcare"
             }
         }
 
@@ -833,7 +882,7 @@ class HomeScreenAPI(APIView):
             User Serializer to get the user details
         """
         user_serializer = UserSerializer(user,context={'request' :request})
-
+        json_data['user'] = user_serializer.data
         """
             Getting all the Carousel models objects.
             Add the carousel which has id = 1 for first carousel and then id = 2 for second carousel.If it has None
@@ -935,8 +984,9 @@ class HomeScreenAPI(APIView):
                     patients_id.append(mem['id'])
 
         current_date = dtt.now(IST_TIMEZONE).strftime(Ymd)
-        query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
+        query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date__gte=current_date).order_by('-created_at').all()
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
+
         for x in serializer.data:
             data = {
                 "id" : x['id'],
@@ -1009,7 +1059,7 @@ class CategoriesScreen(APIView):
             msg = "SUCCESS",
             err= None,
             body = json_data,
-            status_code = status.HTTP_200_OK
+            statuscode = status.HTTP_200_OK
         )
 
 #---------Notifications Screen API --------------------
@@ -1714,9 +1764,11 @@ class PendingAppointment(APIView):
 
         patients_id = []
         patients_id.append(user.patientid)
-        for mem in user.family_members:
-            patients_id.append(mem['id'])
- 
+
+        if user.family_members is not None:
+            for mem in user.family_members:
+                patients_id.append(mem['id'])
+    
         if search_type == 1:
             query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
         else:
@@ -2162,14 +2214,15 @@ class FamilyMedicalRecord(APIView):
         }
         json_data['members'].append(user_data)
 
-        for i in user.family_members:
-            data = {
-                "patientid" : f"{i['id']}",
-                "name" : f"{i['name']}",
-                "img" : f"{i['img']}",
-                "relation" : f"{i['relation']}"
-            }
-            json_data['members'].append(data)
+        if user.family_members is not None:
+            for i in user.family_members:
+                data = {
+                    "patientid" : f"{i['id']}",
+                    "name" : f"{i['name']}",
+                    "img" : f"{i['img']}",
+                    "relation" : f"{i['relation']}"
+                }
+                json_data['members'].append(data)
 
         if len(json_data['members']) > 0:
             json_data['isempty'] = False
