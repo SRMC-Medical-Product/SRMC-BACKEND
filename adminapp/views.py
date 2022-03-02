@@ -586,16 +586,38 @@ class DepartmentsView(APIView):
         name = data.get('name',None) 
         img = data.get('img',None)
         head = data.get('head',None) 
-        counter = data.get('counter',None)
+        counter_no = data.get('counter_no',None)
+        floor = data.get('floor',None)
+        # catspl_id = data.get('catspl_id',None)
+        # print(data)
+        # print(type(catspl_id))
+
+        counter = [{
+            "counter": counter_no,
+            "floor": floor
+        }]
+       
 
         '''Check for None Values'''
-        if name in [None,""] or img in [None , ""] or head in [None ,""] or counter in [None , ""]:
+        if name in [None,""] in [None , ""] or img in [None , ""] or head in [None ,""] or counter in [None , ""]:
             return display_response(
             msg = "Error",
             err= "Data was found None",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
+       
+        # '''Checking if all Department Object exists'''
+        # for i in range(len(catspl_id)): 
+        #     print(i)
+        #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
+        #     if category_specialist_instance is None:
+        #         return display_response(
+        #         msg = "Error",
+        #         err= "Department Object was found None",
+        #         body = None,
+        #         statuscode = status.HTTP_404_NOT_FOUND
+        #     )
 
         counter_list = []
         for i in counter:
@@ -615,6 +637,10 @@ class DepartmentsView(APIView):
                 head = head,
                 counter = counter_list,
             )
+            # for i in range(len(catspl_id)): 
+            #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
+            #     if category_specialist_instance is None: 
+            #         department.depts.add(department)
             return display_response(
                 msg = "Success",
                 err= None,
@@ -627,7 +653,7 @@ class DepartmentsView(APIView):
                 msg = "Error",
                 err= "Department Creation Failed",
                 body = None,
-                statuscode = status.HTTP_400_BAD_REQUEST
+                statuscode = status.HTTP_409_CONFLICT
             )
 
     ''' Modify Departments'''
@@ -639,6 +665,8 @@ class DepartmentsView(APIView):
         img = data.get('img')
         head = data.get('head') 
         enable = data.get('enable')
+
+        print(data)
 
         '''Check for None Values'''
         if id in [None , ""] :
@@ -756,9 +784,10 @@ class CategorySpecialistView(APIView):
         id = data.get('id')
         name = data.get('name')
         img = data.get('img')
+        print(data)
 
         '''Check for None Values'''
-        if id in [None , ""] or name in [None , ""] or img in [None , ""]:
+        if id in [None , ""] :
             return display_response(
             msg = ACTION,
             err= "Data was found None",
@@ -793,6 +822,126 @@ class CategorySpecialistView(APIView):
             statuscode = status.HTTP_200_OK 
         )
 
+class AddCategoryDepartmentView(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ACTION = "AddCategoryDepartment GET"
+        id = request.query_params.get('id')
+        json_data = []
+        if id in [None , ""]: 
+            return display_response(
+            msg = ACTION,
+            err= "ID was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        get_category_specialist = CategorySpecialist.objects.filter(id=id).first()
+        if get_category_specialist is None:
+            return display_response(
+            msg = ACTION,
+            err= "CategorySpecialist Object was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+        serializer = CategorySpecialistSerializer(get_category_specialist,context={'request' :request}).data
+        department = Department.objects.all()
+        serializer_department = DepartmentSerializer(department,many=True,context={'request' :request}).data
+        for i in serializer_department:
+            for j in serializer['depts']:
+                if i['id'] not in j['id'] :
+                    data = {
+                        'id' : i['id'],
+                        'name' : i['name'],
+                    }
+                    json_data.append(data)
+        return display_response(
+            msg = ACTION,
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+         
+        # snippet = AddCategoryDepartment.objects.all()
+        # if snippet is None:
+        #     return display_response(
+        #     msg = ACTION,
+        #     err= "No data found",
+        #     body = None,
+        #     statuscode = status.HTTP_404_NOT_FOUND
+        # )
+        # serializer = AddCategoryDepartmentSerializer(snippet,many=True,context={'request' :request})
+        # return display_response(
+        #     msg = ACTION,
+        #     err= None,
+        #     body = serializer.data,
+        #     statuscode = status.HTTP_200_OK
+        # )
+
+    '''Add CategoryDepartment''' 
+    def post(self, request, format=None): 
+        data = request.data
+        cat_id = data.get('cat_id' , None) 
+        dept_id = data.get('dept_id' , None)
+        print(cat_id , dept_id)
+
+        '''Check for None Values'''
+        if cat_id in [None , ""] or len(dept_id) == 0:
+            return display_response(
+            msg = "Error",
+            err= "Data was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if CategorySpecialist object exists'''
+        get_category_specialist = CategorySpecialist.objects.filter(id=cat_id).first()
+        if get_category_specialist is None:
+            return display_response(
+            msg = "Error",
+            err= "CategorySpecialist Object was found None",
+            body = None,
+            statuscode = status.HTTP_404_NOT_FOUND
+        )
+
+        '''Checking if all Department Object exists'''
+        for i in range(len(dept_id)): 
+            print(i)
+            dept_instance = Department.objects.filter(id=dept_id[i]).first()
+ 
+            if dept_instance is not None:
+                
+                '''Adding the Department to the CategorySpecialist'''
+                try:
+                    get_category_specialist.depts.add(dept_instance)
+                    get_category_specialist.save()
+
+                except Exception as e:
+                    excep = exceptiontype(e)
+                    msg = exceptionmsg(e)
+                    return display_response(
+                        msg = "Error",
+                        err= f"{excep} || {msg}",
+                        body = None,
+                        statuscode = status.HTTP_409_CONFLICT
+                    )
+            else :
+                return display_response(
+                    msg = "Error",
+                    err= "Department Object was found None",
+                    body = None,
+                    statuscode = status.HTTP_404_NOT_FOUND
+                )
+        return display_response(
+            msg = "Success",
+            err= None,
+            body = "Department Added Successfully",
+            statuscode = status.HTTP_200_OK
+        )
+            
+
+    
 #---Doctors Available---------                  
 class DoctorGet(APIView):
     authentication_classes = [SuperAdminAuthentication] 
@@ -901,6 +1050,8 @@ class DoctorDetails(APIView):
         json_data['timings'] = timings_serializer.data 
         
         '''Analytics'''
+        print(snippet)
+        print(snippet.id)
         appointments = Appointment.objects.filter(doctor_id=snippet.id).all()
         json_data['analytics']['total'] = appointments.count()
         json_data['analytics']['pending'] = appointments.filter(closed=False).count()
@@ -1082,12 +1233,28 @@ class PatientAppUsers(APIView):
 
     def get(self , request , format=None):
         ACTION = "Users GET"
+        json_data = {
+            "isempty" : True,
+            "users" : [], 
+        }
+        search = request.query_params.get("search",None) 
+
         snippet = User.objects.all() 
+        
+        if search not in [None , ""]:
+            snippet = snippet.filter(Q(name__icontains=search))
+
         serializer = UserSerializer(snippet,many=True,context={'request' :request}).data
+       
+        json_data['users'] = serializer
+        
+        if len(json_data['users']) > 0:
+            json_data['isempty'] = False
+
         return display_response(
             msg = ACTION,
             err= None, 
-            body = serializer,
+            body = json_data,
             statuscode = status.HTTP_200_OK
         )
 
@@ -1936,6 +2103,7 @@ class DoctorCreate(APIView):
                 duration :  [Int,required] value representing the averation time duration of how long an appoinment can go
         """
         data = request.data
+        print(data)
         phone = data.get('phone',None) #unique phone number
         doctor_id = data.get('doctor_id',None) #unique doctor id
         email = data.get('email',None) #unique email address
@@ -1953,7 +2121,7 @@ class DoctorCreate(APIView):
         days=data.get("days",None)
         start_time=data.get("start_time",None)
         end_time=data.get("end_time",None)
-        duration=data.get("duration",None)
+        duration=int(data.get("duration",None))
 
         if days in [None,""]:
             return Response({
@@ -1961,7 +2129,7 @@ class DoctorCreate(APIView):
                     "ERR":"Invalid day data",
                     "BODY":None
                         },status=status.HTTP_400_BAD_REQUEST)
-        
+       
         if start_time in [None,""] or end_time in [None,""]:
             return Response({
                         "MSG":"FAILED",
@@ -1969,6 +2137,7 @@ class DoctorCreate(APIView):
                         "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
             
+ 
         if duration in [None,""]:
             return Response({
                         "MSG":"FAILED",
@@ -1976,6 +2145,7 @@ class DoctorCreate(APIView):
                         "BODY":None
                             },status=status.HTTP_400_BAD_REQUEST)
 
+     
         if (phone in [None , ""] or doctor_id in [None,""] or email in [None,""] or name in [None,""]  or pin in [None,""] or age in [None,""] or
         gender in [None,""] or dob in [None,""] or experience in [None,""] or qualification in [None,""] or specialisation in [None,""] or departmentid in [None,""]):
             return display_response(
@@ -1984,7 +2154,7 @@ class DoctorCreate(APIView):
                 body = None,
                 statuscode = status.HTTP_400_BAD_REQUEST
             )
-
+ 
 
         """
             Check if the phone number,doctor id and email address already exists
@@ -1997,7 +2167,7 @@ class DoctorCreate(APIView):
                 body = None,
                 statuscode = status.HTTP_400_BAD_REQUEST
             )
-
+ 
         check_doctor_id = Doctor.objects.filter(doctor_id=doctor_id).first()
         if check_doctor_id is not None:
             return display_response(
@@ -2006,7 +2176,7 @@ class DoctorCreate(APIView):
                 body = None,
                 statuscode = status.HTTP_400_BAD_REQUEST
             )
-
+ 
         check_doctor_email = Doctor.objects.filter(email=email).first()
         if check_doctor_email is not None:
             return display_response(
@@ -2019,8 +2189,10 @@ class DoctorCreate(APIView):
         """
             Format DOB and Gender and age,experience
         """
+        # convert_date = 
         try:
-            date_format = dtt.strptime(str(dob),dmY).strftime(Ymd)
+            # date_format = dtt.strptime(str(dob),Ydm).strftime(Ymd)
+            date_format = dtt.strptime(str(dob),Ymd).strftime(Ymd)
             print(date_format)
         except Exception as e:
             return display_response(
@@ -2028,7 +2200,8 @@ class DoctorCreate(APIView):
                 err=f"Invalid date format error during conversion. \n Exception : {e}",
                 body=None,
                 statuscode = status.HTTP_400_BAD_REQUEST
-            )
+            ) 
+
 
         try:
             age = int(age)
@@ -2180,7 +2353,7 @@ class DoctorCreate(APIView):
                 msg = "SUCCESS",
                 err=None,
                 body = None,
-                statuscode = status.HTTP_400_BAD_REQUEST
+                statuscode = status.HTTP_200_OK
             )
         except Exception as e:
             return display_response(
