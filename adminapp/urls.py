@@ -18,6 +18,7 @@ urlpatterns = [
     # --------------------------------- Department URLS ---------------------------------
     path("departments/", DepartmentsView.as_view(), name="department"),
     path("categoryspecialist/", CategorySpecialistView.as_view(), name="admin-categoryspecialist"),
+    path("add-category-department/", AddCategoryDepartmentView.as_view(), name="admin-add-category-department"),
 
     # --------------------------------- Doctor URLS ---------------------------------
     path('doctor-create/',DoctorCreate.as_view(),name='admin-doctor-create'),

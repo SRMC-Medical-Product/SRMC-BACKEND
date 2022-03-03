@@ -7,6 +7,7 @@ import pytz
 IST_TIMEZONE = pytz.timezone('Asia/Kolkata')
 dmY = "%d-%m-%Y"
 Ymd = '%Y-%m-%d'
+Ydm = '%Y-%d-%m'
 mdY = "%m-%d-%Y"
 IMp = "%I:%M %p"
 HMS = "%H:%M:%S"
