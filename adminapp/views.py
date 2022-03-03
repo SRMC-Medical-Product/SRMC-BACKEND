@@ -1611,6 +1611,8 @@ class GetAllAppointments(APIView):
         }
         aset = str(request.query_params.get("set",1))
         search = request.query_params.get("search",None)
+        print("1614")
+        print(aset , search)
         if aset in [1,'1']:
             appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False).order_by('-time')
             json_data['livetoday'] = True
@@ -1647,8 +1649,9 @@ class GetAllAppointments(APIView):
             json_data['history'] = False
             json_data['all'] = True
 
-        if search not in [None , ""]:
-            query = appointments.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+        if search not in [None , " "]:
+            query = Appointment.objects.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+           
             #appointments.filter(Q(id__icontains = id) | Q(patient__name__icontains = search) | Q(patient__phone__icontains = search) | Q(patient__email__icontains = search) | Q(doctor__name__icontains = search) | Q(doctor__phone__icontains = search) | Q(doctor__email__icontains = search) | Q(date__icontains = search) | Q(time__icontains = search) | Q(reason__icontains = search) | Q(status__icontains = search) | Q(closed__icontains = search) | Q(created_at__icontains = search) | Q(updated_at__icontains = search))
         else:
             query = appointments
@@ -1663,8 +1666,10 @@ class GetAllAppointments(APIView):
                 "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
                 "patient_id" : i['patient_id'],
                 "patient_name" : i['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : i['doctor_id'],
                 "doctor_name" : i['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : i['consulted'],
                 "cancelled" : i['cancelled'],
                 "closed" : i['closed'],
@@ -1681,7 +1686,7 @@ class GetAllAppointments(APIView):
 
         if len(json_data['appointments']) > 0:
             json_data['count'] = len(json_data['appointments'])
-            json_data['isempty'] = True
+            json_data['isempty'] = False
     
         return display_response(
             msg = "SUCCESS",
@@ -1783,10 +1788,11 @@ class AllPatientTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
+ 
         
         query = PatientTickets.objects.all().order_by('-created_at')
 
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
             json_data['closed'] = True
         else:
@@ -1797,8 +1803,8 @@ class AllPatientTickets(APIView):
             query = query.filter(Q(user_id__name__icontains=search))
 
         serializer = PatientTicketsSerializer(query,many=True,context={'request' :request}).data
-        json_data['tickets'] = serializer
-
+        
+        json_data['tickets'] = serializer 
         if len(json_data['tickets']) > 0:
             json_data['isempty'] = False
 
