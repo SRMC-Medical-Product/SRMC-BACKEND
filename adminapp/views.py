@@ -587,10 +587,7 @@ class DepartmentsView(APIView):
         img = data.get('img',None)
         head = data.get('head',None) 
         counter_no = data.get('counter_no',None)
-        floor = data.get('floor',None)
-        # catspl_id = data.get('catspl_id',None)
-        # print(data)
-        # print(type(catspl_id))
+        floor = data.get('floor',None) 
 
         counter = [{
             "counter": counter_no,
@@ -605,19 +602,7 @@ class DepartmentsView(APIView):
             err= "Data was found None",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
-        )
-       
-        # '''Checking if all Department Object exists'''
-        # for i in range(len(catspl_id)): 
-        #     print(i)
-        #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-        #     if category_specialist_instance is None:
-        #         return display_response(
-        #         msg = "Error",
-        #         err= "Department Object was found None",
-        #         body = None,
-        #         statuscode = status.HTTP_404_NOT_FOUND
-        #     )
+        ) 
 
         counter_list = []
         for i in counter:
@@ -636,11 +621,7 @@ class DepartmentsView(APIView):
                 img = img,
                 head = head,
                 counter = counter_list,
-            )
-            # for i in range(len(catspl_id)): 
-            #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-            #     if category_specialist_instance is None: 
-            #         department.depts.add(department)
+            ) 
             return display_response(
                 msg = "Success",
                 err= None,
@@ -828,8 +809,11 @@ class AddCategoryDepartmentView(APIView):
 
     def get(self , request , format=None):
         ACTION = "AddCategoryDepartment GET"
-        id = request.query_params.get('id')
-        json_data = []
+        id = request.query_params.get('id',None)
+        json_data = {
+            "isempty" : True,
+            "depts" : []
+        }
         if id in [None , ""]: 
             return display_response(
             msg = ACTION,
@@ -837,7 +821,9 @@ class AddCategoryDepartmentView(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
+        
         get_category_specialist = CategorySpecialist.objects.filter(id=id).first()
+        
         if get_category_specialist is None:
             return display_response(
             msg = ACTION,
@@ -845,17 +831,24 @@ class AddCategoryDepartmentView(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
+        
         serializer = CategorySpecialistSerializer(get_category_specialist,context={'request' :request}).data
+
+        existing_depts = [x['id'] for x in serializer['depts']]
+ 
         department = Department.objects.all()
         serializer_department = DepartmentSerializer(department,many=True,context={'request' :request}).data
+         
         for i in serializer_department:
-            for j in serializer['depts']:
-                if i['id'] not in j['id'] :
-                    data = {
-                        'id' : i['id'],
-                        'name' : i['name'],
-                    }
-                    json_data.append(data)
+            if i['id'] not in existing_depts:
+                json_data['depts'].append({
+                    "id" : i['id'],
+                    "name" : i['name'],
+                }) 
+
+        if len(json_data['depts']) > 0:
+            json_data['isempty'] = False
+
         return display_response(
             msg = ACTION,
             err= None,
@@ -863,22 +856,7 @@ class AddCategoryDepartmentView(APIView):
             statuscode = status.HTTP_200_OK
         )
          
-        # snippet = AddCategoryDepartment.objects.all()
-        # if snippet is None:
-        #     return display_response(
-        #     msg = ACTION,
-        #     err= "No data found",
-        #     body = None,
-        #     statuscode = status.HTTP_404_NOT_FOUND
-        # )
-        # serializer = AddCategoryDepartmentSerializer(snippet,many=True,context={'request' :request})
-        # return display_response(
-        #     msg = ACTION,
-        #     err= None,
-        #     body = serializer.data,
-        #     statuscode = status.HTTP_200_OK
-        # )
-
+        
     '''Add CategoryDepartment''' 
     def post(self, request, format=None): 
         data = request.data
