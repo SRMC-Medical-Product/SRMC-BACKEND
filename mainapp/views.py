@@ -2178,6 +2178,7 @@ class PatientTicketsIssues(APIView):
                 "id": i['id'],
                 "closed" : i['closed'],
                 "issues" : i['issues'],
+                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
             }
             json_data['tickets'].append(data)
         
