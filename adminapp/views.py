@@ -587,10 +587,7 @@ class DepartmentsView(APIView):
         img = data.get('img',None)
         head = data.get('head',None) 
         counter_no = data.get('counter_no',None)
-        floor = data.get('floor',None)
-        # catspl_id = data.get('catspl_id',None)
-        # print(data)
-        # print(type(catspl_id))
+        floor = data.get('floor',None) 
 
         counter = [{
             "counter": counter_no,
@@ -605,19 +602,7 @@ class DepartmentsView(APIView):
             err= "Data was found None",
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
-        )
-       
-        # '''Checking if all Department Object exists'''
-        # for i in range(len(catspl_id)): 
-        #     print(i)
-        #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-        #     if category_specialist_instance is None:
-        #         return display_response(
-        #         msg = "Error",
-        #         err= "Department Object was found None",
-        #         body = None,
-        #         statuscode = status.HTTP_404_NOT_FOUND
-        #     )
+        ) 
 
         counter_list = []
         for i in counter:
@@ -636,11 +621,7 @@ class DepartmentsView(APIView):
                 img = img,
                 head = head,
                 counter = counter_list,
-            )
-            # for i in range(len(catspl_id)): 
-            #     category_specialist_instance = CategorySpecialist.objects.filter(id=catspl_id[i]).first()
-            #     if category_specialist_instance is None: 
-            #         department.depts.add(department)
+            ) 
             return display_response(
                 msg = "Success",
                 err= None,
@@ -828,8 +809,11 @@ class AddCategoryDepartmentView(APIView):
 
     def get(self , request , format=None):
         ACTION = "AddCategoryDepartment GET"
-        id = request.query_params.get('id')
-        json_data = []
+        id = request.query_params.get('id',None)
+        json_data = {
+            "isempty" : True,
+            "depts" : []
+        }
         if id in [None , ""]: 
             return display_response(
             msg = ACTION,
@@ -837,7 +821,9 @@ class AddCategoryDepartmentView(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
+        
         get_category_specialist = CategorySpecialist.objects.filter(id=id).first()
+        
         if get_category_specialist is None:
             return display_response(
             msg = ACTION,
@@ -845,17 +831,24 @@ class AddCategoryDepartmentView(APIView):
             body = None,
             statuscode = status.HTTP_404_NOT_FOUND
         )
+        
         serializer = CategorySpecialistSerializer(get_category_specialist,context={'request' :request}).data
+
+        existing_depts = [x['id'] for x in serializer['depts']]
+ 
         department = Department.objects.all()
         serializer_department = DepartmentSerializer(department,many=True,context={'request' :request}).data
+         
         for i in serializer_department:
-            for j in serializer['depts']:
-                if i['id'] not in j['id'] :
-                    data = {
-                        'id' : i['id'],
-                        'name' : i['name'],
-                    }
-                    json_data.append(data)
+            if i['id'] not in existing_depts:
+                json_data['depts'].append({
+                    "id" : i['id'],
+                    "name" : i['name'],
+                }) 
+
+        if len(json_data['depts']) > 0:
+            json_data['isempty'] = False
+
         return display_response(
             msg = ACTION,
             err= None,
@@ -863,22 +856,7 @@ class AddCategoryDepartmentView(APIView):
             statuscode = status.HTTP_200_OK
         )
          
-        # snippet = AddCategoryDepartment.objects.all()
-        # if snippet is None:
-        #     return display_response(
-        #     msg = ACTION,
-        #     err= "No data found",
-        #     body = None,
-        #     statuscode = status.HTTP_404_NOT_FOUND
-        # )
-        # serializer = AddCategoryDepartmentSerializer(snippet,many=True,context={'request' :request})
-        # return display_response(
-        #     msg = ACTION,
-        #     err= None,
-        #     body = serializer.data,
-        #     statuscode = status.HTTP_200_OK
-        # )
-
+        
     '''Add CategoryDepartment''' 
     def post(self, request, format=None): 
         data = request.data
@@ -1611,6 +1589,8 @@ class GetAllAppointments(APIView):
         }
         aset = str(request.query_params.get("set",1))
         search = request.query_params.get("search",None)
+        print("1614")
+        print(aset , search)
         if aset in [1,'1']:
             appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False).order_by('-time')
             json_data['livetoday'] = True
@@ -1647,8 +1627,9 @@ class GetAllAppointments(APIView):
             json_data['history'] = False
             json_data['all'] = True
 
-        if search not in [None , ""]:
-            query = appointments.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+        if search not in [None , " "]:
+            query = Appointment.objects.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+           
             #appointments.filter(Q(id__icontains = id) | Q(patient__name__icontains = search) | Q(patient__phone__icontains = search) | Q(patient__email__icontains = search) | Q(doctor__name__icontains = search) | Q(doctor__phone__icontains = search) | Q(doctor__email__icontains = search) | Q(date__icontains = search) | Q(time__icontains = search) | Q(reason__icontains = search) | Q(status__icontains = search) | Q(closed__icontains = search) | Q(created_at__icontains = search) | Q(updated_at__icontains = search))
         else:
             query = appointments
@@ -1663,8 +1644,10 @@ class GetAllAppointments(APIView):
                 "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
                 "patient_id" : i['patient_id'],
                 "patient_name" : i['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : i['doctor_id'],
                 "doctor_name" : i['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : i['consulted'],
                 "cancelled" : i['cancelled'],
                 "closed" : i['closed'],
@@ -1681,7 +1664,7 @@ class GetAllAppointments(APIView):
 
         if len(json_data['appointments']) > 0:
             json_data['count'] = len(json_data['appointments'])
-            json_data['isempty'] = True
+            json_data['isempty'] = False
     
         return display_response(
             msg = "SUCCESS",
@@ -1783,10 +1766,11 @@ class AllPatientTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
+ 
         
         query = PatientTickets.objects.all().order_by('-created_at')
 
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
             json_data['closed'] = True
         else:
@@ -1797,8 +1781,8 @@ class AllPatientTickets(APIView):
             query = query.filter(Q(user_id__name__icontains=search))
 
         serializer = PatientTicketsSerializer(query,many=True,context={'request' :request}).data
-        json_data['tickets'] = serializer
-
+        
+        json_data['tickets'] = serializer 
         if len(json_data['tickets']) > 0:
             json_data['isempty'] = False
 

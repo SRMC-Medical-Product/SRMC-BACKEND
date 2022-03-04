@@ -2,6 +2,7 @@
     File with all the API's relating to the help desk user web
 """
 from datetime import datetime as dtt,time,date,timedelta
+import json
 from django.db.models import Q
 
 from rest_framework.views import APIView
@@ -33,6 +34,7 @@ class LoginUser(APIView):
         data = request.data
         userid = data.get("userid", None)  # Both USERID and EMail are accepted
         pin = data.get("pin", None)
+        print(userid,pin)
 
         if userid in [None,""] or pin in [None,""]:
             return display_response(
@@ -47,14 +49,21 @@ class LoginUser(APIView):
             we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
         """
         encrptedpin = encrypt_helpdesk_pin(pin)
-        user=HelpDeskUser.objects.filter(id=userid,pin=encrptedpin)
+        user=HelpDeskUser.objects.filter(id=userid).first()
         if user is None:
-            user=HelpDeskUser.objects.filter(email=userid,pin=encrptedpin)
+            user=HelpDeskUser.objects.filter(email=userid).first()
             if user is None:
-                user=HelpDeskUser.objects.filter(mobile=userid,pin=pin)
+                user=HelpDeskUser.objects.filter(mobile=userid).first()
+      
 
-        if user.exists():
-            user=user[0]
+        if user is not None:             
+            if(encrptedpin != user.pin):
+                return display_response(
+                    msg="FAILED",
+                    err="User credentials are wrong",
+                    body=None,
+                    statuscode=status.HTTP_400_BAD_REQUEST
+                )
         else:
             return display_response(
                 msg="FAILED",
@@ -172,6 +181,7 @@ class UserPinModify(APIView):
         user = request.user
         oldpin = data.get('oldpin') 
         newpin = data.get('newpin')
+        print(data , user)
         
         if oldpin in [None , ""] or newpin in [None , ""]:
             return display_response(
@@ -305,6 +315,7 @@ class AppointmentsHistory(APIView):
         search = request.query_params.get('search',None)
         filter = str(request.query_params.get('filter',None))
         sortby = str(request.query_params.get('sortby',None))
+        print(search , filter , sortby)
         json_data = {
             "isempty" : True,
             "appointments" : [],
@@ -367,11 +378,13 @@ class AppointmentsHistory(APIView):
                 "cancelled" : i['cancelled'],
                 "reassigned" : i['reassigned'],
                 "activity" : i['activity'],
-                "status": "Conusulted" if i['consulted'] == True else "Cancelled" 
+                "status": "Consulted" if i['consulted'] == True else "Cancelled" 
             })
 
 
         json_data['appointments'] = temp
+        if len(temp) > 0:
+            json_data["isempty"] = False
         return display_response(
             msg = ACTION,
             err= None,
@@ -452,14 +465,14 @@ class DoctorGet(APIView):
 
         serializer = DoctorSerializer(snippet,many=True,context={'request' :request})
         for i in serializer.data :
-            json_data['doctors'].append([{
+            json_data['doctors'].append({
                 "id" : i['id'],
                 "doctor_id" : i['doctor_id'], 
                 "name" : i['name'],
                 "profile_img" : i['profile_img'],
                 "specialisation" : i['specialisation'],
                 "is_blocked" : i['is_blocked'],
-            }]) 
+            }) 
 
         if len(json_data['doctors']) > 0:
             json_data['isempty'] = False
@@ -587,7 +600,7 @@ class PatientGet(APIView):
         }
         user = request.user
         search = request.query_params.get("search",None)
-        primaryuser = request.query_params.get("primary",False)
+        primaryuser = request.query_params.get("primary",False) 
         
         s_ = HelpDeskUserSerializer(user,context={'request' :request}).data
         dept_list = list(set([e['id'] for e in s_['specialisation']]))
@@ -597,7 +610,8 @@ class PatientGet(APIView):
         
         snippet = Patient.objects.filter(id__in=all_patients).all()
         
-        if primaryuser in [True , "True"]:
+        print(primaryuser)
+        if primaryuser in [True , "True" , "true"]:
             snippet = snippet.filter(primary=True)
             json_data['primary'] = True
 
@@ -869,6 +883,7 @@ class AllPatientTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
+        print(params)
         
         user = request.user
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
@@ -877,7 +892,7 @@ class AllPatientTickets(APIView):
         get_depts = Department.objects.filter(id__in=depts_list)
         query = PatientTickets.objects.filter(dept__in = get_depts).order_by('-created_at')
  
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
             json_data['selected_closed'] = True
         else:
@@ -888,16 +903,8 @@ class AllPatientTickets(APIView):
             query = query.filter(Q(user_id__name__icontains=search))
 
         serializer = PatientTicketsSerializer(query,many=True,context={'request' :request}).data
-        for i in serializer:
-            data = {
-                "id" : i['id'],
-                "closed" : i['closed'],
-                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
-                "name" : i['user_id']['name'],
-                "userid" : i['user_id']['id'],
-                "mobile" : i['user_id']['mobile']
-            }
-            json_data['tickets'] = data
+        
+        json_data['tickets'] = serializer
 
 
         if len(json_data['tickets']) > 0:
@@ -950,16 +957,7 @@ class AllDoctorTickets(APIView):
             query = query.filter(Q(user_id__name__icontains=search))
 
         serializer = DoctorTicketsSerializer(query,many=True,context={'request' :request}).data
-        for i in serializer:
-            data = {
-                "id" : i['id'],
-                "closed" : i['closed'],
-                "created_at" : dtt.strptime(i['created_at'],YmdTHMSfz).strftime(dBYIMp),
-                "name" : i['doctor_id']['name'],
-                "userid" : i['doctor_id']['id'],
-                "mobile" : i['doctor_id']['phone']
-            }
-            json_data['tickets'] = data
+        json_data['tickets'] = serializer        
 
 
         if len(json_data['tickets']) > 0:
@@ -1153,8 +1151,8 @@ class GetAllAppointments(APIView):
             json_data['history'] = False
             json_data['all'] = True
 
-        if search not in [None , ""]:
-            query = appointments.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
+        if search not in [None , " "]:
+            query = Appointment.objects.filter(Q(patient__name__icontains=search) | Q(doctor__name__icontains=search) | Q(id__icontains=search))
             #appointments.filter(Q(id__icontains = id) | Q(patient__name__icontains = search) | Q(patient__phone__icontains = search) | Q(patient__email__icontains = search) | Q(doctor__name__icontains = search) | Q(doctor__phone__icontains = search) | Q(doctor__email__icontains = search) | Q(date__icontains = search) | Q(time__icontains = search) | Q(reason__icontains = search) | Q(status__icontains = search) | Q(closed__icontains = search) | Q(created_at__icontains = search) | Q(updated_at__icontains = search))
         else:
             query = appointments
