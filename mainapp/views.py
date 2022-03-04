@@ -6,6 +6,7 @@ from logging.config import valid_ident
 from pydoc import doc
 from re import S
 from django.utils import timezone
+from django.db.models import Q
 
 from datetime import datetime as dtt,time,date,timedelta
 import json
@@ -1463,25 +1464,30 @@ class SearchResults(APIView):
             "isempty" : True,
             'doctors' : [],
             'specialisation':[],
-            'gender' : [
-                {
-                "id" : "A",
-                "title" : "All",
-                "selected" : True,
-                },
-                {
-                "id" : "M",
-                "title" : "Male",
-                "selected" : False,
-                },
-                {
-                "id" : "F",
-                "title" : "Female",
-                "selected" : False,
-                }
+            'gender' : {
+                "selected_id" : "A",
+                "gender" : [
+                    {
+                    "id" : "A",
+                    "title" : "All",
+                    "selected" : True,
+                    },
+                    {
+                    "id" : "M",
+                    "title" : "Male",
+                    "selected" : False,
+                    },
+                    {
+                    "id" : "F",
+                    "title" : "Female",
+                    "selected" : False,
+                    }
                 
-            ],
-            'experience': [
+            ]
+            },
+            'experience': {
+                "selected_id" : 1,
+                "experience" : [
                 {
                     "id" : 1,
                     "title" : "Relevance",
@@ -1498,11 +1504,12 @@ class SearchResults(APIView):
                     "selected" : False,
                 }
             ],
+            }
         }
 
         user = request.user
         data = request.query_params
-        query = data.get('search', "")
+        query = data.get('query', "")
         search_type = data.get("search_type","first")
         specialist = data.get('specialist', None)
         exp = data.get('exp', 1)
@@ -1513,7 +1520,8 @@ class SearchResults(APIView):
         """
         temp = []
 
-        name_set = Doctor.objects.filter(name__icontains=query,is_blocked=False).all()
+
+        name_set = Doctor.objects.filter(Q(name__contains=query) , is_blocked=False)
         name_serializer = DoctorSerializer(name_set,many=True,context={"request":request})
         for i in name_serializer.data:
             data = {
@@ -1527,8 +1535,10 @@ class SearchResults(APIView):
                 "deptname" : i['department_id']['name'],
             }
             temp.append(data)
-        
-        dept_set = Department.objects.filter(name__icontains=query).all()
+            print(f"--------------------{i['name']}--------------------")
+
+
+        dept_set = Department.objects.filter(Q(name__icontains=query))
         dept_serializer = DepartmentSerializer(dept_set,many=True,context={"request":request})
         for j in dept_serializer.data:
             queryset = Doctor.objects.filter(department_id__id=j['id'],is_blocked=False).all()
@@ -1538,6 +1548,7 @@ class SearchResults(APIView):
                     "id" : x['id'],
                     "doctor_id" : x['doctor_id'],
                     "name" : x['name'],
+                    "profile_img" : f"{x['profile_img']}",
                     "experience" : x['experience'],
                     "gender" : x['gender'],
                     "deptid" : x['department_id']['id'],
@@ -1545,7 +1556,7 @@ class SearchResults(APIView):
                 }
                 temp.append(data)
 
-        category_set = CategorySpecialist.objects.filter(name__icontains=query).all()
+        category_set = CategorySpecialist.objects.filter(Q(name__icontains=query))
         category_serializer = CategorySpecialistSerializer(category_set,many=True,context={"request":request})
         for k in category_serializer.data:
             depts_id_list = [x['id'] for x in k['depts']]
@@ -1556,6 +1567,7 @@ class SearchResults(APIView):
                     "id" : y['id'],
                     "doctor_id" : y['doctor_id'],
                     "name" : y['name'],
+                    "profile_img" : f"{y['profile_img']}",
                     "experience" : y['experience'],
                     "gender" : y['gender'],
                     "deptid" : y['department_id']['id'],
@@ -1563,10 +1575,17 @@ class SearchResults(APIView):
                 }
                 temp.append(data)
 
+        print("----doctor set-----")
+        print(name_set)
+        print(dept_set)
+        print(category_set)
+
         final = []
         for a in temp:
-            if a not in final:
+            id_ = list(set([x['id'] for x in final])) 
+            if a['id'] not in id_:
                 final.append(a)
+
         json_data['doctors'] = final
 
         get_specialisation = Department.objects.all()
@@ -1578,6 +1597,7 @@ class SearchResults(APIView):
                 "selected" : False,
             }
             json_data['specialisation'].append(data)
+
 
         if search_type == "first":
             if len(json_data['doctors']) > 0:
@@ -1602,8 +1622,9 @@ class SearchResults(APIView):
                     for m in initial:
                         if m['gender'] == 'M':
                             filter_1.append(m)
-                    for g in json_data['gender']:
+                    for g in json_data['gender']['gender']:
                         if g['id'] == 'M':
+                            json_data['gender']['selected_id'] = g['id']
                             g['selected'] = True
                         else:
                             g['selected'] = False
@@ -1611,18 +1632,21 @@ class SearchResults(APIView):
                     for f in initial:
                         if f['gender'] == 'F':
                             filter_1.append(f)
-                    for g in json_data['gender']:
+                    for g in json_data['gender']['gender']:
                         if g['id'] == 'F':
+                            json_data['gender']['selected_id'] = g['id']
                             g['selected'] = True
                         else:
                             g['selected'] = False
                 else:
                     filter_1 = initial
-                    for g in json_data['gender']:
+                    for g in json_data['gender']['gender']:
                         if g['id'] == 'A':
+                            json_data['gender']['selected_id'] = g['id']
                             g['selected'] = True
                         else:
                             g['selected'] = False
+
 
             """
                 Experience : Filtering the doctor based on experience
@@ -1632,24 +1656,26 @@ class SearchResults(APIView):
             """  
             if exp not in [None,""]:
                 exp = int(exp)
-                print(exp)
                 if exp == 2:
                     filter_1.sort(key=lambda e: e['experience'], reverse=False)
-                    for e in json_data['experience']:
+                    for e in json_data['experience']['experience']:
                         if e['id'] == 2:
+                            json_data['experience']['selected_id'] = e['id']
                             e['selected'] = True
                         else:
                             e['selected'] = False
                 elif exp == 3:
                     filter_1.sort(key=lambda e: e['experience'], reverse=True)
-                    for e in json_data['experience']:
+                    for e in json_data['experience']['experience']:
                         if e['id'] == 3:
+                            json_data['experience']['selected_id'] = e['id']
                             e['selected'] = True
                         else:
                             e['selected'] = False
                 else:
-                    for e in json_data['experience']:
+                    for e in json_data['experience']['experience']:
                         if e['id'] == 1:
+                            json_data['experience']['selected_id'] = e['id']
                             e['selected'] = True
                         else:
                             e['selected'] = False
