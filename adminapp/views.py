@@ -1094,7 +1094,7 @@ class PatientGet(APIView):
         
         snippet = Patient.objects.all()
         
-        if primaryuser in [True , "True"]:
+        if primaryuser in [True , "True" , "true"]:
             snippet = snippet.filter(primary=True)
             json_data['primary'] = True
 
@@ -1971,7 +1971,7 @@ class AllMedicinesDrugs(APIView):
             return display_response(
                 msg = "SUCCESS",
                 err= None,
-                body = None,
+                body = "Medicine Added Successfully",
                 statuscode = status.HTTP_201_CREATED
             )
         except Exception as e:
@@ -2012,7 +2012,7 @@ class BulkUploadMedicines(APIView):
         df = pd.read_csv(csvfile)
 
         """Dropping all the NA values rows. Ex:Last Row"""
-        for i in range(len(df)):
+        for i in range(1,len(df)):
             name = df.iloc[i][0]
             description = df.iloc[i][1]
 
@@ -2039,6 +2039,8 @@ class BulkUploadMedicines(APIView):
             description = df.iloc[n][1]
 
             try:
+                print(name)
+                print(description)
                 medicines = Medicines.objects.create(
                     name = name,
                     description = description
@@ -2366,7 +2368,7 @@ class DoctorProfileUpdate(APIView):
                 experience : [String,optional]
                 qualification : [String,optional] qualification
                 specialisation : [String,optional]
-                deptertment_id : [String,optional] id of department
+                department_id : [String,optional] id of department
                 
                 
         """
@@ -2382,6 +2384,7 @@ class DoctorProfileUpdate(APIView):
         qualification = data.get('qualification',None)
         specialisation = data.get('specialisation',None)
         departmentid = data.get('departmentid',None)
+        print(data)
         
         if doctor_id in [None,""]:
             return display_response(
@@ -2402,7 +2405,8 @@ class DoctorProfileUpdate(APIView):
 
         if email not in [None , ""]:
             check_email = Doctor.objects.filter(email=email).first()
-            if check_email is not None:
+            print("2408",check_email)
+            if check_email is None:
                 get_doctor.email = email
                 get_doctor.save()
             else:
@@ -2447,7 +2451,7 @@ class DoctorProfileUpdate(APIView):
         
         if dob not in [None , ""]:
             try:
-                date_format = dtt.strptime(str(dob),dmY).strftime(Ymd)
+                date_format = dtt.strptime(str(dob),Ymd).strftime(Ymd)
                 get_doctor.dob = date_format
                 get_doctor.save()
             except Exception as e:
@@ -2493,8 +2497,8 @@ class DoctorProfileUpdate(APIView):
 
         return display_response(
             msg = "SUCCESS",
-            err=None,
-            body = None,
+            err = None,
+            body = "Updated Successfully",
             statuscode = status.HTTP_200_OK
         )
 
