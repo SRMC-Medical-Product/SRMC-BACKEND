@@ -1505,7 +1505,7 @@ class SearchResults(APIView):
         query = data.get('search', "")
         search_type = data.get("search_type","first")
         specialist = data.get('specialist', None)
-        exp = int(data.get('exp', 1))
+        exp = data.get('exp', 1)
         gender = data.get('gender','A')
 
         """
@@ -1520,6 +1520,7 @@ class SearchResults(APIView):
                 "id" : i['id'],
                 "doctor_id" : i['doctor_id'],
                 "name" : i['name'],
+                "profile_img" : f"{i['profile_img']}",
                 "experience" : i['experience'],
                 "gender" : i['gender'],
                 "deptid" : i['department_id']['id'],
@@ -1547,7 +1548,8 @@ class SearchResults(APIView):
         category_set = CategorySpecialist.objects.filter(name__icontains=query).all()
         category_serializer = CategorySpecialistSerializer(category_set,many=True,context={"request":request})
         for k in category_serializer.data:
-            queryset = Doctor.objects.filter(department_id__id=k['depts']['id'],is_blocked=False).all()
+            depts_id_list = [x['id'] for x in k['depts']]
+            queryset = Doctor.objects.filter(department_id__id__in=depts_id_list,is_blocked=False).all()
             queryset_serializer = DoctorSerializer(queryset,many=True,context={"request":request})
             for y in queryset_serializer.data:
                 data = {
@@ -1629,6 +1631,7 @@ class SearchResults(APIView):
                 3 - High to low
             """  
             if exp not in [None,""]:
+                exp = int(exp)
                 print(exp)
                 if exp == 2:
                     filter_1.sort(key=lambda e: e['experience'], reverse=False)
