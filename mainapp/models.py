@@ -103,7 +103,7 @@ class Doctor(models.Model):
     email =models.EmailField(blank=True,unique=True)
     name=models.CharField(max_length=256)
     profile_img = models.FileField(upload_to='media/doctor/',null=True,blank=True)
-    pin=models.CharField(max_length=5)
+    pin=models.CharField(max_length=512)
     age=models.PositiveIntegerField()
     gender=models.CharField(max_length=1)
     dob=models.DateField()
@@ -117,7 +117,7 @@ class Doctor(models.Model):
     created_at =models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return self.id
+        return f"{self.id}-{self.department_id.name}"
 
 class DoctorTimings(models.Model):
     doctor_id=models.ForeignKey(Doctor,on_delete=models.CASCADE)
