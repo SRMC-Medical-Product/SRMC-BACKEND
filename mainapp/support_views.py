@@ -1172,8 +1172,10 @@ class GetAllAppointments(APIView):
                 "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
                 "patient_id" : i['patient_id'],
                 "patient_name" : i['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : i['doctor_id'],
                 "doctor_name" : i['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : i['consulted'],
                 "cancelled" : i['cancelled'],
                 "closed" : i['closed'],
@@ -1220,7 +1222,7 @@ class OverviewAndAnalytics(APIView):
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
         depts_list = [x['id'] for x in user_serializer['specialisation']]
 
-        query = Appointment.objects.filter(dept__id__in = depts_list).order_by('date')
+        query = Appointment.objects.filter(dept_id__in = depts_list).order_by('date')
 
         upcomingappointments = query.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
         liveappointments = query.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
