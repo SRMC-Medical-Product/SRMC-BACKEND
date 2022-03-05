@@ -202,15 +202,15 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
 
     try:
         """ Add doctor notification """
-        doc_msg = f"You have an appointment booked on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)}."
+        doc_msg = f"You have an appointment booked on {dtt.strptime(str(a.date),Ymd).strftime(dBY)},{dtt.strptime(str(a.time),HMS).strftime(IMp)}."
         DoctorNotification.objects.create(doctor_id=doctor_,message=doc_msg)
     except Exception as e:
         pass
 
     try:
         """ Add doctor notification """
-        pat_msg = f"Your appointment booking on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
-        PatientNotification.objects.create(patientid=patient_,message=pat_msg)
+        pat_msg = f"Your appointment booking on {dtt.strptime(str(a.date),Ymd).strftime(dBY)},{dtt.strptime(str(a.time),HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
+        PatientNotification.objects.create(patientid=appuser,message=pat_msg)
     except Exception as e:
         pass
 
@@ -1194,6 +1194,7 @@ class DoctorSlotDetails(APIView):
             },
             "doctor" : {},
             "familymembers" : [],
+            "selectedfamilymember" : {},
         }
         
         user = request.user
@@ -1244,7 +1245,10 @@ class DoctorSlotDetails(APIView):
             "name" : user.name,
             "selected" : user.selected,
         }
+        if user.selected == True:
+            json_data['selectedfamilymember'] = user_mem
         members.append(user_mem)
+
 
         for i in user.family_members:
             mem = {
@@ -1252,6 +1256,8 @@ class DoctorSlotDetails(APIView):
                 "name" : i['name'],
                 "selected" : i['selected'],
             }
+            if i['selected'] == True:
+                json_data['selectedfamilymember'] = mem
             members.append(mem)    
 
         json_data['familymembers'] = members
@@ -2112,13 +2118,15 @@ class ConfirmationScreen(APIView):
     def get(self , request , format=None):
         json_data = {
             "details" : [],
+            "selecteddate" : "",
+            "selectedtime" : "",
             "doctor" : {},
             "patient" : {},
             "measures" : MEASURES_TO_BE_TAKEN,
             "changemember" : CHANGE_MEMBER_INFO
         }
         user = request.user
-        data = request.data
+        data = request.query_params
 
         date = data.get("date",None)
         time = data.get("time",None)
@@ -2138,13 +2146,13 @@ class ConfirmationScreen(APIView):
         """
         patient = Patient.objects.filter(id=patientid).first()
         patient_data = {
-            "id" : patient.id,
-            "name" : patient.name,
-            "img" : patient.img,
-            "defaultimg" : patient.name[0:1],
-            "email" : patient.email,
-            "relation" : patient.relation,
-            "mobile" : user.mobile
+            "id" : f"{patient.id}",
+            "name" : f"{patient.name}",
+            "img" : f"{patient.img}",
+            "defaultimg" : f"{patient.name[0:1]}",
+            "email" : f"{patient.email}",
+            "relation" : f"{patient.relation}",
+            "mobile" : f"{user.mobile}"
         }
         json_data['patient'] = patient_data
 
@@ -2159,6 +2167,14 @@ class ConfirmationScreen(APIView):
         }
         json_data['doctor'] = doctor_data
 
+        if date not in [None , ""]:
+            date_format = dtt.strptime(date,dmY).strftime(dBY)
+            json_data['selecteddate'] = dtt.strptime(date,dmY).strftime("%m/%d/%Y")
+        
+        if time not in [None , ""]:
+            time_format = dtt.strptime(time,IMp).strftime(HMS)
+            json_data['selectedtime'] = time_format
+
         details_data = [
             {
                 "title": "Venue",
@@ -2166,7 +2182,7 @@ class ConfirmationScreen(APIView):
             },
             {
                 "title": "Date & Time",
-                "subtitle" : f"{date} , {time}",
+                "subtitle" : f"{date_format} , {time}",
             },
             {
                 "title": "Consultation",
