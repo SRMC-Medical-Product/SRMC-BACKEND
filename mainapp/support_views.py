@@ -1096,8 +1096,7 @@ class GetAllAppointments(APIView):
                     4 - History (closed)
                     5 - All
                 search : [String,optional] search the appointments
-        """
-        print("called")
+        """ 
         json_data ={
             "isempty" : True,
             "livetoday" : True,
@@ -1114,11 +1113,11 @@ class GetAllAppointments(APIView):
 
         user = request.user
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
-        print("1117")
+ 
         
         depts_list = [x['id'] for x in user_serializer['specialisation']]
 
-        print("1119")
+ 
         if aset in [1,'1']:
             appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-time')
             json_data['livetoday'] = True
@@ -1126,7 +1125,7 @@ class GetAllAppointments(APIView):
             json_data['upcoming'] = False
             json_data['history'] = False
             json_data['all'] = False
-            print("1129")
+ 
         
         elif aset in [2,'2']:
             appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-date')
@@ -1151,7 +1150,6 @@ class GetAllAppointments(APIView):
             json_data['all'] = False
         else:
             appointments = Appointment.objects.filter(dept_id__in = depts_list).order_by('-date')
-            print("appointments")
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = False
@@ -1192,7 +1190,7 @@ class GetAllAppointments(APIView):
 
         if len(json_data['appointments']) > 0:
             json_data['count'] = len(json_data['appointments'])
-            json_data['isempty'] = True
+            json_data['isempty'] = False
     
         return display_response(
             msg = "SUCCESS",
