@@ -7,6 +7,7 @@ from pydoc import doc
 from re import S
 from django.utils import timezone
 from django.db.models import Q
+import calendar
 
 from datetime import datetime as dtt,time,date,timedelta
 import json
@@ -1177,6 +1178,7 @@ class DoctorSlotDetails(APIView):
 
         json_data = {
             "dates" : [],
+            "availabledates" : [],
             "selecteddate": "",
             "morning" : {
                 "isempty" : True,
@@ -1228,7 +1230,8 @@ class DoctorSlotDetails(APIView):
             "gender" : doc_serialize.data['gender'],
             "qualification" : doc_serialize.data['qualification'],
             "specialisation" : doc_serialize.data['specialisation'],
-            "defaultimg" : doc_serialize.data['name'][0:1]
+            "defaultimg" : doc_serialize.data['name'][0:1],
+            "img" : doc_serialize.data['profile_img']
         }
 
         """
@@ -1237,7 +1240,7 @@ class DoctorSlotDetails(APIView):
         """
         members = []
         user_mem = {
-            "id" : user.id,
+            "id" : user.patientid,
             "name" : user.name,
             "selected" : user.selected,
         }
@@ -1256,13 +1259,41 @@ class DoctorSlotDetails(APIView):
         timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
         timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
         dates_arr = []
-        for j in timings.availability['dates_arr']:
-            if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
-                dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
-                dates_arr.append(dt)
-        json_data['dates'] = dates_arr
+        print("----------------------")
+        print(timings)
+        if timings is not None:
+            for j in timings.availability['dates_arr']:
+                if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
+                    dt_1 = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+                    day_ = dtt.strptime(j, "%m/%d/%Y").weekday()
+                    dt_2 = dtt.strptime(j, "%m/%d/%Y").strftime("%d")
+                    data = {
+                        "date" : dt_1,
+                        "day" : calendar.day_name[day_],
+                        "date_num" : dt_2
+                    }
+                    json_data['availabledates'].append(data)
+                    dates_arr.append(dt_1)
+            json_data['dates'] = dates_arr
+        else:
+            print(json_data)
+            return display_response(
+                msg = "SUCCESS",
+                err= "No dates available",
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )            
 
-        if querydate is None:
+        if len(dates_arr) == 0:
+            print(json_data)
+            return display_response(
+                msg = "SUCCESS",
+                err= "No dates available",
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            ) 
+
+        if querydate in [None,""]:
             querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
             json_data['selecteddate'] = dates_arr[0]
         else:
@@ -1357,6 +1388,7 @@ class DoctorSlotDetails(APIView):
         if len(json_data['evening']['slots']) > 0:
             json_data['evening']['isempty'] = False
 
+        print(json_data)
         return display_response(
             msg = "SUCCESS",
             err= None,
@@ -1381,7 +1413,7 @@ class BookingChangeMember(APIView):
         """
         user = request.user
         memberid = request.data.get('memberid', None)
-
+        print(memberid)
         if memberid is None:
             return display_response(
                 msg = "FAILURE",
@@ -1393,7 +1425,8 @@ class BookingChangeMember(APIView):
         """
             Checking if the memberid is valid or not and if the memberid is present in the family members list
         """
-        get_member = Patient.objects.filter(id=memberid).first()
+        get_member = Patient.objects.filter(id=str(memberid)).first()
+        print(get_member)
         if get_member is None:
             return display_response(
                 msg = "FAILURE",
