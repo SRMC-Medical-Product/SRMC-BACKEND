@@ -1096,7 +1096,7 @@ class GetAllAppointments(APIView):
                     4 - History (closed)
                     5 - All
                 search : [String,optional] search the appointments
-        """
+        """ 
         json_data ={
             "isempty" : True,
             "livetoday" : True,
@@ -1113,38 +1113,43 @@ class GetAllAppointments(APIView):
 
         user = request.user
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+ 
+        
         depts_list = [x['id'] for x in user_serializer['specialisation']]
 
+ 
         if aset in [1,'1']:
-            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-time')
+            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-time')
             json_data['livetoday'] = True
             json_data['pending'] = False
             json_data['upcoming'] = False
             json_data['history'] = False
             json_data['all'] = False
+ 
+        
         elif aset in [2,'2']:
-            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-date')
             json_data['livetoday'] = False
             json_data['pending'] = True
             json_data['upcoming'] = False
             json_data['history'] = False
             json_data['all'] = False
         elif aset in [3,'3']:
-            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('date')
+            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('date')
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = True
             json_data['history'] = False
             json_data['all'] = False
         elif aset in [4,'4']:
-            appointments = Appointment.objects.filter(closed=True,dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(closed=True,dept_id__in = depts_list).order_by('-date')
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = False
             json_data['history'] = True
             json_data['all'] = False
         else:
-            appointments = Appointment.objects.filter(dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(dept_id__in = depts_list).order_by('-date')
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = False
@@ -1167,8 +1172,10 @@ class GetAllAppointments(APIView):
                 "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
                 "patient_id" : i['patient_id'],
                 "patient_name" : i['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : i['doctor_id'],
                 "doctor_name" : i['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : i['consulted'],
                 "cancelled" : i['cancelled'],
                 "closed" : i['closed'],
@@ -1185,7 +1192,7 @@ class GetAllAppointments(APIView):
 
         if len(json_data['appointments']) > 0:
             json_data['count'] = len(json_data['appointments'])
-            json_data['isempty'] = True
+            json_data['isempty'] = False
     
         return display_response(
             msg = "SUCCESS",
@@ -1215,7 +1222,7 @@ class OverviewAndAnalytics(APIView):
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
         depts_list = [x['id'] for x in user_serializer['specialisation']]
 
-        query = Appointment.objects.filter(dept__id__in = depts_list).order_by('date')
+        query = Appointment.objects.filter(dept_id__in = depts_list).order_by('date')
 
         upcomingappointments = query.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
         liveappointments = query.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False)
@@ -1235,8 +1242,10 @@ class OverviewAndAnalytics(APIView):
                 "time" :  dtt.strptime(i['time'] , HMS).strftime(IMp),
                 "patient_id" : i['patient_id'],
                 "patient_name" : i['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : i['doctor_id'],
                 "doctor_name" : i['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : i['consulted'],
                 "cancelled" : i['cancelled'],
                 "closed" : i['closed'],
@@ -1254,8 +1263,10 @@ class OverviewAndAnalytics(APIView):
                 "time" :  dtt.strptime(x['time'] , HMS).strftime(IMp),
                 "patient_id" : x['patient_id'],
                 "patient_name" : x['patient']['name'],
+                "patient_img" : i['patient']['img'],
                 "doctor_id" : x['doctor_id'],
                 "doctor_name" : x['doctor']['name'],
+                "doctor_img" : i['doctor']['profile_img'],
                 "consulted" : x['consulted'],
                 "cancelled" : x['cancelled'],
                 "closed" : x['closed'],
