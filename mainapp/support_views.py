@@ -1097,6 +1097,7 @@ class GetAllAppointments(APIView):
                     5 - All
                 search : [String,optional] search the appointments
         """
+        print("called")
         json_data ={
             "isempty" : True,
             "livetoday" : True,
@@ -1113,38 +1114,44 @@ class GetAllAppointments(APIView):
 
         user = request.user
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+        print("1117")
+        
         depts_list = [x['id'] for x in user_serializer['specialisation']]
 
+        print("1119")
         if aset in [1,'1']:
-            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-time')
+            appointments = Appointment.objects.filter(date=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-time')
             json_data['livetoday'] = True
             json_data['pending'] = False
             json_data['upcoming'] = False
             json_data['history'] = False
             json_data['all'] = False
+            print("1129")
+        
         elif aset in [2,'2']:
-            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(date__lt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('-date')
             json_data['livetoday'] = False
             json_data['pending'] = True
             json_data['upcoming'] = False
             json_data['history'] = False
             json_data['all'] = False
         elif aset in [3,'3']:
-            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept__id__in = depts_list).order_by('date')
+            appointments = Appointment.objects.filter(date__gt=dtt.now(IST_TIMEZONE).strftime(Ymd),closed=False,dept_id__in = depts_list).order_by('date')
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = True
             json_data['history'] = False
             json_data['all'] = False
         elif aset in [4,'4']:
-            appointments = Appointment.objects.filter(closed=True,dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(closed=True,dept_id__in = depts_list).order_by('-date')
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = False
             json_data['history'] = True
             json_data['all'] = False
         else:
-            appointments = Appointment.objects.filter(dept__id__in = depts_list).order_by('-date')
+            appointments = Appointment.objects.filter(dept_id__in = depts_list).order_by('-date')
+            print("appointments")
             json_data['livetoday'] = False
             json_data['pending'] = False
             json_data['upcoming'] = False
