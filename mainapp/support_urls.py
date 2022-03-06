@@ -30,7 +30,9 @@ urlpatterns = [
 
     # --------------------------------- Ticket URLS ---------------------------------
     path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
+    path('patient-ticket-indetail/',PatientTicketDetails.as_view() , name='patient-ticket-indetail'),
     path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
+    path('doctor-ticket-indetail/',DoctorTicketDetails.as_view() , name='doctor-ticket-indetail'),
 
     # --------------------------------- Cancel all appointments URLS ---------------------------------
     path('cancel-all-appointments/',CancelAllAppointments.as_view() , name='cancel-all-appointments'),

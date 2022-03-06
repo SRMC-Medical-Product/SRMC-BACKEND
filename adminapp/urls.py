@@ -47,6 +47,7 @@ urlpatterns = [
 
     # --------------------------------- Ticket URLS ---------------------------------
     path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
+    path('patient-ticket-indetail/',PatientTicketDetails.as_view() , name='patient-ticket-indetail'),
     path('doctor-tickets/',AllDoctorTickets.as_view() , name='doctor-tickets'),
 
     #-------------------------Analytics --------------------------------

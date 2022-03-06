@@ -171,15 +171,15 @@ def calculate_time_slots(start_time,end_time,duration,availabilty,time_slots=Non
 
 
 def update_time_slots_json_for_appoinment(time_slots_json:dict,date:str,time:str)->dict:
-
+    print("174")
     twelve_=datetime.datetime.combine(datetime.date(1,1,1),datetime.time(12,0,0))
     five_=datetime.datetime.combine(datetime.date(1,1,1),datetime.time(17,0,0))
     
     std_time_time=return_time_type(time)
     std_date_time=datetime.datetime.combine(datetime.date(1,1,1),std_time_time)
-
+    print("180")
     session=""
-
+    print("182")
     if std_date_time<=twelve_:
         session="morning"
     
@@ -188,11 +188,11 @@ def update_time_slots_json_for_appoinment(time_slots_json:dict,date:str,time:str
     
     else:
         session="evening"
-
+    print("191")
     print(date)
     time_slots_json[date][session][time]["count"]=time_slots_json[date][session][time]["count"]+1
     time_slots_json[date][session][time]["available"]=True if time_slots_json[date][session][time]["count"]<2 else False
-
+    print("200")
 
 
     return time_slots_json

@@ -917,6 +917,160 @@ class AllPatientTickets(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+class PatientTicketDetails(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ticketid = request.query_params.get("ticketid",None)
+        if ticketid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        query = PatientTickets.objects.filter(id=ticketid).first()
+        if query is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        serializer = PatientTicketsSerializer(query,context={'request' :request}).data
+        print(serializer)
+        format_date = dtt.strptime(serializer['created_at'] , YmdTHMSfz).strftime(dBYIMp)
+        json_data = {
+            "id" : serializer['id'],
+            "userid" : serializer['user_id']['id'],
+            "dept" : serializer['dept']['name'],
+            "admin_id" : "No admin",
+            "title" : serializer['issues']['title'],
+            "description" : serializer['issues']['description'],
+            "closed" : serializer['closed'],
+            "created_at": format_date,
+        }
+        if serializer['admin_id'] is not None:
+            json_data['admin_id'] = serializer['admin_id']['name']
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def put(self , request , format=None):
+        ticketid = request.query_params.get("ticketid",None)
+        closed = request.data.get('closed')
+        if ticketid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        query = PatientTickets.objects.filter(id=ticketid).first()
+        if query is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        if closed not in [None , ""] and closed in [True ,False]:
+            query.closed = closed
+            query.save()
+        
+        admin = request.user 
+        query.admin_id = admin
+        query.save()
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = 'Ticket Updated',
+            statuscode = status.HTTP_200_OK
+        )
+
+
+class DoctorTicketDetails(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ticketid = request.query_params.get("ticketid",None)
+        if ticketid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        query = DoctorTickets.objects.filter(id=ticketid).first()
+        if query is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        serializer = DoctorTicketsSerializer(query,context={'request' :request}).data
+      
+        format_date = dtt.strptime(serializer['created_at'] , YmdTHMSfz).strftime(dBYIMp)
+        json_data = {
+            "id" : serializer['id'],
+            "userid" : serializer['doctor_id']['id'],
+            "dept" : serializer['dept']['name'],
+            "admin_id" : "No admin",
+            "title" : serializer['issues']['title'],
+            "description" : serializer['issues']['description'],
+            "closed" : serializer['closed'],
+            "created_at": format_date,
+        }
+        if serializer['admin_id'] is not None:
+            json_data['admin_id'] = serializer['admin_id']['name']
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+    def put(self , request , format=None):
+        ticketid = request.query_params.get("ticketid",None)
+        closed = request.data.get('closed')
+        print("1042")
+        print(request.user)
+        if ticketid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        query = DoctorTickets.objects.filter(id=ticketid).first()
+        if query is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        if closed not in [None , ""] and closed in [True ,False]:
+            query.closed = closed
+            query.save()
+        
+        admin = request.user 
+        query.admin_id = admin
+        query.save()
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = 'Ticket Updated',
+            statuscode = status.HTTP_200_OK
+        )
+
+
 class AllDoctorTickets(APIView):
     authentication_classes = [HelpDeskAuthentication]
     permission_classes = []
@@ -1234,7 +1388,6 @@ class OverviewAndAnalytics(APIView):
         json_data['allcount'] = query.count()
 
         upcoming_serializer = AppointmentSerializer(upcomingappointments,many=True,context={'request' :request}).data
-
         for i in upcoming_serializer:
             data = {
                 "id" : i['id'],
@@ -1255,7 +1408,7 @@ class OverviewAndAnalytics(APIView):
             json_data['upcomingappointments'].append(data)
 
         live_serializer = AppointmentSerializer(liveappointments,many=True,context={'request' :request}).data
-
+        print(live_serializer)
         for x in live_serializer:
             data = {
                 "id" : x['id'],
@@ -1263,10 +1416,10 @@ class OverviewAndAnalytics(APIView):
                 "time" :  dtt.strptime(x['time'] , HMS).strftime(IMp),
                 "patient_id" : x['patient_id'],
                 "patient_name" : x['patient']['name'],
-                "patient_img" : i['patient']['img'],
+                "patient_img" : x['patient']['img'],
                 "doctor_id" : x['doctor_id'],
                 "doctor_name" : x['doctor']['name'],
-                "doctor_img" : i['doctor']['profile_img'],
+                "doctor_img" : x['doctor']['profile_img'],
                 "consulted" : x['consulted'],
                 "cancelled" : x['cancelled'],
                 "closed" : x['closed'],
@@ -1402,9 +1555,9 @@ class OfflineAppointmentBooking(APIView):
         new_member_relation = data.get('new_member_relation',None) #Required if new family member is True
 
         patiend_id=data.get("patient_id",None)
-        date=data.get("date") #Required
-        time=data.get("time") #Required
-        doctor_id=data.get("doctor_id") #Required
+        date=data.get("date") # Required
+        time=data.get("time") # Required
+        doctor_id=data.get("doctor_id") # Required
 
         validation_arr=["",None]
         
@@ -1520,7 +1673,8 @@ class OfflineAppointmentBooking(APIView):
                     body=None,
                     statuscode=status.HTTP_400_BAD_REQUEST
                 )
-
+        print("1523")
+        print(date,time , patiend_id,doctor_id)
         try:
             dataout = make_appointment_booking(
                 patient_id_= check_patient.id,
@@ -1593,6 +1747,7 @@ class DeptDoctors(APIView):
             "doctors" : []
         }
         deptid = request.query_params.get('deptid',None)
+        print(deptid)
 
         if deptid in [None,""]:
             return display_response(
@@ -1709,11 +1864,17 @@ class DoctorDateSlotDetails(APIView):
         for j in timings.availability['dates_arr']:
             if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
                 dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
-                dates_arr.append(dt)
+            #TODO (REview): added ['date'] since we need key value pair for drop down in react js
+                data = {
+                    "date" : dt,
+                }
+                dates_arr.append(data)
         json_data['dates'] = dates_arr
 
         if querydate is None:
-            querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
+            #TODO (review) : added ['date'] since we need key value pair for drop down in react js
+            # querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
+            querydate = dtt.strptime(dates_arr[0]['date'],dmY).strftime("%m/%d/%Y")
             json_data['selecteddate'] = dates_arr[0]
         else:
             if querydate not in dates_arr:
@@ -1748,7 +1909,7 @@ class DoctorDateSlotDetails(APIView):
         for x in morning_slots:
             if mrngarr[x]['available'] == True:
                 data = {
-                    "date" : dtt.strptime(x, HMS).strftime(IMp),
+                    "time" : dtt.strptime(x, HMS).strftime(IMp),
                     "count" : mrngarr[x]['count']
                 }
                 json_data['morning']['slots'].append(data)
@@ -1774,7 +1935,7 @@ class DoctorDateSlotDetails(APIView):
         for y in noon_slots:
             if noonarr[y]['available'] == True:
                 data = {
-                    "date" : dtt.strptime(y,HMS).strftime(IMp),
+                    "time" : dtt.strptime(y,HMS).strftime(IMp),
                     "count" : noonarr[y]['count']
                 }
                 json_data['afternoon']['slots'].append(data)
@@ -1799,7 +1960,7 @@ class DoctorDateSlotDetails(APIView):
         for z in evening_slots:
             if eveningarr[z]['available'] == True:
                 data = {
-                    "date" : dtt.strptime(z,HMS).strftime(IMp),
+                    "time" : dtt.strptime(z,HMS).strftime(IMp),
                     "count" : eveningarr[z]['count']
                 }
                 json_data['evening']['slots'].append(data)
