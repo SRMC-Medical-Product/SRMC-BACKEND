@@ -39,7 +39,6 @@ class LoginDoctor(APIView):
         userid=str(data.get("userid",None)) #Both USERID,phone and EMail are accepted
         pin=str(data.get("pin",None))
 
-        print(data)
         if userid in [None,""] or pin in [None,""]:
             return Response({
                         "MSG":"FAILED",
@@ -53,18 +52,27 @@ class LoginDoctor(APIView):
             we will be checking the pin with the email.If the object instance is None then user credentials are wrong.
         """
 
-        doctor=Doctor.objects.filter(doctor_id=userid,pin=pin).first()
+        doctor=Doctor.objects.filter(doctor_id=userid).first()
         if doctor is None:
-            doctor=Doctor.objects.filter(email=userid,pin=pin).first()
+            doctor=Doctor.objects.filter(email=userid).first()
             if doctor is None:
-                doctor=Doctor.objects.filter(phone = userid,pin=pin).first()
+                doctor=Doctor.objects.filter(phone = userid).first()
         if doctor is None:            
             return Response({
                     "MSG":"FAILED",
-                    "ERR":"Check your userid or password",
+                    "ERR":"User Id does not exist",
                     "BODY":None
                         },status=status.HTTP_400_BAD_REQUEST)
         
+        """Checking Pin"""
+        encrypted_doctor_pin=encrypt_doctor_pin(pin)
+        if encrypted_doctor_pin != doctor.pin:
+            return Response({
+                    "MSG":"FAILED",
+                    "ERR":"Password is incorrect",
+                    "BODY":None
+                        },status=status.HTTP_400_BAD_REQUEST)
+
         if doctor.is_blocked == False:
             token=generate_token({
                     "id":doctor.id
@@ -330,7 +338,9 @@ class ChangeDoctorPin(APIView):
                 statuscode=status.HTTP_404_NOT_FOUND
             )
 
-        get_doctor = Doctor.objects.filter(id=user.id, pin=oldpin).first()
+        oldpin_encrypted_doctor_pin=encrypt_doctor_pin(oldpin)
+      
+        get_doctor = Doctor.objects.filter(id=user.id, pin=oldpin_encrypted_doctor_pin).first()
         if get_doctor is None:
             return display_response(
                 msg="FAILED",
@@ -339,7 +349,9 @@ class ChangeDoctorPin(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
 
-        get_doctor.pin = newpin
+        newpin_encrypted_doctor_pin = encrypt_doctor_pin(newpin)
+
+        get_doctor.pin = newpin_encrypted_doctor_pin
         get_doctor.save()
 
         return display_response(
