@@ -120,6 +120,10 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
         return dataout    
     timeslots_json=doctor_timings_.timeslots
 
+    print(date)
+    print(time)
+    print(timeslots_json)
+
     #update doctor timeslot  by increasing the count
     try:
         timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)

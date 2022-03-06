@@ -1,5 +1,6 @@
 '''Django imports'''
 from calendar import c
+from fileinput import close
 from django.contrib.auth.models import User
 from django.db.models import Q
 from django.conf import settings
@@ -1793,6 +1794,49 @@ class AllPatientTickets(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+class PatientTicketDetails(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        ticketid = request.query_params.get("ticketid",None)
+        if ticketid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket id is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+        query = PatientTickets.objects.filter(id=ticketid).first()
+        if query is None:
+            return display_response(
+                msg = "FAILED",
+                err= "Ticket not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+        serializer = PatientTicketsSerializer(query,context={'request' :request}).data
+        print(serializer)
+        format_date = dtt.strptime(serializer['created_at'] , YmdTHMSfz).strftime(dBYIMp)
+        json_data = {
+            "id" : serializer['id'],
+            "userid" : serializer['user_id']['id'],
+            "dept" : serializer['dept']['name'],
+            "admin_id" : "No admin",
+            "title" : serializer['issues']['title'],
+            "description" : serializer['issues']['description'],
+            "closed" : serializer['closed'],
+            "created_at": format_date,
+        }
+        if serializer['admin_id'] is not None:
+            json_data['admin_id'] = serializer['admin_id']['id']
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
 class AllDoctorTickets(APIView):
     authentication_classes = [SuperAdminAuthentication]
     permission_classes = []
@@ -1814,20 +1858,26 @@ class AllDoctorTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
+        print(closed)
+        print(type(closed))
         
         query = DoctorTickets.objects.all().order_by('-created_at')
+        print(query)
 
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
+            print("0",query)
             json_data['closed'] = True
         else:
             query = query.filter(closed=False)
+            print("1",query)
             json_data['closed'] = False
         
         if search not in [None , ""]:
             query = query.filter(Q(doctor_id__name__icontains=search))
 
         serializer = DoctorTicketsSerializer(query,many=True,context={'request' :request}).data
+        
         json_data['tickets'] = serializer
 
         if len(json_data['tickets']) > 0:
