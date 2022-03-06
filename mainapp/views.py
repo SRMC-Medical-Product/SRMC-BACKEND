@@ -7,6 +7,7 @@ from pydoc import doc
 from re import S
 from django.utils import timezone
 from django.db.models import Q
+import calendar
 
 from datetime import datetime as dtt,time,date,timedelta
 import json
@@ -205,15 +206,15 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
 
     try:
         """ Add doctor notification """
-        doc_msg = f"You have an appointment booked on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)}."
+        doc_msg = f"You have an appointment booked on {dtt.strptime(str(a.date),Ymd).strftime(dBY)},{dtt.strptime(str(a.time),HMS).strftime(IMp)}."
         DoctorNotification.objects.create(doctor_id=doctor_,message=doc_msg)
     except Exception as e:
         pass
 
     try:
         """ Add doctor notification """
-        pat_msg = f"Your appointment booking on {dtt.strptime(a.date,Ymd).strftime(dBY)},{dtt.strptime(a.time,HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
-        PatientNotification.objects.create(patientid=patient_,message=pat_msg)
+        pat_msg = f"Your appointment booking on {dtt.strptime(str(a.date),Ymd).strftime(dBY)},{dtt.strptime(str(a.time),HMS).strftime(IMp)} with Dr. {a.doctor['name']} has been booked."
+        PatientNotification.objects.create(patientid=appuser,message=pat_msg)
     except Exception as e:
         pass
 
@@ -1181,6 +1182,7 @@ class DoctorSlotDetails(APIView):
 
         json_data = {
             "dates" : [],
+            "availabledates" : [],
             "selecteddate": "",
             "morning" : {
                 "isempty" : True,
@@ -1196,6 +1198,7 @@ class DoctorSlotDetails(APIView):
             },
             "doctor" : {},
             "familymembers" : [],
+            "selectedfamilymember" : {},
         }
         
         user = request.user
@@ -1232,7 +1235,8 @@ class DoctorSlotDetails(APIView):
             "gender" : doc_serialize.data['gender'],
             "qualification" : doc_serialize.data['qualification'],
             "specialisation" : doc_serialize.data['specialisation'],
-            "defaultimg" : doc_serialize.data['name'][0:1]
+            "defaultimg" : doc_serialize.data['name'][0:1],
+            "img" : doc_serialize.data['profile_img']
         }
 
         """
@@ -1241,11 +1245,14 @@ class DoctorSlotDetails(APIView):
         """
         members = []
         user_mem = {
-            "id" : user.id,
+            "id" : user.patientid,
             "name" : user.name,
             "selected" : user.selected,
         }
+        if user.selected == True:
+            json_data['selectedfamilymember'] = user_mem
         members.append(user_mem)
+
 
         for i in user.family_members:
             mem = {
@@ -1253,6 +1260,8 @@ class DoctorSlotDetails(APIView):
                 "name" : i['name'],
                 "selected" : i['selected'],
             }
+            if i['selected'] == True:
+                json_data['selectedfamilymember'] = mem
             members.append(mem)    
 
         json_data['familymembers'] = members
@@ -1260,13 +1269,41 @@ class DoctorSlotDetails(APIView):
         timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
         timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
         dates_arr = []
-        for j in timings.availability['dates_arr']:
-            if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
-                dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
-                dates_arr.append(dt)
-        json_data['dates'] = dates_arr
+        print("----------------------")
+        print(timings)
+        if timings is not None:
+            for j in timings.availability['dates_arr']:
+                if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
+                    dt_1 = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
+                    day_ = dtt.strptime(j, "%m/%d/%Y").weekday()
+                    dt_2 = dtt.strptime(j, "%m/%d/%Y").strftime("%d")
+                    data = {
+                        "date" : dt_1,
+                        "day" : calendar.day_name[day_],
+                        "date_num" : dt_2
+                    }
+                    json_data['availabledates'].append(data)
+                    dates_arr.append(dt_1)
+            json_data['dates'] = dates_arr
+        else:
+            print(json_data)
+            return display_response(
+                msg = "SUCCESS",
+                err= "No dates available",
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )            
 
-        if querydate is None:
+        if len(dates_arr) == 0:
+            print(json_data)
+            return display_response(
+                msg = "SUCCESS",
+                err= "No dates available",
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            ) 
+
+        if querydate in [None,""]:
             querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
             json_data['selecteddate'] = dates_arr[0]
         else:
@@ -1361,6 +1398,7 @@ class DoctorSlotDetails(APIView):
         if len(json_data['evening']['slots']) > 0:
             json_data['evening']['isempty'] = False
 
+        print(json_data)
         return display_response(
             msg = "SUCCESS",
             err= None,
@@ -1385,7 +1423,7 @@ class BookingChangeMember(APIView):
         """
         user = request.user
         memberid = request.data.get('memberid', None)
-
+        print(memberid)
         if memberid is None:
             return display_response(
                 msg = "FAILURE",
@@ -1397,7 +1435,8 @@ class BookingChangeMember(APIView):
         """
             Checking if the memberid is valid or not and if the memberid is present in the family members list
         """
-        get_member = Patient.objects.filter(id=memberid).first()
+        get_member = Patient.objects.filter(id=str(memberid)).first()
+        print(get_member)
         if get_member is None:
             return display_response(
                 msg = "FAILURE",
@@ -2083,13 +2122,15 @@ class ConfirmationScreen(APIView):
     def get(self , request , format=None):
         json_data = {
             "details" : [],
+            "selecteddate" : "",
+            "selectedtime" : "",
             "doctor" : {},
             "patient" : {},
             "measures" : MEASURES_TO_BE_TAKEN,
             "changemember" : CHANGE_MEMBER_INFO
         }
         user = request.user
-        data = request.data
+        data = request.query_params
 
         date = data.get("date",None)
         time = data.get("time",None)
@@ -2109,13 +2150,13 @@ class ConfirmationScreen(APIView):
         """
         patient = Patient.objects.filter(id=patientid).first()
         patient_data = {
-            "id" : patient.id,
-            "name" : patient.name,
-            "img" : patient.img,
-            "defaultimg" : patient.name[0:1],
-            "email" : patient.email,
-            "relation" : patient.relation,
-            "mobile" : user.mobile
+            "id" : f"{patient.id}",
+            "name" : f"{patient.name}",
+            "img" : f"{patient.img}",
+            "defaultimg" : f"{patient.name[0:1]}",
+            "email" : f"{patient.email}",
+            "relation" : f"{patient.relation}",
+            "mobile" : f"{user.mobile}"
         }
         json_data['patient'] = patient_data
 
@@ -2130,6 +2171,14 @@ class ConfirmationScreen(APIView):
         }
         json_data['doctor'] = doctor_data
 
+        if date not in [None , ""]:
+            date_format = dtt.strptime(date,dmY).strftime(dBY)
+            json_data['selecteddate'] = dtt.strptime(date,dmY).strftime("%m/%d/%Y")
+        
+        if time not in [None , ""]:
+            time_format = dtt.strptime(time,IMp).strftime(HMS)
+            json_data['selectedtime'] = time_format
+
         details_data = [
             {
                 "title": "Venue",
@@ -2137,7 +2186,7 @@ class ConfirmationScreen(APIView):
             },
             {
                 "title": "Date & Time",
-                "subtitle" : f"{date} , {time}",
+                "subtitle" : f"{date_format} , {time}",
             },
             {
                 "title": "Consultation",
