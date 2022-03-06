@@ -22,15 +22,15 @@ def create_doctor_notification(doctorid,msg):
 
 def create_patient_notification(patientid,msg):
     patient = Patient.objects.filter(id=patientid).first()
-    get_doctor = User.objects.filter(id=patient.id).first()
-    if get_doctor is None:
+    get_pat = User.objects.filter(id=patient.appuser).first()
+    if get_pat is None:
         return {
             "res": False,
             "err": "User not found"
         }
 
     try:    
-        PatientNotification.objects.create(patientid=get_doctor,msg=msg)
+        PatientNotification.objects.create(patientid=get_pat,message=msg)
         return {
             "res": True,
             "err" : None,

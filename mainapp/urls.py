@@ -26,11 +26,13 @@ urlpatterns=[
 
     path('book-appointment/',BookAppoinment.as_view(),name="book-appoinment"),
     path('appointment-confirm/',ConfirmationScreen.as_view(),name="appointment-confirm"),
+    path('appointment-cancel/',AppointmentCancel.as_view(),name="appointment-cancel"),
 
     path('patient-tickets/',PatientTicketsIssues.as_view(),name="patient-tickets"),
 
     path('family-medical-records/',FamilyMedicalRecord.as_view(),name="family-medical-records"),
     path('procedural-records/',PatientProceduralRecord.as_view(),name="procedural-records"),
     path('display-medical-records/',DisplayMedicalRecords.as_view(),name="display-medical-records"),
+    path('display-appointment-records/',DisplayAppointmentMedicalRecords.as_view(),name="display-appointment-records"),
 
 ]

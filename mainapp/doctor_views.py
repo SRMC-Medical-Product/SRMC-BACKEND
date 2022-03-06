@@ -1748,6 +1748,14 @@ class AppointmentAnalytics(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
 
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
+
     def get(self , request , format=None):
         json_data = {
             "isempty" : True,
@@ -1953,7 +1961,7 @@ class HomeScreen(APIView):
             data = {
                 "id": l['id'],
                 "patientid": l['patient_id'],
-                "img" : m['patient']['img'],
+                "img" : l['patient']['img'],
                 "patientname" : l['patient']['name'],
                 "date" : dtt.strptime(l['date'],Ymd).strftime(dBY),
                 "time" : dtt.strptime(l['time'],HMS).strftime(IMp),
