@@ -883,7 +883,7 @@ class AllPatientTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
-        print(params)
+ 
         
         user = request.user
         user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data

@@ -1858,20 +1858,26 @@ class AllDoctorTickets(APIView):
         params = request.query_params
         search = params.get("search",None)
         closed = params.get("closed",False)
+        print(closed)
+        print(type(closed))
         
         query = DoctorTickets.objects.all().order_by('-created_at')
+        print(query)
 
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
+            print("0",query)
             json_data['closed'] = True
         else:
             query = query.filter(closed=False)
+            print("1",query)
             json_data['closed'] = False
         
         if search not in [None , ""]:
             query = query.filter(Q(doctor_id__name__icontains=search))
 
         serializer = DoctorTicketsSerializer(query,many=True,context={'request' :request}).data
+        
         json_data['tickets'] = serializer
 
         if len(json_data['tickets']) > 0:
