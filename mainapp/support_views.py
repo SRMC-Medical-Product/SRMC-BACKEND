@@ -757,6 +757,15 @@ class AppointmentUpdateArrived(APIView):
 
         query.timeline['step2']['completed'] = True
         query.timeline['step2']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
+        
+        activitydata = {
+            "activity" : "Patient marked as arrived by Support Desk",
+            "log" : f'''The appointment has been marked as arrived by Help Desk {request.user.name}.''',
+            "created_at" : str(dtt.now(IST_TIMEZONE).strftime(YmdHMS))
+        }
+        if query.activity == {}:
+            query.activity = []
+        query.activity.append(activitydata)
         query.save()
 
         try:
@@ -771,7 +780,7 @@ class AppointmentUpdateArrived(APIView):
         return display_response(
             msg = "SUCCESS",
             err= None,  
-            body = serializer,
+            body = "Patient Arrived Successfully",
             statuscode = status.HTTP_200_OK  
         )
 
@@ -790,6 +799,7 @@ class AppointmentCancel(APIView):
         """    
         aid = request.data.get('appointmentid',None)
         reason = request.data.get('reason', None)
+        print(request.data)
         if aid in [None , ""] or reason in [None,""]:
             return display_response(
                 msg = "ERROR",
@@ -799,6 +809,7 @@ class AppointmentCancel(APIView):
             )
 
         query = Appointment.objects.filter(id=aid).first()
+        print(query) 
         serializer = AppointmentSerializer(query,context={'request' :request}).data
         
         """
@@ -827,21 +838,22 @@ class AppointmentCancel(APIView):
 
         user_serializer = HelpDeskUserSerializer(request.user,context={'request' :request}).data
 
-        activity = {
-            "activity" : "Cancelled",
-            "reason" : reason,
-            "datetime" : str(dtt.now(IST_TIMEZONE)),
-            "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-            "user" : user_serializer
+        # activity = {
+        #     "activity" : "Cancelled",
+        #     "reason" : reason,
+        #     "datetime" : str(dtt.now(IST_TIMEZONE)),
+        #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+        #     "user" : user_serializer
+        # }
+        activitydata  = {
+            "activity" : f'''The appointment has been cancelled by {request.user.name}. Help Desk User ID : {request.user.id}''',
+            "log" : f'''Reason for cancellation : {reason}''',
+            "created_at" : str(dtt.now(IST_TIMEZONE).strftime(YmdHMS))
         }
 
         if query.activity == {}:
-            data = {
-                "cancel" : activity,
-            }
-            query.activity = data
-        else:
-            query.activity['cancel'] = activity
+            query.activity = []
+        query.activity.append(activitydata)
     
         try:
             pat_msg = f"Your appointment {query.id} has been cancelled. Please contact the counter for further details."
@@ -852,12 +864,12 @@ class AppointmentCancel(APIView):
         except Exception as e:
             pass
 
-        query.save()
+        query.save() 
 
         return display_response(
             msg = "SUCCESS",
             err= None,  
-            body = serializer,
+            body = "Appointment cancelled",
             statuscode = status.HTTP_200_OK  
         )
 
@@ -1187,23 +1199,34 @@ class CancelAllAppointments(APIView):
                     i.cancelled = True
                     i.closed = True
 
-                    user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
+                    # user_serializer = HelpDeskUserSerializer(user,context={'request' :request}).data
 
-                    activity = {
-                        "activity" : "Cancelled",
-                        "reason" : reason,
-                        "datetime" : str(dtt.now(IST_TIMEZONE)),
-                        "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-                        "user" : user_serializer
+                    activitydata  = {
+                        "activity" : f'''All appointments on {date} has been cancelled by {request.user.name}. Help Desk User ID : {request.user.id}''',
+                        "log" : f'''Reason for cancellation : {reason}''',
+                        "created_at" : str(dtt.now(IST_TIMEZONE).strftime(YmdHMS))
                     }
+                    
+                    # activity = {
+                    #     "activity" : "Cancelled",
+                    #     "reason" : reason,
+                    #     "datetime" : str(dtt.now(IST_TIMEZONE)),
+                    #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+                    #     "user" : user_serializer
+                    # }
 
+                    # if i.activity == {}:
+                    #     data = {
+                    #         "cancel" : activity,
+                    #     }
+                    #     i.activity = data
+                    # else:
+                    #     i.activity['cancel'] = activity
                     if i.activity == {}:
-                        data = {
-                            "cancel" : activity,
-                        }
-                        i.activity = data
-                    else:
-                        i.activity['cancel'] = activity
+                        i.activity = [] 
+                    i.activity.append(activitydata)
+
+                    print(activitydata)
                 
                     try:
                         pat_msg = f"Your appointment {i.id} has been cancelled. Please contact the counter for further details."
@@ -1227,7 +1250,7 @@ class CancelAllAppointments(APIView):
         return display_response(
             msg = "SUCCESS",
             err= None,
-            body = None,
+            body = f'''All appointments on {date} has been cancelled. Reason : {reason}''',
             statuscode = status.HTTP_200_OK
         )
 
@@ -1670,9 +1693,7 @@ class OfflineAppointmentBooking(APIView):
                     err="Invalid patient id",
                     body=None,
                     statuscode=status.HTTP_400_BAD_REQUEST
-                )
-        print("1523")
-        print(date,time , patiend_id,doctor_id)
+                ) 
         try:
             dataout = make_appointment_booking(
                 patient_id_= check_patient.id,

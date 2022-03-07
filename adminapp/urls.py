@@ -44,6 +44,7 @@ urlpatterns = [
 
     # --------------------------------- Appointment URLS ---------------------------------
     path('get-appointments/',GetAllAppointments.as_view() , name='get-all-appointments'),
+    path('appointments-indetail/',InDetailAppointment.as_view() , name='appointments-indetail'),
 
     # --------------------------------- Ticket URLS ---------------------------------
     path('patient-tickets/',AllPatientTickets.as_view() , name='patient-tickets'),
