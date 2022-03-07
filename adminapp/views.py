@@ -1674,6 +1674,40 @@ class GetAllAppointments(APIView):
             statuscode = status.HTTP_200_OK
         )
 
+class InDetailAppointment(APIView):
+    authentication_classes = [SuperAdminAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        aid = request.query_params.get('appointmentid',None)
+
+        if aid in [None , ""]:
+            return display_response(
+                msg = "ERROR",
+                err="Appointment ID not provided",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        get_appointment = Appointment.objects.filter(id=aid).first()
+        if get_appointment is None:
+            return display_response(
+                msg = "ERROR",
+                err="Appointment not found",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = AppointmentSerializer(get_appointment,context={'request' :request}).data
+        serializer['date'] = dtt.strptime(serializer['date'],Ymd).strftime(dBY)
+        serializer['time'] = dtt.strptime(serializer['time'],HMS).strftime(IMp)
+        serializer['doctor']['pin'] = "NA"
+        return display_response(
+            msg = "Appointment",
+            err= None,
+            body = serializer,
+            statuscode = status.HTTP_200_OK
+        )
 #---Department and its Doctors --------------------------------
 class DepartmentDoctors(APIView):
     authentication_classes = [SuperAdminAuthentication]
