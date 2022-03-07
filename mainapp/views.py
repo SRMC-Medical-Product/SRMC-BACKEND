@@ -18,6 +18,7 @@ from rest_framework import status
 from myproject.responsecode import display_response
 
 from .models import *
+from myproject.notifications import *
 from .auth import *
 from .serializers import *
 from mainapp.doctor_serializers import *
@@ -147,7 +148,7 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
             "completed" : False,
                 },
         "step3":{
-            "title" : "Booking Confirmed",
+            "title" : "Consulted",
             "time" :"",
             "completed" : False
                 },
@@ -1253,16 +1254,16 @@ class DoctorSlotDetails(APIView):
             json_data['selectedfamilymember'] = user_mem
         members.append(user_mem)
 
-
-        for i in user.family_members:
-            mem = {
-                "id" : i['id'],
-                "name" : i['name'],
-                "selected" : i['selected'],
-            }
-            if i['selected'] == True:
-                json_data['selectedfamilymember'] = mem
-            members.append(mem)    
+        if user.family_members is not None:
+            for i in user.family_members:
+                mem = {
+                    "id" : i['id'],
+                    "name" : i['name'],
+                    "selected" : i['selected'],
+                }
+                if i['selected'] == True:
+                    json_data['selectedfamilymember'] = mem
+                members.append(mem)    
 
         json_data['familymembers'] = members
         
@@ -1890,6 +1891,8 @@ class AppointmentInDetail(APIView):
             "patient" : {},
             "counter" :{},
             "measures" :MEASURES_TO_BE_TAKEN,
+            "enablecancel" : True,
+
         }
         user = request.user
         appointment_id = request.query_params.get('appointmentid',None)
@@ -2047,6 +2050,13 @@ class AppointmentInDetail(APIView):
         json_data['counter'] = counter_json
 
 
+        """
+            If closed = False then  enablecancel=True.
+        """
+        if serializer['closed'] == True:
+            json_data['enablecancel'] = False
+
+
         return display_response(
             msg = "SUCCESS",
             err= None,
@@ -2083,6 +2093,8 @@ class BookAppoinment(APIView):
         date=data.get("date")
         time=data.get("time")
         doctor_id=data.get("doctor_id")
+
+        print(data)
 
         validation_arr=["",None]
         
@@ -2136,6 +2148,7 @@ class ConfirmationScreen(APIView):
         time = data.get("time",None)
         patientid = data.get("patientid",None)
         doctorid = data.get("doctorid",None)
+
 
         if patientid in [None,""] or doctorid in [None,""] or date  in [None,""] or time in [None,""]:
             return display_response(
@@ -2330,7 +2343,7 @@ class PatientProceduralRecord(APIView):
             "procedures" : [],
         }
         patientid = request.query_params.get('patientid',None)
-
+        print(patientid)
         if patientid in [None,""]:
             return display_response(
                 msg="FAILED",
@@ -2339,6 +2352,8 @@ class PatientProceduralRecord(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
         json_data['patientid'] = patientid
+
+        all_depts = Department.objects.all()
 
         procedures = MedicalRecords.objects.filter(patientid=patientid).order_by("-created_at")
         serializer = MedicalRecordsSerializer(procedures,many=True,context={"request":request}).data
@@ -2353,11 +2368,16 @@ class PatientProceduralRecord(APIView):
                 "dept" : []
             }
             for x in i['records']:
-                data['dept'].append({
+                dept_data = {
                     "deptid" : x['deptid'],
                     "deptname" : x['deptname'],
+                    "deptimg" : "",
                     "created_at" : dtt.strptime(x['created_at'],YmdHMSfz).strftime(dBYIMp)
-                })
+                }
+                get_dept = all_depts.filter(id=x['deptid']).first()
+                if get_dept is not None:
+                    dept_data['deptimg'] = f"{get_dept.img}"
+                data['dept'].append(dept_data)
             json_data['procedures'].append(data)
 
         if len(json_data['procedures']) > 0:
@@ -2399,30 +2419,19 @@ class DisplayMedicalRecords(APIView):
         medicalrecord = MedicalRecords.objects.filter(id=recordid).first()
         is_dept_index = 0
 
+
         for x in medicalrecord.records:
             if x['deptid'] == deptid:
                 is_dept_index = medicalrecord.records.index(x)
                 break
         
         for i in medicalrecord.records[is_dept_index]['records']:
-            print(i)
             data = {
                 "appointmentid" : i['appointmentid'],
                 "doctorname" : i['doctorname'],
                 "created_at" : dtt.strptime(i['created_at'],YmdHMSfz).strftime(dBYIMp),
                 "date" : dtt.strptime(i['date'],Ymd).strftime(dBY),
-                "files" : []
             }
-            for j in i['files']:
-                data['files'].append({
-                    "type" : j['type'],
-                    "url" : j['url'],
-                    "title" : j['name'],
-                    "username" : j['username'],
-                    "user" : j['user'],
-                    "userid" : j['userid'],
-                    "created_at" : dtt.strptime(j['created_at'],YmdHMSfz).strftime(dBYIMp)
-                })
             json_data['records'].append(data)
         
         if len(json_data['records']) > 0:
@@ -2437,3 +2446,179 @@ class DisplayMedicalRecords(APIView):
             body=json_data,
             statuscode=status.HTTP_200_OK
         )
+
+
+#----Display Particular Appointment medical Records-----
+class DisplayAppointmentMedicalRecords(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def get(self,request,format=None):
+        
+        json_data = {
+            "isempty": True,
+            "recordid" : "",
+            "deptid" : "",
+            "aid" : "",
+            "date" : "",
+            "time" :"",
+            "doctor" : {},
+            "records" : [],
+        }
+        
+        data = request.query_params
+        recordid = data.get('recordid',None)
+        deptid = data.get('deptid',None)
+        aid = data.get('aid',None)
+
+        if recordid in [None,""] or deptid in [None,""] or aid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        get_appointment = Appointment.objects.filter(id=aid).first()
+        if get_appointment is not None:
+            json_data['date'] = dtt.strptime(str(get_appointment.date),Ymd).strftime(dBY)
+            json_data['time'] = dtt.strptime(str(get_appointment.time),HMS).strftime(IMp)
+            json_data['doctor'] = {
+                "name" : f"{get_appointment.doctor['name']}",
+                "qualification" : f"{get_appointment.doctor['qualification']}",
+                "specialisation" : f"{get_appointment.doctor['specialisation']}",
+                "img" : f"{get_appointment.doctor['profile_img']}",
+                "gender" : f"{get_appointment.doctor['gender']}",
+            }
+
+        medicalrecord = MedicalRecords.objects.filter(id=recordid).first()
+        is_dept_index = 0
+
+        for x in medicalrecord.records:
+            if x['deptid'] == deptid:
+                is_dept_index = medicalrecord.records.index(x)
+                break
+        
+        for i in medicalrecord.records[is_dept_index]['records']:
+            if aid == i['appointmentid']:
+                data = {
+                    "appointmentid" : i['appointmentid'],
+                    "doctorname" : i['doctorname'],
+                    "created_at" : dtt.strptime(i['created_at'],YmdHMSfz).strftime(dBYIMp),
+                    "date" : dtt.strptime(i['date'],Ymd).strftime(dBY),
+                    "files" : []
+                }
+                for j in i['files']:
+                    data['files'].append({
+                        "type" : j['type'],
+                        "url" : j['url'],
+                        "title" : j['name'],
+                        "username" : j['username'],
+                        "user" : j['user'],
+                        "userid" : j['userid'],
+                        "created_at" : dtt.strptime(j['created_at'],YmdHMSfz).strftime(dBYIMp)
+                    })
+                    json_data['records'] = data
+                break
+        
+        if len(json_data['records']) > 0:
+            json_data['isempty'] = False
+
+        json_data['recordid'] = recordid
+        json_data['deptid'] = deptid
+        json_data['aid'] = aid
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+
+
+#---Cancel Single Appointment
+class AppointmentCancel(APIView):
+    authentication_classes = [UserAuthentication]
+    permission_classes = []
+
+    def put(self, request , format=None):
+        """
+            This view cancels the appointments permanently
+            PUT method:
+                appointmentid : [String,required] id of the appointment
+                reason : [String,required] reason for cancellation
+
+        """    
+        aid = request.data.get('appointmentid',None)
+        reason = request.data.get('reason', None)
+        if aid in [None , ""] or reason in [None,""]:
+            return display_response(
+                msg = "ERROR",
+                err= "Data was found None",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query = Appointment.objects.filter(id=aid).first()
+        serializer = AppointmentSerializer(query,context={'request' :request}).data
+        
+        """
+            Update the appointment as cancelled and closed == True and update the timeline
+        """
+        if query.closed == True:
+            return display_response(
+                msg = "ERROR",
+                err= "Appointment already closed",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        if query.cancelled == True:
+            return display_response(
+                msg = "ERROR",
+                err= "Appointment already cancelled",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+
+        query.timeline['cancel']['completed'] = True
+        query.timeline['cancel']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
+        query.cancelled = True
+        query.closed = True
+
+        user_serializer = UserSerializer(request.user,context={'request' :request}).data
+
+        activity = {
+            "activity" : "Cancelled",
+            "reason" : reason,
+            "datetime" : str(dtt.now(IST_TIMEZONE)),
+            "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+            "user" : user_serializer
+        }
+
+        if query.activity == {}:
+            data = {
+                "cancel" : activity,
+            }
+            query.activity = data
+        else:
+            query.activity['cancel'] = activity
+    
+        try:
+            pat_msg = f"Your appointment {query.id} has been cancelled by you."
+            create_patient_notification(
+                msg=pat_msg,
+                patientid=query.patient_id,
+            )
+        except Exception as e:
+            pass
+
+        query.save()
+
+        return display_response(
+            msg = "SUCCESS",
+            err= None,  
+            body = serializer,
+            statuscode = status.HTTP_200_OK  
+        )
+
