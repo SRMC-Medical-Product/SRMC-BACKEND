@@ -576,10 +576,12 @@ class DepartmentsView(APIView):
                     {
                         "counter": "counter",
                         "floor": "floor",
+                        "contact" : "contact",
                     },
                     {
                         "counter": "counter",
                         "floor": "floor",
+                        "contact" : "contact",
                     },
                 ]
         """
@@ -592,7 +594,8 @@ class DepartmentsView(APIView):
 
         counter = [{
             "counter": counter_no,
-            "floor": floor
+            "floor": floor,
+            "contact" : contact,
         }]
        
 

@@ -338,7 +338,7 @@ class DoctorTickets(models.Model):
             "created_at" : "date",
             "records" : [
                 {
-                    "appointmentid" : "id",
+                    "Patient" : "id",
                     "doctorname" : "",
                     "created_at" : "date",
                     "date" : "appointmentdate",

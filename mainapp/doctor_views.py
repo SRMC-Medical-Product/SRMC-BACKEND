@@ -10,6 +10,7 @@ from html5lib import serialize
 
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
 from myproject.notifications import *
+from myproject.infocontent import *
 
 from .models import *
 from .auth import *
@@ -17,6 +18,7 @@ from .doctor_serializers import *
 from .serializers import *
 from .utils import *
 from .azurefunctions import *
+
 
 from django.http import HttpResponse,FileResponse
 from django.template.loader import get_template
@@ -658,11 +660,19 @@ class HistoryAppointment(APIView):
             statuscode=status.HTTP_200_OK
         )
 
-#-------Add medical records API --------------------
-#---#PR1-----
-class ProcedureMedicalRecords(APIView):
+
+#-----Appointment In Detail -----
+class AppointmentInDetail(APIView):
     authentication_classes = [DoctorAuthentication]
     permission_classes = []
+
+    def convert_to_imp(self,hms):
+        imp = dtt.strptime(hms,HMS).strftime(IMp)
+        return f"{imp}"
+
+    def convert_to_dBY(self,ymd):
+        res = dtt.strptime(ymd,Ymd).strftime(dBY)
+        return f"{res}"
 
     def get(self , request , format=None):
         """
@@ -672,16 +682,22 @@ class ProcedureMedicalRecords(APIView):
             --------------------------
             Used in patients medical records screen.
         """
-        patientid = request.query_params.get("patientid",None)
+        aid = request.query_params.get("aid",None)
         json_data = {
             "isempty" : True,
             "records" : [],
             "patient" : {},
+            "patientid" : "",
+            "appointmentid" : "",
+            "status" : "Pending",
+            "timeline" : {},
+            "counter" :{},
+            "enableconsult" : False
         }
 
         user = request.user
         
-        if patientid is None:
+        if aid in [None,""]: 
             return display_response(
                 msg="FAILED",
                 err="Invalid data given",
@@ -689,9 +705,24 @@ class ProcedureMedicalRecords(APIView):
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
         
+
+        appointment = Appointment.objects.filter(id=aid).first()
+        if appointment is None:
+            return display_response(
+                msg = "FAILURE",
+                err= "Appointment not found",
+                body = None,
+                statuscode = status.HTTP_404_NOT_FOUND
+            )
+        serializer = AppointmentSerializer(appointment,context={"request":request}).data
+
+
+        patientid = serializer['patient_id']
+
         records = MedicalRecords.objects.filter(patientid=patientid).order_by("-created_at")
-        serializer = MedicalRecordsSerializer(records,many=True,context={"request":request}).data
-        for i in serializer:
+        records_serializer = MedicalRecordsSerializer(records,many=True,context={"request":request}).data
+        
+        for i in records_serializer:
             if len(i['records']) > 0:
                 for j in i['records']:
                     if j['deptid'] == user.department_id.id:
@@ -699,8 +730,8 @@ class ProcedureMedicalRecords(APIView):
                         data = {
                             "id": i['id'],
                             "title" : i['title'],
-                            "created_at" : dtt.strptime(i['created_at'], YmdTHMSfz).strftime(mdY),
-                            "created_by" : doctor.name
+                            "created_at" : dtt.strptime(str(i['created_at']), YmdTHMSfz).strftime(mdY),
+                            "created_by" : f"Dr. {doctor.name}"
                         }
                         json_data['records'].append(data)
             else:
@@ -708,8 +739,8 @@ class ProcedureMedicalRecords(APIView):
                 data = {
                     "id": i['id'],
                     "title" : i['title'],
-                    "created_at" : dtt.strptime(i['created_at'], YmdTHMSfz).strftime(mdY),
-                    "created_by" : doctor.name
+                    "created_at" : dtt.strptime(str(i['created_at']), YmdTHMSfz).strftime(mdY),
+                    "created_by" :f"Dr. {doctor.name}"
                 }
                 json_data['records'].append(data)
         
@@ -717,16 +748,97 @@ class ProcedureMedicalRecords(APIView):
             json_data['isempty'] = False
                 
         getpatient = Patient.objects.filter(id=patientid).first()
+        pat_serializer = PatientSerializer(getpatient,context={"request":request}).data
+
+        app_user = User.objects.filter(id=getpatient.appuser).first()
 
         pat_data = {
-            "id" : f"{getpatient.id}",
-            "name" : f"{getpatient.name}",
-            "img" : f"{getpatient.img}",
-            "defaultimg" : f"{getpatient.name[0:1]}",
-            "gender" : f"{getpatient.gender}",
-            "blood" : f"{getpatient.blood}",
+            "id" : f"{pat_serializer['id']}",
+            "name" : f"{pat_serializer['name']}",
+            "img" : f"{pat_serializer['img']}",
+            "defaultimg" :f"{pat_serializer['name'][0:1]}",
+            "gender" : f"{pat_serializer['gender']}",
+            "blood" : f"{pat_serializer['blood']}",
+            "mobile" : f"{app_user.mobile}",
         }
         json_data['patient'] = pat_data
+
+        """
+            Updating the appointment id.Updating the status based on the appointment status.
+        """
+        json_data['appointmentid'] = serializer['id']
+        if serializer['closed'] == True:
+            if serializer['consulted'] == True:
+                json_data['status'] = "Completed"
+            else:
+                json_data['status'] = "Missed"
+        else:
+            """
+                Check in timeline and update the status as processing or pending
+            """
+            if serializer['timeline']['step2']['completed'] == True:
+                json_data['status'] = "Processing"
+            else:
+                json_data['status'] = "Pending"
+
+        """
+            Updating the timeline data.Converting HMS into IMP format.
+        """    
+        json_data['timeline'] = serializer['timeline']
+        json_data['timeline']['cancelled'] = serializer['cancelled']
+        step1 = json_data['timeline']['step1']
+        step2 = json_data['timeline']['step2']
+        step3 = json_data['timeline']['step3']
+        stepcancel = json_data['timeline']['cancel']
+        if step1['completed'] == True:
+            step1['time'] = self.convert_to_imp(step1['time'])
+        else:
+            step1['time'] = "00:00"
+        
+        if step2['completed'] == True:
+            step2['time'] = self.convert_to_imp(step2['time'])
+        else:
+            step2['time'] = "00:00"
+        
+        if step3['completed'] == True:
+            step3['time'] = self.convert_to_imp(step3['time'])
+        else:
+            step3['time'] = "00:00"
+        
+        if stepcancel['completed'] == True:
+            stepcancel['time'] = self.convert_to_imp(stepcancel['time'])
+        else:
+            stepcancel['time'] = "00:00"
+
+        """
+            Add the counter details to the json_data
+            format : {
+                "info" : COUNTER_INFO,
+                "counters" : {
+                    "counter" : "counter1",
+                    "location" : "firstfloor | right side to main entrance"
+                }
+            }
+        """
+        counter_json = {
+            "info" : SERVICE_COUNTER_INFO,
+            "availablecounter" : [],
+        }
+        for n in appointment.counter:
+            _data = {
+                "id" : n['id'],
+                "counter" : f"{n['counter']} at Floor:{n['floor']}",
+                "contact" : f"{n['contact']}",
+            }
+            counter_json['availablecounter'].append(_data)
+        json_data['counter'] = counter_json
+
+        if serializer['closed'] == False:
+            if serializer['timeline']['step2']['completed'] == True:
+                json_data['enableconsult'] = True
+
+        json_data["patientid"] = patientid
+        json_data["appointmentid"]  = aid
 
         return display_response(
             msg = "SUCCESS",
@@ -734,6 +846,14 @@ class ProcedureMedicalRecords(APIView):
             body=json_data,
             statuscode=status.HTTP_200_OK
         )
+
+
+
+#-------Add medical records API --------------------
+#---#PR1-----
+class ProcedureMedicalRecords(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
 
     def post(self, request , format=None):
         """
@@ -819,6 +939,7 @@ class AllMedicalRecords(APIView):
         recordid = data.get("recordid",None)
         files = data.get("files",None)
         filename =data.get("filename",None)
+
 
         if appointmentid in [None,""] or recordid in [None,""] or files in [None,""] or filename in [None , ""]:
             return display_response(
@@ -974,7 +1095,7 @@ class MedicalRecordsAppointments(APIView):
                 "currentappointmentid" : None,
             },
             "params" : 1,
-            "recordid" : None,
+            "recordid" : None
         }
         doctor = request.user
         data = request.query_params
@@ -1004,8 +1125,7 @@ class MedicalRecordsAppointments(APIView):
         json_data['recordid'] = recordid
         for i in serializer['records']:
             if i['deptid'] == doctor.department_id.id:
-                for j in i['records']: 
-                    print(j['created_at'])   
+                for j in i['records']:   
                     data = {
                             "appointmentid" : j['appointmentid'],
                             "doctorname"  : j['doctorname'],
@@ -1026,6 +1146,23 @@ class MedicalRecordsAppointments(APIView):
                     break
         else:
             json_data['presentbooking']['available'] = True
+
+
+        """
+            If the appointmentid query parameter is None,then populate with all the appointments available
+        """
+        if appointmentid in [None,""]:
+            get_all_appointments = Appointment.objects.filter(id=get_record.patientid,closed=True,cancelled=False)
+            if get_all_appointments is not None:
+                all_serializer = AppointmentSerializer(get_all_appointments,many=True,context={"request":request})
+                for x in all_serializer.data:
+                    data = {
+                            "appointmentid" : j['appointmentid'],
+                            "doctorname"  : j['doctorname'],
+                            "date" : dtt.strptime(j['created_at'], YmdHMSfz).strftime(dBY),
+                        }
+                    json_data['appointments'].append(data)
+
 
         if len(json_data['appointments']) > 0:
             json_data['isempty'] = False
@@ -1051,7 +1188,7 @@ class AppointmentReport(APIView):
         """
         json_data = {
             "isempty": False,
-            "appointmentid": None,
+            "appointmentid": None, 
             "recordid": None,
             "files": [],
         }
@@ -1103,6 +1240,90 @@ class AppointmentReport(APIView):
             body= json_data,
             statuscode=status.HTTP_200_OK
         )
+
+#--Patient and Their medical reports---
+class PatientAllReports(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self, request , format=None):
+        """
+            This view on passing patientid in query parameters returns the patient details and all the medical records of procedures format
+            ----------------------------------------------------------------
+            GET method:
+                patientid : [String,required] id of the patient in query_params
+        """
+        json_data = {
+            "isempty" : True,
+            "patient" : {},
+            "records" : [],
+        }
+        user = request.user
+        patientid = request.query_params.get("patientid",None)
+
+        if patientid in [None,""]:
+            return display_response(
+                msg="FAILED",
+                err="Invalid data given",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+        
+        get_patient = Patient.objects.filter(id=patientid).first()
+        if get_patient is None:
+            return display_response(
+                msg="FAILED",
+                err="Patient not found",
+                body=None,
+                statuscode=status.HTTP_400_BAD_REQUEST
+            )
+
+        serializer = PatientSerializer(get_patient,context={"request":request}).data
+        json_data['patient'] = serializer
+
+        appuser = User.objects.filter(id=serializer['appuser']).first()
+        if appuser is not None:
+            json_data['patient']['contact'] = appuser.mobile
+        else:
+            json_data['patient']['contact'] = None
+
+
+        records = MedicalRecords.objects.filter(patientid=patientid).order_by("-created_at")
+        records_serializer = MedicalRecordsSerializer(records,many=True,context={"request":request}).data
+        
+        for i in records_serializer:
+            if len(i['records']) > 0:
+                for j in i['records']:
+                    if j['deptid'] == user.department_id.id:
+                        doctor = Doctor.objects.filter(id=i['created_by']).first()
+                        data = {
+                            "id": i['id'],
+                            "title" : i['title'],
+                            "created_at" : dtt.strptime(str(i['created_at']), YmdTHMSfz).strftime(mdY),
+                            "created_by" : f"Dr. {doctor.name}"
+                        }
+                        json_data['records'].append(data)
+            else:
+                doctor = Doctor.objects.filter(id=i['created_by']).first()
+                data = {
+                    "id": i['id'],
+                    "title" : i['title'],
+                    "created_at" : dtt.strptime(str(i['created_at']), YmdTHMSfz).strftime(mdY),
+                    "created_by" :f"Dr. {doctor.name}"
+                }
+                json_data['records'].append(data)
+        
+        if len(json_data['records']) > 0:
+            json_data['isempty'] = False
+
+        return display_response(
+            msg="SUCCESS",
+            err=None,
+            body=json_data,
+            statuscode=status.HTTP_200_OK
+        )
+           
+
 
 #-------Get all Patients------------
 class AllPatients(APIView):
@@ -1727,6 +1948,7 @@ class AppointmentConsulted(APIView):
         get_appointment.consulted = True
         get_appointment.closed = True
         get_appointment.timeline['step3']['completed'] = True
+        get_appointment.timeline['step3']['time'] = str(dtt.now(IST_TIMEZONE).strftime(HMS))
 
         activitydata = {
             "activity" : "Appointment marked as visited by doctor",
@@ -1902,14 +2124,15 @@ class HomeScreen(APIView):
         }
 
         doctor = request.user
+        doc_serializer = DoctorSerializer(doctor,context={"request":request}).data
 
         """
             Get the doctor details
         """
         json_data['doctor'] = {
-            "name" : f"{doctor.name}",
-            "img" : f"{doctor.profile_img}",
-            "id" : f"{doctor.id}",
+            "name" : doc_serializer['name'],
+            "img" :doc_serializer['profile_img'],
+            "id" : doc_serializer['id'],
         }
 
         today = dtt.now(IST_TIMEZONE).strftime(Ymd)
@@ -1994,13 +2217,13 @@ class HomeScreen(APIView):
                 "id": m['id'],  
                 "patientid": m['patient_id'],
                 "patientname" : m['patient']['name'],
-                "img" : m['patient']['img'],
+                "img" : f"{m['patient']['img']}",
                 "date" : dtt.strptime(m['date'],Ymd).strftime(dBY),
                 "time" : dtt.strptime(m['time'],HMS).strftime(IMp),
             }   
             json_data['pendingappointments']['appointments'].append(data)
         json_data['pendingappointments']['totalappointment'] = pending_appointments.count()  
-
+        
         return display_response(
             msg="SUCCESS",
             err=None,
@@ -2045,6 +2268,13 @@ class SearchDrugs(APIView):
             body=serializer,
             statuscode=status.HTTP_200_OK
         )
+
+
+
+
+
+
+
 
 
 

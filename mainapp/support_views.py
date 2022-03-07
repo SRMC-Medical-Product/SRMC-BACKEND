@@ -1039,8 +1039,6 @@ class DoctorTicketDetails(APIView):
     def put(self , request , format=None):
         ticketid = request.query_params.get("ticketid",None)
         closed = request.data.get('closed')
-        print("1042")
-        print(request.user)
         if ticketid is None:
             return display_response(
                 msg = "FAILED",

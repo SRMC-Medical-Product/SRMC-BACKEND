@@ -163,8 +163,8 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
     date_date=return_date_type(date)   #convert string date to date object
     time_time=return_time_type(time)    #convert string time to time object
 
-    doctor_serialized_data=DoctorSerializer(doctor_).data
-    patient_serialized_data=PatientSerializer(patient_).data
+    doctor_serialized_data=DoctorSerializer(doctor_,context={"request":request}).data
+    patient_serialized_data=PatientSerializer(patient_,context={"request":request}).data
     patient_serialized_data['contact'] = appuser.mobile
 
     deptment = Department.objects.filter(id=doctor_serialized_data['department_id']['id']).first()
