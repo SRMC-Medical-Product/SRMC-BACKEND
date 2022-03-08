@@ -2029,7 +2029,7 @@ class AppointmentAnalytics(APIView):
         }
 
         doctor = request.user
-        get_appointments = Appointment.objects.filter(doctor_id=doctor.id)
+        get_appointments = Appointment.objects.filter(doctor_id=doctor.id).order_by('-date')
         serializer  = AppointmentSerializer(get_appointments,many=True,context={"request":request}).data
         for i in serializer: 
             data = {
@@ -2042,7 +2042,7 @@ class AppointmentAnalytics(APIView):
                 "defaultimg" : f"{i['patient']['name'][0:1]}",
                 "time" : self.convert_to_imp(i['time']),
                 "date" : self.convert_to_dBY(i['date']),
-                "status" : "Consulted" if i['consulted']==True else "Missed" if i['cancelled'] == True else "Completed",      
+                "status" : "Consulted" if i['consulted']==True else "Missed" if i['cancelled'] == True else "Pending" if i['closed'] ==False else "Completed",      
             }
             json_data['appointments'].append(data)
         json_data['totalappointment'] = get_appointments.count()
@@ -2087,7 +2087,7 @@ class WeeklyAppointmentAnalytics(APIView):
 
         previous_date = dtt.now() - timedelta(days=7)
 
-        query = Appointment.objects.filter(doctor_id=user.id,created_at__gte = previous_date).order_by("-created_at")       
+        query = Appointment.objects.filter(doctor_id=user.id,created_at__gte = previous_date).order_by('-date')      
         appointments = query.filter(closed=True)
         serializer = AppointmentSerializer(appointments,many=True,context={"request":request}).data
         for i in serializer:
