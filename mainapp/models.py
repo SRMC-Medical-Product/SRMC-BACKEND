@@ -236,6 +236,8 @@ class Appointment(models.Model):
     closed = models.BooleanField(default=False)
     counter = models.JSONField(default=dict,blank=True)
     activity = models.JSONField(default=dict,blank=True)
+    cancel_log = models.JSONField(default=dict,blank=True)
+    shift_log = models.JSONField(default=dict,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     modified_at=models.DateTimeField(auto_now=True)
     

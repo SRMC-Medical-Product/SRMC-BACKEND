@@ -799,7 +799,7 @@ class AppointmentCancel(APIView):
         """    
         aid = request.data.get('appointmentid',None)
         reason = request.data.get('reason', None)
-        print(request.data)
+
         if aid in [None , ""] or reason in [None,""]:
             return display_response(
                 msg = "ERROR",
@@ -809,7 +809,7 @@ class AppointmentCancel(APIView):
             )
 
         query = Appointment.objects.filter(id=aid).first()
-        print(query) 
+    
         serializer = AppointmentSerializer(query,context={'request' :request}).data
         
         """
@@ -838,13 +838,18 @@ class AppointmentCancel(APIView):
 
         user_serializer = HelpDeskUserSerializer(request.user,context={'request' :request}).data
 
-        # activity = {
-        #     "activity" : "Cancelled",
-        #     "reason" : reason,
-        #     "datetime" : str(dtt.now(IST_TIMEZONE)),
-        #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-        #     "user" : user_serializer
-        # }
+                    
+        cancel_activity = {
+            "activity" : "Cancelled",
+            "reason" : reason,
+            "datetime" : str(dtt.now(IST_TIMEZONE)),
+            "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+            "user" : user_serializer
+        }
+
+        query.cancel_log = cancel_activity
+        query.save()
+
         activitydata  = {
             "activity" : f'''The appointment has been cancelled by {request.user.name}. Help Desk User ID : {request.user.id}''',
             "log" : f'''Reason for cancellation : {reason}''',
@@ -1207,26 +1212,21 @@ class CancelAllAppointments(APIView):
                         "created_at" : str(dtt.now(IST_TIMEZONE).strftime(YmdHMS))
                     }
                     
-                    # activity = {
-                    #     "activity" : "Cancelled",
-                    #     "reason" : reason,
-                    #     "datetime" : str(dtt.now(IST_TIMEZONE)),
-                    #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-                    #     "user" : user_serializer
-                    # }
+                    cancel_activity = {
+                        "activity" : "Cancelled",
+                        "reason" : reason,
+                        "datetime" : str(dtt.now(IST_TIMEZONE)),
+                        "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+                        "user" : user_serializer
+                    }
 
-                    # if i.activity == {}:
-                    #     data = {
-                    #         "cancel" : activity,
-                    #     }
-                    #     i.activity = data
-                    # else:
-                    #     i.activity['cancel'] = activity
+                    i.cancel_log = cancel_activity
+                    i.save()
+
                     if i.activity == {}:
                         i.activity = [] 
                     i.activity.append(activitydata)
 
-                    print(activitydata)
                 
                     try:
                         pat_msg = f"Your appointment {i.id} has been cancelled. Please contact the counter for further details."
