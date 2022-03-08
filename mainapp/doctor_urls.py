@@ -27,6 +27,7 @@ urlpatterns=[
 
     path('e-prescription/',ElectronicPrescription.as_view(),name="e-prescription"),
     path('generate-prescription/',GenerateEPrescription.as_view(),name="generate-prescription"),
+    path('view-drugs/',AllMedicinesDrugs.as_view(),name="view-drugs"),
 
     path('appointment-consulted/',AppointmentConsulted.as_view(),name="appointment-consulted"),    
 

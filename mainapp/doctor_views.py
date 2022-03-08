@@ -5,7 +5,7 @@ from datetime import datetime as dtt,time,date,timedelta
 import json
 import uuid
 from webbrowser import get
-
+from django.db.models import Q
 from html5lib import serialize
 
 from myproject.responsecode import display_response,exceptiontype,exceptionmsg
@@ -1519,21 +1519,44 @@ class ElectronicPrescription(APIView):
                     Create Medical Prescription instance        
             """
             
+        """
+            Check if any un geneerated or cancel instance is present then re-use it for the particular appointment
+        """
 
-        MedicalPrescriptions.objects.create(
+        get_unused_instance = MedicalPrescriptions.objects.filter(
             patientid = get_appointment.patient_id,
             appointmentid = get_appointment.id,
             doctorid = doctor.id,
-            records = {
-                "title": "",
-                "medicines": [],
-                "created_at": dtt.now(IST_TIMEZONE).strftime(YmdTHMSfz),
-            }
-        )
+            generated= False,
+        ).first()
+
+        if get_unused_instance is None:
+            eprescrip = MedicalPrescriptions.objects.create(
+                patientid = get_appointment.patient_id,
+                appointmentid = get_appointment.id,
+                doctorid = doctor.id,
+                records = {
+                    "title": "",
+                    "medicines": [],
+                    "created_at": dtt.now(IST_TIMEZONE).strftime(YmdTHMSfz),
+                }
+            )
+            e_serializer = MedicalPrescriptionsSerializer(eprescrip,context={"request":request}).data
+        else:
+
+            get_unused_instance.records =  {
+                    "title": "",
+                    "medicines": [],
+                    "created_at": dtt.now(IST_TIMEZONE).strftime(YmdTHMSfz),
+                }
+            #TODO
+            #get_unused_instance.save()
+            e_serializer = MedicalPrescriptionsSerializer(get_unused_instance,context={"request":request}).data
+
         return display_response(
                 msg="SUCCESS",
                 err=None,
-                body=None,
+                body=e_serializer,
                 statuscode=status.HTTP_200_OK
             )
         
@@ -1593,8 +1616,8 @@ class ElectronicPrescription(APIView):
                     "dosage": [0,0,0,0], #only 4 values indication mn,af,ev,nt
                     "beforefood" : bool,
                     "afterfood" : bool,
-                    "qty" : int,
-                    "days" : int,
+                    "qty" : str,
+                    "days" : str,
                 }
         """
         user = request.user
@@ -1703,7 +1726,7 @@ class GenerateEPrescription(APIView):
             "patient" : {},
             "hospital" : {
                 "name" : "Sri Ramachandra Medical Hospital",
-                "loc" : "Porur, Chennai",
+                "loc" :     "Porur, Chennai",
                 "phone" : "044-24242424",
             },
             "recordid" : "",
@@ -1715,8 +1738,10 @@ class GenerateEPrescription(APIView):
         medicalid = data.get('medicalid',None)
         recordid = data.get("recordid",None)
         appointmentid = data.get("appointmentid",None)
+        prescriptiontitle = data.get("prescriptiontitle",None)
 
-        if medicalid is None or recordid is None or appointmentid is None:
+
+        if medicalid is None or recordid is None or appointmentid is None or prescriptiontitle is None:
             return display_response(
                 msg="FAILED",
                 err="Invalid data given",
@@ -1732,6 +1757,9 @@ class GenerateEPrescription(APIView):
                 body=None,
                 statuscode=status.HTTP_400_BAD_REQUEST
             )
+
+        get_medical.records['title'] = prescriptiontitle
+        get_medical.save()
 
         get_record = MedicalRecords.objects.filter(id=recordid).first()
         serializer = MedicalRecordsSerializer(get_record,context={"request":request}).data
@@ -2270,6 +2298,43 @@ class SearchDrugs(APIView):
         )
 
 
+#-----Medicines --------------
+class AllMedicinesDrugs(APIView):
+    authentication_classes = [DoctorAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            All medicines avaialble display
+            --------------------
+            GET method:
+                search : [String,required] search query
+        """
+
+        json_data = {
+            "isempty" : True,
+            "medicines" : [],
+        }
+
+        search = request.query_params.get("search",None)
+
+        query = Medicines.objects.all()
+
+        if search not in [None , ""]:
+            query = query.filter(Q(name__icontains=search))
+        
+        serializer = MedicinesSerializer(query,many=True,context={'request' :request}).data[0:6]
+        json_data['medicines'] = serializer
+
+        if len(json_data['medicines']) > 0:
+            json_data['isempty'] = False
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
 
 
 
