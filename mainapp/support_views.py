@@ -1996,6 +1996,8 @@ class DoctorDateSlotDetails(APIView):
 
 
 
+"""-----------------Re-Assignment of Patients View------------------------"""
+
 
 
 

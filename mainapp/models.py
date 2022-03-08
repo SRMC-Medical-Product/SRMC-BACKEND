@@ -237,9 +237,11 @@ class Appointment(models.Model):
     counter = models.JSONField(default=dict,blank=True)
     activity = models.JSONField(default=dict,blank=True)
     cancel_log = models.JSONField(default=dict,blank=True)
-    shift_log = models.JSONField(default=dict,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     modified_at=models.DateTimeField(auto_now=True)
+    #added newly to operate on views of shifting and token assigning
+    shift_log = models.JSONField(default=dict,blank=True)
+    token_no = models.CharField(max_length=256,null=True,blank=True)
     
     def __str__(self):
         return str(self.id)
