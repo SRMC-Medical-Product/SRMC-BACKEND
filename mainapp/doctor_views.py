@@ -67,7 +67,11 @@ class LoginDoctor(APIView):
                         },status=status.HTTP_400_BAD_REQUEST)
         
         """Checking Pin"""
+        print(pin)
         encrypted_doctor_pin=encrypt_doctor_pin(pin)
+        # doctor.pin = encrypted_doctor_pin
+        # doctor.save()
+        print(encrypted_doctor_pin)
         if encrypted_doctor_pin != doctor.pin:
             return Response({
                     "MSG":"FAILED",
