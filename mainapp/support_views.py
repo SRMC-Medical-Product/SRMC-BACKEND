@@ -2061,8 +2061,7 @@ class ReAssignSuggestions(APIView):
                 appointmentid : [String,required] id of the appointment in query_params
         """
 
-        json_data = {
-            "test" : [],
+        json_data = { 
             "isempty" : True,
             "doctors" : [],
             "deptid" : "",
