@@ -362,3 +362,93 @@ class DoctorSlotDetailsMain(APIView):
         )
 
 
+---------------------------------------------------------------------------------
+Timings update
+
+
+def perform_time_slots_validation_check(time_slots_,update_time_slot_,new_keys_,old_keys_,key_str):
+
+    for k in new_keys_:
+        if k in old_keys_:
+            if time_slots_[key_str][k]['count']==0:
+                update_time_slot_[k]['available']=False
+                update_time_slot_[k]['count']=0
+            else:
+                update_time_slot_[k]['available']=True
+                update_time_slot_[k]['count']=time_slots_[key_str][k]['count']
+        else:
+            update_time_slot_[k]['available']=True
+            update_time_slot_[k]['count']=0
+    
+    return time_slots_[key_str]
+    
+                """
+                    Check if the date is less or equal to today's date:
+                    If yes :
+                        add the time greater to that
+                        (perform_check)
+                    else:
+                        add the time available
+                        (perform_check)
+                    -----------------------------------
+                    perform_check:
+                        If new date ,then no validation required. If already present date,then need to check if the time_appointment_booking count is 
+                        already booked,then update that slot
+                """
+                if dtt.strptime(str(i),"%m/%d/%Y").strftime(Ymd) == dtt.now(IST_TIMEZONE).strftime(Ymd):
+                    """Then the updated date is current date"""
+                    print("---date is current date----")
+                else:
+                    """The updated date is not current date . Now perform_check"""
+                    
+                    old_mrng_keys = time_slots[i]['morning'].keys()
+                    old_aftn_keys = time_slots[i]['afternoon'].keys()
+                    old_evng_keys = time_slots[i]['evening'].keys()
+
+                    new_mrng_keys = morning_.keys()
+                    new_aftn_keys = afternoon_.keys()
+                    new_evng_keys = evening_.keys()
+
+                    print(old_mrng_keys)
+                    print(old_aftn_keys)
+                    print(old_evng_keys)
+                    print(new_mrng_keys)
+                    print(new_aftn_keys)
+                    print(new_evng_keys)
+
+                    mrng_  = perform_time_slots_validation_check(
+                        time_slots_ = time_slots[i],
+                        update_time_slot_ = morning_,
+                        new_keys_= new_mrng_keys,
+                        old_keys_ = old_mrng_keys,
+                        key_str = 'morning'
+                        )
+
+                    noon_  = perform_time_slots_validation_check(
+                        time_slots_ = time_slots[i],
+                        update_time_slot_ = afternoon_,
+                        new_keys_= new_aftn_keys,
+                        old_keys_ = old_aftn_keys,
+                        key_str = 'afternoon'
+                        )
+
+                    even_  = perform_time_slots_validation_check(
+                        time_slots_ = time_slots[i],
+                        update_time_slot_ = evening_,
+                        new_keys_= new_evng_keys,
+                        old_keys_ = old_evng_keys,
+                        key_str = 'evening'
+                        )
+                    print("-----------Before--------------------")
+                    print(time_slots[i])
+                    print("---update slots---")
+                    print(mrng_)
+                    # print(noon_)
+                    # print(even_)
+                    print("--------------------------------")
+
+                    time_slots[i]["morning"]= mrng_
+                    time_slots[i]["afternoon"]= noon_
+                    time_slots[i]["evening"]= even_
+
+                    slots_[i]=time_slots[i]

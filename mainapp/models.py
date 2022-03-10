@@ -220,8 +220,9 @@ class CategoryPromotion(models.Model):
 """
 
 class Appointment(models.Model):
-    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False) #TODO : setup signal to generate id
-    offline = models.BooleanField(default=True)    
+    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    offline = models.BooleanField(default=False)
+    online = models.BooleanField(default=True)    
     date = models.DateField(null=True,blank=True)
     time = models.TimeField(null=True,blank=True)
     doctor_id = models.CharField(max_length=256,null=True,blank=True)

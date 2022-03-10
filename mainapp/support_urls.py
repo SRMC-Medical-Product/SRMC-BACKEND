@@ -48,4 +48,8 @@ urlpatterns = [
     path('dept-doctors/',DeptDoctors.as_view() , name='dept-doctors'),
     path('doctor-date-slot-details/',DoctorDateSlotDetails.as_view() , name='doctor-date-slot-details'),
 
+    #---------------------------------Re-assign Appointment Bookingn--------------------
+    path('reassign-appointment-booking/',ReAssignSuggestions.as_view(), name='re-assign-appointment-booking'),
+    path('confirm-reassign/',ConfirmReAssign.as_view() , name='confirm-reassign'),
+
 ]

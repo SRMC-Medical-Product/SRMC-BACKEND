@@ -33,7 +33,7 @@ BLOOD = ["A+","A-","B+","B-","O+","O-","AB+","AB-"]
 
 
 #---------Appointment Booking Function-----
-def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
+def make_appointment_booking(request,patient_id_,date_,time_,doctor_id_,online=True):
     #TODO: validate if the patient id given is self or family member of a user....Date:16/02/2022-Aravind-unsolved
     #TODO: validate if the time and date is present in doctor schedule......Date:16/02/2022-Aravind-unsolved 
     """
@@ -120,10 +120,6 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
         return dataout    
     timeslots_json=doctor_timings_.timeslots
 
-    print(date)
-    print(time)
-    print(timeslots_json)
-
     #update doctor timeslot  by increasing the count
     try:
         timeslots_json=update_time_slots_json_for_appoinment(timeslots_json,date,time)
@@ -162,12 +158,14 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
         
     date_date=return_date_type(date)   #convert string date to date object
     time_time=return_time_type(time)    #convert string time to time object
-
+    
     doctor_serialized_data=DoctorSerializer(doctor_,context={"request":request}).data
     patient_serialized_data=PatientSerializer(patient_,context={"request":request}).data
+
     patient_serialized_data['contact'] = appuser.mobile
 
-    deptment = Department.objects.filter(id=doctor_serialized_data['department_id']['id']).first()
+    deptment = Department.objects.filter(id=doctor_serialized_data['department_id']).first()
+
     if deptment is None:
         dataout = {
             "MSG" : "FAILED",
@@ -176,6 +174,7 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
             "STATUS" : status.HTTP_400_BAD_REQUEST
         }
         return dataout
+
 
     """ Populate appoinment model """
     a=Appointment.objects.create(
@@ -189,6 +188,12 @@ def make_appointment_booking(patient_id_,date_,time_,doctor_id_):
                     doctor=doctor_serialized_data,
                     patient=patient_serialized_data
                             )
+
+    if online == False:
+        a.online = False
+        a.offline = True
+        a.save()
+
     appoinment_serializer=AppointmentSerializer(a).data
 
     doctor_timings_.timeslots=timeslots_json               #update doctor timings
@@ -2108,6 +2113,7 @@ class BookAppoinment(APIView):
         
         try:
             dataout = make_appointment_booking(
+                request = self.request,
                 patient_id_= patiend_id,
                 date_= date,
                 time_= time,
@@ -2621,4 +2627,7 @@ class AppointmentCancel(APIView):
             body = serializer,
             statuscode = status.HTTP_200_OK  
         )
+
+
+
 

@@ -134,6 +134,8 @@ class ModifyDoctorTimings(APIView):
         end_time=data.get("end_time",None)
         duration=data.get("duration",None)
 
+        print(end_time)
+
         if days in [None,""]:
             return Response({
                     "MSG":"FAILED",
@@ -166,7 +168,7 @@ class ModifyDoctorTimings(APIView):
         current_date=generate_current_date()  #imported from utils.py
         start_time=return_time_type(start_time)
         end_time=return_time_type(end_time)
-
+        print(end_time)
         if start_time>=end_time:
             return Response({
                         "MSG":"FAILED",
@@ -242,6 +244,7 @@ class ModifyDoctorTimings(APIView):
             
         availability=update_availabilty(availability,current_date,days_int)
         time_slots=calculate_time_slots(start_time,end_time,duration,availability,time_slots=time_slots)
+
         if id==None:
             doctor_timings_instance=DoctorTimings.objects.create(doctor_id=request.user,availability=availability,start_time=start_time,end_time=end_time,average_appoinment_duration=duration,timeslots=time_slots)
         else:
