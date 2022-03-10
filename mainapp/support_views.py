@@ -1112,7 +1112,7 @@ class AllDoctorTickets(APIView):
         get_depts = Department.objects.filter(id__in=depts_list)
         query = DoctorTickets.objects.filter(dept__in = get_depts).order_by('-created_at')
  
-        if closed in [True ,'True']:
+        if closed in [True ,'True' , 'true']:
             query = query.filter(closed=True)
             json_data['selected_closed'] = True
         else:
