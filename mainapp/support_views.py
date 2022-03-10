@@ -799,7 +799,7 @@ class AppointmentCancel(APIView):
         """    
         aid = request.data.get('appointmentid',None)
         reason = request.data.get('reason', None)
-        print(request.data)
+
         if aid in [None , ""] or reason in [None,""]:
             return display_response(
                 msg = "ERROR",
@@ -809,7 +809,7 @@ class AppointmentCancel(APIView):
             )
 
         query = Appointment.objects.filter(id=aid).first()
-        print(query) 
+    
         serializer = AppointmentSerializer(query,context={'request' :request}).data
         
         """
@@ -838,13 +838,18 @@ class AppointmentCancel(APIView):
 
         user_serializer = HelpDeskUserSerializer(request.user,context={'request' :request}).data
 
-        # activity = {
-        #     "activity" : "Cancelled",
-        #     "reason" : reason,
-        #     "datetime" : str(dtt.now(IST_TIMEZONE)),
-        #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-        #     "user" : user_serializer
-        # }
+                    
+        cancel_activity = {
+            "activity" : "Cancelled",
+            "reason" : reason,
+            "datetime" : str(dtt.now(IST_TIMEZONE)),
+            "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+            "user" : user_serializer
+        }
+
+        query.cancel_log = cancel_activity
+        query.save()
+
         activitydata  = {
             "activity" : f'''The appointment has been cancelled by {request.user.name}. Help Desk User ID : {request.user.id}''',
             "log" : f'''Reason for cancellation : {reason}''',
@@ -1051,8 +1056,6 @@ class DoctorTicketDetails(APIView):
     def put(self , request , format=None):
         ticketid = request.query_params.get("ticketid",None)
         closed = request.data.get('closed')
-        print("1042")
-        print(request.user)
         if ticketid is None:
             return display_response(
                 msg = "FAILED",
@@ -1209,26 +1212,21 @@ class CancelAllAppointments(APIView):
                         "created_at" : str(dtt.now(IST_TIMEZONE).strftime(YmdHMS))
                     }
                     
-                    # activity = {
-                    #     "activity" : "Cancelled",
-                    #     "reason" : reason,
-                    #     "datetime" : str(dtt.now(IST_TIMEZONE)),
-                    #     "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
-                    #     "user" : user_serializer
-                    # }
+                    cancel_activity = {
+                        "activity" : "Cancelled",
+                        "reason" : reason,
+                        "datetime" : str(dtt.now(IST_TIMEZONE)),
+                        "time" : str(dtt.now(IST_TIMEZONE).strftime(HMS)),
+                        "user" : user_serializer
+                    }
 
-                    # if i.activity == {}:
-                    #     data = {
-                    #         "cancel" : activity,
-                    #     }
-                    #     i.activity = data
-                    # else:
-                    #     i.activity['cancel'] = activity
+                    i.cancel_log = cancel_activity
+                    i.save()
+
                     if i.activity == {}:
                         i.activity = [] 
                     i.activity.append(activitydata)
 
-                    print(activitydata)
                 
                     try:
                         pat_msg = f"Your appointment {i.id} has been cancelled. Please contact the counter for further details."
@@ -1696,12 +1694,19 @@ class OfflineAppointmentBooking(APIView):
                     body=None,
                     statuscode=status.HTTP_400_BAD_REQUEST
                 ) 
+        
+
         try:
+            date_format = dtt.strptime(date,dmY).strftime("%m/%d/%Y")
+            time_format = dtt.strptime(time,IMp).strftime(HMS)
+
             dataout = make_appointment_booking(
+                request = self.request,
                 patient_id_= check_patient.id,
-                date_= date,
-                time_= time,
-                doctor_id_= doctor_id
+                date_= date_format,
+                time_= time_format,
+                doctor_id_= doctor_id,
+                online=False
             )
             return display_response(
                 msg = dataout['MSG'],
@@ -1882,23 +1887,40 @@ class DoctorDateSlotDetails(APIView):
         timings = DoctorTimings.objects.filter(doctor_id=doctor).first() 
         timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
         dates_arr = []
+
+
+        if timings is None:
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+
+
         for j in timings.availability['dates_arr']:
             if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) >=  dtt.now(IST_TIMEZONE).strftime(Ymd):
                 dt = dtt.strptime(j, "%m/%d/%Y").strftime(dmY)
-            #TODO (REview): added ['date'] since we need key value pair for drop down in react js
                 data = {
                     "date" : dt,
                 }
                 dates_arr.append(data)
         json_data['dates'] = dates_arr
 
+        if len(dates_arr) == 0:
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+
+
         if querydate is None:
-            #TODO (review) : added ['date'] since we need key value pair for drop down in react js
-            # querydate = dtt.strptime(dates_arr[0],dmY).strftime("%m/%d/%Y")
             querydate = dtt.strptime(dates_arr[0]['date'],dmY).strftime("%m/%d/%Y")
             json_data['selecteddate'] = dates_arr[0]
         else:
-            if querydate not in dates_arr:
+            if querydate not in [ x['date'] for x in dates_arr]:
                 return display_response(
                     msg = "FAILURE",
                     err= "Date is not available",
@@ -1927,13 +1949,26 @@ class DoctorDateSlotDetails(APIView):
         mrngarr = timings.timeslots[querydate]['morning'] 
         morning_slots = mrngarr.keys()
 
+
+        added_time_ = str(dtt.now(IST_TIMEZONE)) #FIXME : check if needed : + timedelta(minutes=int(timings.average_appoinment_duration)*2))
+        add_date_format = dtt.strptime(added_time_,YmdHMSfz).strftime(HMS)
+
+
         for x in morning_slots:
             if mrngarr[x]['available'] == True:
-                data = {
-                    "time" : dtt.strptime(x, HMS).strftime(IMp),
-                    "count" : mrngarr[x]['count']
-                }
-                json_data['morning']['slots'].append(data)
+                if querydate == dtt.now(IST_TIMEZONE).strftime("%m/%d/%Y"):
+                    if dtt.strptime(x, HMS) > dtt.strptime(add_date_format,HMS):
+                        data = {
+                            "time" : dtt.strptime(x, HMS).strftime(IMp),
+                            "count" : mrngarr[x]['count']
+                        }
+                        json_data['morning']['slots'].append(data)
+                else:
+                    data = {
+                        "time" : dtt.strptime(x, HMS).strftime(IMp),
+                        "count" : mrngarr[x]['count']
+                    }
+                    json_data['morning']['slots'].append(data)
         if len(json_data['morning']['slots']) > 0:
             json_data['morning']['isempty'] = False
 
@@ -1955,12 +1990,20 @@ class DoctorDateSlotDetails(APIView):
         
         for y in noon_slots:
             if noonarr[y]['available'] == True:
-                data = {
-                    "time" : dtt.strptime(y,HMS).strftime(IMp),
-                    "count" : noonarr[y]['count']
-                }
-                json_data['afternoon']['slots'].append(data)
-                
+                if querydate == dtt.now(IST_TIMEZONE).strftime("%m/%d/%Y"):
+                    if dtt.strptime(y, HMS) > dtt.strptime(add_date_format,HMS):
+                        data = {
+                            "time" : dtt.strptime(y,HMS).strftime(IMp),
+                            "count" : noonarr[y]['count']
+                        }
+                        json_data['afternoon']['slots'].append(data)
+                else:
+                    data = {
+                        "time" : dtt.strptime(y,HMS).strftime(IMp),
+                        "count" : noonarr[y]['count']
+                    }
+                    json_data['afternoon']['slots'].append(data)
+                    
         if len(json_data['afternoon']['slots']) > 0:
             json_data['afternoon']['isempty'] = False
  
@@ -1980,11 +2023,19 @@ class DoctorDateSlotDetails(APIView):
         evening_slots = eveningarr.keys()
         for z in evening_slots:
             if eveningarr[z]['available'] == True:
-                data = {
-                    "time" : dtt.strptime(z,HMS).strftime(IMp),
-                    "count" : eveningarr[z]['count']
-                }
-                json_data['evening']['slots'].append(data)
+                if querydate == dtt.now(IST_TIMEZONE).strftime("%m/%d/%Y"):
+                    if dtt.strptime(z, HMS) > dtt.strptime(add_date_format,HMS):
+                        data = {
+                            "time" : dtt.strptime(z,HMS).strftime(IMp),
+                            "count" : eveningarr[z]['count']
+                        }
+                        json_data['evening']['slots'].append(data)
+                else:        
+                    data = {
+                        "time" : dtt.strptime(z,HMS).strftime(IMp),
+                        "count" : eveningarr[z]['count']
+                    }
+                    json_data['evening']['slots'].append(data)
                 
         if len(json_data['evening']['slots']) > 0:
             json_data['evening']['isempty'] = False
@@ -1997,19 +2048,253 @@ class DoctorDateSlotDetails(APIView):
         )
 
 
+"""-----------------Re-Assignment of Patients View------------------------"""
+class ReAssignSuggestions(APIView):
+
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def get(self , request , format=None):
+        """
+            Get the suggestions for re-assigning patients to other available doctors.
+            GET method:
+                appointmentid : [String,required] id of the appointment in query_params
+        """
+
+        json_data = {
+            "test" : [],
+            "isempty" : True,
+            "doctors" : [],
+            "deptid" : "",
+            "aid" : "",
+            'date' : "",
+        }
+
+        aid = request.query_params.get('appointmentid',None)
+        if aid is None:
+            return display_response(
+                msg = "FAILED",
+                err= "appointmentid is required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        appointment = Appointment.objects.filter(id=aid).first()
+        if appointment is None:
+            return display_response(
+                msg = "FAILED",
+                err= "appointmentid is invalid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        """
+            Get the dept_id from the query and show the available doctor slots for the day.
+        """
+        get_dept = Department.objects.filter(id=appointment.dept_id).first()
+        if get_dept is None:
+            return display_response(
+                msg = "FAILED",
+                err= "dept_id is invalid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        json_data['deptid'] = get_dept.id
+        json_data['aid'] = aid
+        json_data['date'] = dtt.strptime(str(appointment.date),Ymd).strftime(dmY)
+
+        """
+            Get the doctor_id from the query and show the available doctor slots for the day.
+        """
+        get_doctor = Doctor.objects.filter(department_id=get_dept,is_blocked=False)
+        if get_doctor is None:
+            return display_response(
+                msg = "SUCCESS",
+                err= None,
+                body = json_data,
+                statuscode = status.HTTP_200_OK
+            )
+
+        doc_serialize = DoctorSerializer(get_doctor,many=True,context={'request' :request}).data
+        
+        """
+            First for loop used for adding the doctor data to the json_data
+        """
+        for i in doc_serialize:
+            doctor_data = {
+                "id" : i['id'],
+                "doctor_id" : i['doctor_id'],
+                "name" : i['name'],
+                "experience" : i['experience'],
+                "gender" : i['gender'],
+                "qualification" : i['qualification'],
+                "specialisation" : i['specialisation'],
+                "defaultimg" : i['name'][0:1],
+                "dates" : "",
+            }  
+
+            timings = DoctorTimings.objects.filter(doctor_id__id=i['id']).first() 
+            timings_serializer = DoctorTimingsSerializer(timings,context={'request' :request}).data
+            
+            dates_arr = []
+
+            if timings is None:
+                break
+        
+            for j in timings.availability['dates_arr']:
+                if (dtt.strptime(j, "%m/%d/%Y").strftime(Ymd)) ==  dtt.strptime(str(appointment.date),Ymd).strftime(Ymd):
+                    doctor_data['dates'] = j
+                    dates_arr.append(j)
+                    break
+            
+            if len(dates_arr) == 0:
+                break
+            
+            json_data['doctors'].append(doctor_data)
 
 
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = json_data,
+            statuscode = status.HTTP_200_OK
+        )
+
+class ConfirmReAssign(APIView):
+    authentication_classes = [HelpDeskAuthentication]
+    permission_classes = []
+
+    def post(self, request, format=None):
+        """
+            Reassigning a patient to another doctor.
+            ----------------
+            POST method:
+                appointmentid : [String,required] id of the appointment
+                doctorid : [String,required] id of the doctor
+                reason : [String,required] reason of the appointment change
+                time : [String,required] time of the appointment change in ['hh:mm:ss']
+        """
+
+        data = request.data
+        appointmentid = data.get('appointmentid',None)
+        doctorid = data.get('doctorid',None)
+        reason = data.get('reason',None)
+        time = data.get('time',None)
+        
+        validation_arr=["",None]
+
+        if appointmentid in validation_arr or doctorid in validation_arr or reason in validation_arr or time in validation_arr:
+            return display_response(
+                msg = "FAILED",
+                err= "appointmentid, time, doctorid and reason are required",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        appointment = Appointment.objects.filter(id=appointmentid).first()
+        serializer = AppointmentSerializer(appointment,context={'request' :request}).data
+        if appointment is None:
+            return display_response(
+                msg = "FAILED",
+                err= "appointmentid is invalid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
 
 
+        doctor = Doctor.objects.filter(id=doctorid).first()
+        doc_serializer = DoctorSerializer(doctor,context={"request":request}).data
+        if doctor is None:
+            return display_response(
+                msg = "FAILED",
+                err= "doctorid is invalid",
+                body = None,
+                statuscode = status.HTTP_400_BAD_REQUEST
+            )
+
+        old_doctor = Doctor.objects.filter(id=serializer['doctor_id']).first()      
+        old_doc_serializer =DoctorSerializer(doctor,context={"request":request}).data
+        
+        """
+            Performing History Update of the Previous Appointment
+        """
+        if appointment.shift_log == {} or appointment.shift_log is None:
+            appointment.shift_log = {
+                "previousappointment": serializer,
+                "reason" : reason,
+                "old_doctor_id" : serializer['doctor_id'],
+                "old_time" : serializer['time'],
+                'old_doctor' : old_doc_serializer,
+            }   
+        else:
+            appointment.shift_log['previousappointment'] =  serializer
+            appointment.shift_log["reason"] = reason
+            appointment.shift_log["old_doctor_id"] = serializer['doctor_id']
+            appointment.shift_log["old_time"] =  serializer['time']
+            appointment.shift_log['old_doctor'] = old_doc_serializer
+             
+        appointment.save()
 
 
+        """
+            Update the new details of the appointment and doctor
+        """
 
+        activitydata  = {
+            "activity" : f'''The appointment has been re-assigned by {request.user.name}. Help Desk User ID : {request.user.id}''',
+            "log" : f'''Reason for reassigning : {reason}''',
+            "created_at" : str(dtt.now(IST_TIMEZONE).strftime(dBYIMp))
+        }
 
+        appointment.doctor_id = str(doctor.id)
+        appointment.time = dtt.strftime(str(time),HMS)
+        appointment.doctor = doc_serializer
+        appointment.reassigned = True
+        
+        if appointment.activity == {} or appointment.activity is None:
+            appointment.activity = []
+        appointment.activity.append(activitydata)
 
+        appointment.save()
 
+        """
+            Update the activity log of the help desk user
+        """
+        helpdesk = HelpDeskUser.objects.filter(id=request.user.id).first()
+        try:
+            activity = {
+                "msg" : f"Appointment Id : {appointment.id} has been re-assigned from Dr. {old_doc_serializer['name']} to Dr. {doc_serializer['name']} due to {reason}",
+                "time" : dtt.now(IST_TIMEZONE).strftime(IMp),
+                "date" : dtt.now(IST_TIMEZONE).strftime(dmY),
+                "datetime" :str(dtt.now(IST_TIMEZONE))
+            }
+            if helpdesk.activity == {}:
+                helpdesk.activity =  {
+                    "login" : [],
+                    "logout" : [],
+                    "log" : [],
+                }
 
+            helpdesk.activity['log'].append(activity)
+            helpdesk.save()
+        except Exception as e:
+            pass
 
-
-
-
-
+        
+        try:
+            msg = f"Your Appointment Id : {appointment.id} has been re-assigned from Dr. {old_doc_serializer['name']} to Dr. {doc_serializer['name']} due to {reason}"
+            create_patient_notification(
+                patientid=appointment.patient_id,
+                msg = msg
+            )
+        except Exception as e:
+            pass
+        
+        
+        return display_response(
+            msg = "SUCCESS",
+            err= None,
+            body = None,
+            statuscode = status.HTTP_200_OK
+        )

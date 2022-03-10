@@ -1,7 +1,7 @@
 import datetime
 import time
 import pytz
- 
+from datetime import datetime as dtt
 
 '''Time Formatting'''
 IST_TIMEZONE = pytz.timezone('Asia/Kolkata')
@@ -64,13 +64,16 @@ def return_date_type(date:str):
     date_date=datetime.date(int(date_[2]),int(date_[0]),int(date_[1]))
 
     return date_date
-    
+
+
+
 def calculate_time_slots(start_time,end_time,duration,availabilty,time_slots=None):
     if time_slots:
         
         time_slots_arr=list(time_slots.keys())
         dates_arr=availabilty["dates_arr"]
 
+        
         final_=[]
         new_=[]
         old_=[]
@@ -100,6 +103,7 @@ def calculate_time_slots(start_time,end_time,duration,availabilty,time_slots=Non
         start_=datetime.datetime.combine(start_,start_time)
         end_=datetime.datetime.combine(end_,end_time)
 
+
         twelve_=datetime.datetime.combine(datetime.date(1,1,1),datetime.time(12,0,0))
         five_=datetime.datetime.combine(datetime.date(1,1,1),datetime.time(17,0,0))
         while start_<end_:
@@ -110,12 +114,10 @@ def calculate_time_slots(start_time,end_time,duration,availabilty,time_slots=Non
             else:
                 evening_[start_.time().strftime("%H:%M:%S")]=slot_availabilty_
             start_=start_+datetime.timedelta(minutes=duration)
-        
+
         for i in final_:
             if i in old_:
-                
                 slots_[i]=time_slots[i]
-                
             else:
                 slots_[i]={
                     "morning":{},
@@ -167,7 +169,6 @@ def calculate_time_slots(start_time,end_time,duration,availabilty,time_slots=Non
             slots_[j]["evening"]=evening_
         
         return slots_
-
 
 
 def update_time_slots_json_for_appoinment(time_slots_json:dict,date:str,time:str)->dict:

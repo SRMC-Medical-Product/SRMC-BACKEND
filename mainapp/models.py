@@ -220,8 +220,9 @@ class CategoryPromotion(models.Model):
 """
 
 class Appointment(models.Model):
-    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False) #TODO : setup signal to generate id
-    offline = models.BooleanField(default=True)    
+    id=models.CharField(max_length=256,primary_key=True,unique=True,editable=False)
+    offline = models.BooleanField(default=False)
+    online = models.BooleanField(default=True)    
     date = models.DateField(null=True,blank=True)
     time = models.TimeField(null=True,blank=True)
     doctor_id = models.CharField(max_length=256,null=True,blank=True)
@@ -236,8 +237,12 @@ class Appointment(models.Model):
     closed = models.BooleanField(default=False)
     counter = models.JSONField(default=dict,blank=True)
     activity = models.JSONField(default=dict,blank=True)
+    cancel_log = models.JSONField(default=dict,blank=True)
     created_at=models.DateTimeField(auto_now_add=True)
     modified_at=models.DateTimeField(auto_now=True)
+    #added newly to operate on views of shifting and token assigning
+    shift_log = models.JSONField(default=dict,blank=True)
+    token_no = models.CharField(max_length=256,null=True,blank=True)
     
     def __str__(self):
         return str(self.id)
@@ -338,7 +343,7 @@ class DoctorTickets(models.Model):
             "created_at" : "date",
             "records" : [
                 {
-                    "appointmentid" : "id",
+                    "Patient" : "id",
                     "doctorname" : "",
                     "created_at" : "date",
                     "date" : "appointmentdate",

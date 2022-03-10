@@ -1,6 +1,8 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
+23)Re-Assigning the patient to another doctor
+
 ================================================
 
 
@@ -32,4 +34,5 @@ Coded Screens
 20)Cancel All Appointments
 21)Patient and Doctor Tickets
 22)Search and Filter of appointments
+23)Re-Assigning the patient to another doctor
 ----------------------------------------------

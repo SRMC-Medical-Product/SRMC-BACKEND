@@ -1,6 +1,7 @@
 ==============================================
 API View Todo Screen
 ----------------------------------------------
+23)Validating Appointment bookings for the particular day and time slots_
 ================================================
 
 
@@ -29,4 +30,5 @@ Coded Screens
 20)Notifications Screen
 21)doctor Result Screens Filtering
 22)Patient Tickets
+23)Validating Appointment bookings for the particular day and time slots
 ================================================
