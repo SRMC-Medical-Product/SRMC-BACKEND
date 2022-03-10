@@ -1574,6 +1574,7 @@ class OfflineAppointmentBooking(APIView):
         new_family_member = data.get('new_family_member',False) #Required
         new_member_name = data.get('new_member_name',None) #Required if new family member is True
         new_member_relation = data.get('new_member_relation',None) #Required if new family member is True
+        existing_mobile = data.get('existing_mobile',False) #Required if new family member is True
 
         patiend_id=data.get("patient_id",None)
         date=data.get("date") # Required
@@ -1626,7 +1627,7 @@ class OfflineAppointmentBooking(APIView):
 
         """Checking if the family member is new user,if new user then create the user instance and patient instance"""
         if new_family_member in [True ,'True']:
-            if new_member_name in validation_arr or new_member_relation in validation_arr or final_patient_id in validation_arr:
+            if new_member_name in validation_arr or new_member_relation in validation_arr or existing_mobile in validation_arr:
                 return display_response(
                     msg="FAILED",
                     err="Invalid data given of family member",
@@ -1634,15 +1635,7 @@ class OfflineAppointmentBooking(APIView):
                     statuscode=status.HTTP_400_BAD_REQUEST
                 )
             else:
-                get_patient_user = Patient.objects.filter(id=final_patient_id).first()
-                if get_patient_user is None:
-                    return display_response(
-                        msg="FAILED",
-                        err="Invalid patient id",
-                        body=None,
-                        statuscode=status.HTTP_400_BAD_REQUEST
-                    )
-                get_app_user = User.objects.filter(id=get_patient_user.appuser).first()
+                get_app_user = User.objects.filter(mobile=existing_mobile).first()
                 if get_app_user is None:
                     return display_response(
                         msg="FAILED",
