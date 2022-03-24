@@ -299,6 +299,7 @@ class DoctorProfile(APIView):
         doctor_instance = Doctor.objects.filter(id=request.user.id).first()
         doctor_serializer = DoctorSerializer(doctor_instance,context={'request' :request}).data
         i = doctor_serializer 
+
         data = {
                 "id":i["id"],
                 "phone" :i["phone"],
@@ -315,8 +316,38 @@ class DoctorProfile(APIView):
                 "deptid" : i["department_id"]['id'],
                 "deptname" : i['department_id']['name'],
                 "counter" : i['department_id']["counter"],
+                "timings" : {
+                    "days" : [],
+                    "dates_arr" : [],
+                    "start_time" :"",
+                    "end_time" : "",
+                    "duration" : ""
+                }
         }
         json_data = data
+
+ 
+        doctor_timings_instance=DoctorTimings.objects.filter(doctor_id=doctor_instance).first()
+        if doctor_timings_instance is not None:
+            timings_serializer = DoctorTimingsSerializer(doctor_timings_instance,context={"request":request}).data
+
+            days_lst = []
+            for i in timings_serializer['availability']['days']:
+                data = {
+                    "day":i['day'],
+                    "available":i['available'],
+                }    
+                json_data['timings']['days'].append(data)
+
+            time_slots_lst = []
+            for i in timings_serializer['availability']['dates_arr']:
+                dtt_strp = dtt.strptime(i, '%m/%d/%Y').strftime(dmY)
+                json_data['timings']['dates_arr'].append(dtt_strp)
+
+
+            json_data['timings']['start_time'] = dtt.strptime(str(timings_serializer['start_time']),HMS).strftime(IMp)
+            json_data['timings']['end_time'] = dtt.strptime(str(timings_serializer['end_time']),HMS).strftime(IMp)
+            json_data['timings']['duration'] = timings_serializer['average_appoinment_duration']
 
         return display_response(
             msg="SUCCESS",
