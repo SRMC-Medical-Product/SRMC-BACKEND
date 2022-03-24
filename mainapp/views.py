@@ -1259,16 +1259,17 @@ class DoctorSlotDetails(APIView):
             json_data['selectedfamilymember'] = user_mem
         members.append(user_mem)
 
-        if user.family_members is not None:
-            for i in user.family_members:
-                mem = {
-                    "id" : i['id'],
-                    "name" : i['name'],
-                    "selected" : i['selected'],
-                }
-                if i['selected'] == True:
-                    json_data['selectedfamilymember'] = mem
-                members.append(mem)    
+        if (user.family_members != None):
+            if len(user.family_members) > 0 :
+                for i in user.family_members:
+                    mem = {
+                        "id" : i['id'],
+                        "name" : i['name'],
+                        "selected" : i['selected'],
+                    }
+                    if i['selected'] == True:
+                        json_data['selectedfamilymember'] = mem
+                    members.append(mem)    
 
         json_data['familymembers'] = members
         
@@ -1782,8 +1783,10 @@ class AppointmentHistory(APIView):
 
         patients_id = []
         patients_id.append(user.patientid)
-        for mem in user.family_members:
-            patients_id.append(mem['id'])
+        if (user.family_members != None):
+            if len(user.family_members) > 0 :
+                for mem in user.family_members:
+                    patients_id.append(mem['id'])
 
         query = Appointment.objects.filter(patient_id__in=patients_id,closed=True).order_by('-created_at').all()
         serializer = AppointmentSerializer(query,many=True,context={"request":request})
@@ -1843,9 +1846,10 @@ class PendingAppointment(APIView):
         patients_id = []
         patients_id.append(user.patientid)
 
-        if user.family_members is not None:
-            for mem in user.family_members:
-                patients_id.append(mem['id'])
+        if (user.family_members != None):
+            if len(user.family_members) > 0 :
+                for mem in user.family_members:
+                    patients_id.append(mem['id'])
     
         if search_type == 1:
             query = Appointment.objects.filter(patient_id__in = patients_id,closed=False,date=current_date).order_by('-created_at').all()
@@ -2316,15 +2320,16 @@ class FamilyMedicalRecord(APIView):
         }
         json_data['members'].append(user_data)
 
-        if user.family_members is not None:
-            for i in user.family_members:
-                data = {
-                    "patientid" : f"{i['id']}",
-                    "name" : f"{i['name']}",
-                    "img" : f"{i['img']}",
-                    "relation" : f"{i['relation']}"
-                }
-                json_data['members'].append(data)
+        if (user.family_members != None):
+            if len(user.family_members) > 0 :
+                for i in user.family_members:
+                    data = {
+                        "patientid" : f"{i['id']}",
+                        "name" : f"{i['name']}",
+                        "img" : f"{i['img']}",
+                        "relation" : f"{i['relation']}"
+                    }
+                    json_data['members'].append(data)
 
         if len(json_data['members']) > 0:
             json_data['isempty'] = False
